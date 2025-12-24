@@ -223,7 +223,7 @@ importers:
         specifier: ^16.0.0
         version: 16.5.0
       tailwindcss:
-        specifier: ^4.1.11
+        specifier: ^4.1.18
         version: 4.1.18
       typescript:
         specifier: ~5.7.2
