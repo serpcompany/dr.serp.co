@@ -9,17 +9,17 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;')
 }
 
-function renderPage({ target, domainRating, provider, errorMessage, baseUrl }) {
+function renderPage({ target, domainRating, provider, errorMessage, baseUrl, badgeBaseUrl }) {
   const safeTarget = escapeHtml(target)
   const badgePath = `/badge/${encodeURIComponent(target)}`
-  const badgeUrl = `${baseUrl}${badgePath}`
+  const badgeUrl = `${badgeBaseUrl}${badgePath}`
   const pageUrl = `${baseUrl}/${encodeURIComponent(target)}`
   const title = `DR for ${safeTarget} | SERP`
   const description =
     domainRating !== null
       ? `Verified Domain Rating for ${safeTarget}: ${domainRating}.`
       : `Live Domain Rating check for ${safeTarget}.`
-  const embedSnippet = `<a href="${pageUrl}"><img src="${badgeUrl}" alt="Verified DR for ${safeTarget}" width="200" height="50"></a>`
+  const embedSnippet = `<a href="${pageUrl}" target="_blank" rel="noopener noreferrer"><img src="${badgeUrl}" alt="Verified DR for ${safeTarget}" width="200" height="50"></a>`
 
   return `<!doctype html>
 <html lang="en">
@@ -88,9 +88,8 @@ export default async function handler(req, res) {
     return
   }
 
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'dr.serp.co'
-  const proto = req.headers['x-forwarded-proto'] || 'https'
-  const baseUrl = `${proto}://${host}`
+  const baseUrl = process.env.DR_PUBLIC_BASE_URL || 'https://dr.serp.co'
+  const badgeBaseUrl = process.env.DR_BADGE_BASE_URL || 'https://embeds.serp.co'
 
   try {
     const result = await fetchDomainRating({ target: normalizedTarget })
@@ -101,6 +100,7 @@ export default async function handler(req, res) {
         provider: result.provider,
         errorMessage: result.message || 'Provider requires CAPTCHA',
         baseUrl,
+        badgeBaseUrl,
       })
       res.setHeader('Content-Type', 'text/html; charset=utf-8')
       res.setHeader('Cache-Control', 'no-store')

@@ -257,10 +257,12 @@ function App() {
 
   const domainRatingInt = data ? Math.floor(data.domainRating) : null
   const badgeTarget = data?.target || domain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '')
-  const badgeUrl = badgeTarget ? `${window.location.origin}/badge/${encodeURIComponent(badgeTarget)}` : ''
-  const pageUrl = badgeTarget ? `${window.location.origin}/${encodeURIComponent(badgeTarget)}` : ''
+  const publicBase = import.meta.env.VITE_PUBLIC_BASE_URL || 'https://dr.serp.co'
+  const badgeBase = import.meta.env.VITE_BADGE_BASE_URL || 'https://embeds.serp.co'
+  const badgeUrl = badgeTarget ? `${badgeBase}/badge/${encodeURIComponent(badgeTarget)}` : ''
+  const pageUrl = badgeTarget ? `${publicBase}/${encodeURIComponent(badgeTarget)}` : ''
   const embedSnippet = badgeUrl && pageUrl
-    ? `<a href="${pageUrl}"><img src="${badgeUrl}" alt="Verified DR for ${badgeTarget}" width="200" height="50"></a>`
+    ? `<a href="${pageUrl}" target="_blank" rel="noopener noreferrer"><img src="${badgeUrl}" alt="Verified DR for ${badgeTarget}" width="200" height="50"></a>`
     : ''
 
   const handleCopyEmbed = async () => {
@@ -461,7 +463,7 @@ function App() {
               {badgeUrl && pageUrl && (
                 <div className="mb-8 rounded-lg border border-border p-4 flex flex-col items-center gap-2">
                   <img src={badgeUrl} alt={`Verified DR for ${badgeTarget}`} width={200} height={50} />
-                  <a href={pageUrl} className="text-sm text-primary underline">
+                  <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">
                     View your public page
                   </a>
                   <div className="w-full">
