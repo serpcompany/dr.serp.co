@@ -11,6 +11,28 @@ import { DrRadialShape } from "./dr-radial-shape"
 
 export const runtime = "nodejs"
 
+async function getDrFromBadgeSvg(badgeUrl: string): Promise<number | null> {
+  try {
+    const res = await fetch(badgeUrl, {
+      cache: "no-store",
+      headers: { accept: "image/svg+xml,text/plain;q=0.9,*/*;q=0.8" },
+    })
+    if (!res.ok) return null
+    const svg = await res.text()
+
+    const match = svg.match(/<tspan[^>]*>(\d{1,3})<\/tspan>/i)
+    if (!match) return null
+
+    const value = Number(match[1])
+    if (!Number.isFinite(value)) return null
+
+    const clamped = Math.max(0, Math.min(100, Math.floor(value)))
+    return Number.isFinite(clamped) ? clamped : null
+  } catch {
+    return null
+  }
+}
+
 export default async function SitePage({ params }: { params: Promise<{ target: string }> }) {
   const { target } = await params
   const domain = normalizeTarget(target)
@@ -56,6 +78,17 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
   }
 
   let checks = await getDrChecks(domain, { limit: 60 })
+  if ((domainRating === null || !Number.isFinite(domainRating)) && checks.length === 0) {
+    const badgeDr = await getDrFromBadgeSvg(badgeUrl)
+    if (badgeDr !== null) {
+      domainRating = badgeDr
+      providerForStorage = null
+      lastCheckedAt = new Date()
+      await upsertClaim({ domain, domainRating, provider: providerForStorage })
+      await recordDrCheck({ domain, domainRating, provider: providerForStorage, checkedAt: lastCheckedAt })
+      checks = await getDrChecks(domain, { limit: 60 })
+    }
+  }
   if (checks.length === 0 && domainRating !== null && Number.isFinite(domainRating)) {
     const seedAt = lastCheckedAt || new Date()
     await recordDrCheck({ domain, domainRating, provider: providerForStorage, checkedAt: seedAt })
@@ -72,6 +105,21 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
     const last = checks[checks.length - 1]
     if (last?.checked_at) lastCheckedAt = new Date(last.checked_at)
   }
+
+  const chartPoints =
+    checks.length > 0
+      ? checks.map((row: any) => ({
+          checkedAt: String(row.checked_at),
+          domainRating: Number(row.domain_rating),
+        }))
+      : domainRating !== null && Number.isFinite(domainRating)
+        ? [
+            {
+              checkedAt: (lastCheckedAt || new Date()).toISOString(),
+              domainRating: Number(domainRating),
+            },
+          ]
+        : []
 
   return (
     <div className="bg-background flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
@@ -102,10 +150,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
         </div>
 
         <DrLineLabel
-          points={checks.map((row: any) => ({
-            checkedAt: String(row.checked_at),
-            domainRating: Number(row.domain_rating),
-          }))}
+          points={chartPoints}
         />
       </div>
     </div>

@@ -1,11 +1,23 @@
 import { neon } from "@neondatabase/serverless"
 
 const connectionString =
-  process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.STORAGE_URL
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.DATABASE_URL ||
+  process.env.DATABASE_URL_UNPOOLED ||
+  process.env.STORAGE_URL ||
+  process.env.STORAGE_URL_NON_POOLING
 
-const hasDb = Boolean(connectionString)
+let sql = null
+try {
+  if (typeof connectionString === "string" && connectionString.trim()) {
+    sql = neon(connectionString)
+  }
+} catch {
+  sql = null
+}
 
-const sql = hasDb ? neon(connectionString) : null
+const hasDb = Boolean(sql)
 
 async function ensureTables() {
   if (!hasDb) return

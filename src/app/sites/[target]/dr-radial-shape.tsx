@@ -7,9 +7,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart"
 
 export function DrRadialShape({ value }: { value: number | null }) {
+  const safeValue =
+    value === null || !Number.isFinite(value)
+      ? null
+      : Math.max(0, Math.min(100, Math.floor(value)))
   const chartData = [
     {
-      dr: Math.max(0, Math.min(100, Math.floor(Number(value ?? 0)))),
+      dr: safeValue ?? 0,
       fill: "var(--color-dr)",
     },
   ]
@@ -41,7 +45,7 @@ export function DrRadialShape({ value }: { value: number | null }) {
               <Label
                 content={({ viewBox }) => {
                   if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                    const display = value === null ? "—" : String(Math.round(value))
+                    const display = safeValue === null ? "—" : String(safeValue)
                     return (
                       <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
                         <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-4xl font-bold">
