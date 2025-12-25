@@ -1,22 +1,35 @@
 import Link from "next/link"
 
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuList,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu"
+
 export function SiteHeader() {
   return (
     <header className="border-b">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-6">
-        <Link href="/" className="text-sm font-medium">
+      <div className="mx-auto flex h-14 w-full max-w-[1200px] items-center justify-between px-6">
+        <Link href="/" className="text-sm font-semibold">
           SERP DR
         </Link>
-        <a
-          href="https://serp.co"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm text-muted-foreground"
-        >
-          serp.co
-        </a>
+
+        <NavigationMenu viewport={false}>
+          <NavigationMenuList>
+            <NavigationMenuItem>
+              <Link href="/" className={navigationMenuTriggerStyle()}>
+                Home
+              </Link>
+            </NavigationMenuItem>
+            <NavigationMenuItem>
+              <Link href="/sites" className={navigationMenuTriggerStyle()}>
+                Sites
+              </Link>
+            </NavigationMenuItem>
+          </NavigationMenuList>
+        </NavigationMenu>
       </div>
     </header>
   )
 }
-
