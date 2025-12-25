@@ -39,9 +39,12 @@ export function DrLineInteractive({ points }: { points: Point[] }) {
   }, [points])
 
   const chartConfig = {
+    views: {
+      label: "Domain Rating",
+    },
     dr: {
       label: "DR",
-      color: "#10a64a",
+      color: "var(--chart-2)",
     },
     avg: {
       label: "7d avg",
@@ -142,4 +145,3 @@ export function DrLineInteractive({ points }: { points: Point[] }) {
     </Card>
   )
 }
-

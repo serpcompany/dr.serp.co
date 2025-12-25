@@ -23,13 +23,13 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
   const badgeUrl = `${badgeBase}/badge/${encodeURIComponent(domain)}`
 
   let domainRating: number | null = null
-  let provider: string | null = null
+  let providerForStorage: string | null = null
   let lastCheckedAt: Date | null = null
 
   const claim = await getClaim(domain)
   if (claim?.domain_rating !== null && claim?.domain_rating !== undefined) {
     domainRating = Number(claim.domain_rating)
-    provider = claim.provider || null
+    providerForStorage = claim.provider || null
     lastCheckedAt = claim.updated_at ? new Date(claim.updated_at) : null
   } else {
     try {
@@ -38,11 +38,16 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
         domainRating = null
       } else {
         domainRating = Math.max(0, Math.min(100, Math.floor(Number((result as any)?.domainRating))))
-        provider = (result as any)?.provider || null
         if (Number.isFinite(domainRating)) {
-          const updated = await upsertClaim({ domain, domainRating, provider })
+          providerForStorage = (result as any)?.provider || null
+          const updated = await upsertClaim({ domain, domainRating, provider: providerForStorage })
           lastCheckedAt = updated?.updated_at ? new Date(updated.updated_at) : new Date()
-          await recordDrCheck({ domain, domainRating, provider, checkedAt: lastCheckedAt })
+          await recordDrCheck({
+            domain,
+            domainRating,
+            provider: providerForStorage,
+            checkedAt: lastCheckedAt,
+          })
         }
       }
     } catch {
@@ -53,7 +58,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
   let checks = await getDrChecks(domain, { limit: 60 })
   if (checks.length === 0 && domainRating !== null && Number.isFinite(domainRating)) {
     const seedAt = lastCheckedAt || new Date()
-    await recordDrCheck({ domain, domainRating, provider, checkedAt: seedAt })
+    await recordDrCheck({ domain, domainRating, provider: providerForStorage, checkedAt: seedAt })
     checks = await getDrChecks(domain, { limit: 60 })
   }
   if (!lastCheckedAt && checks.length > 0) {
@@ -78,7 +83,6 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
                 <CardTitle className="text-sm font-medium">Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {provider ? <div className="text-xs text-muted-foreground">Source: {provider}</div> : null}
                 {lastCheckedAt ? (
                   <div className="text-xs text-muted-foreground">
                     Last checked:{" "}

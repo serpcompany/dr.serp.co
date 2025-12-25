@@ -17,7 +17,7 @@ export function DrRadialShape({ value }: { value: number | null }) {
   const chartConfig = {
     dr: {
       label: "DR",
-      color: "#10a64a",
+      color: "var(--chart-2)",
     },
   } satisfies ChartConfig
 
@@ -69,4 +69,3 @@ export function DrRadialShape({ value }: { value: number | null }) {
     </Card>
   )
 }
-
