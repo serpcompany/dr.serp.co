@@ -288,9 +288,9 @@ function App() {
   const domainRatingInt = data ? Math.floor(data.domainRating) : null
   const badgeTarget = data?.target || domain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '')
   const publicBase = import.meta.env.VITE_PUBLIC_BASE_URL || 'https://dr.serp.co'
-  const badgeBase = import.meta.env.VITE_BADGE_BASE_URL || 'https://embeds.serp.co'
+  const badgeBase = import.meta.env.VITE_BADGE_BASE_URL || 'https://dr.serp.co'
   const badgeUrl = badgeTarget ? `${badgeBase}/badge/${encodeURIComponent(badgeTarget)}` : ''
-  const pageUrl = badgeTarget ? `${publicBase}/${encodeURIComponent(badgeTarget)}` : ''
+  const pageUrl = badgeTarget ? `${publicBase}/sites/${encodeURIComponent(badgeTarget)}` : ''
   const embedSnippet = badgeUrl && pageUrl
     ? `<a href="${pageUrl}" target="_blank" rel="noopener noreferrer"><img src="${badgeUrl}" alt="Verified DR for ${badgeTarget}" width="200" height="50"></a>`
     : ''
@@ -309,10 +309,10 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <div className="flex items-center justify-center min-h-screen p-6 bg-background">
       <div className="w-full max-w-2xl">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">
+        <div className="mb-8 text-center">
+          <h1 className="mb-2 text-4xl font-bold text-foreground">
             Domain Rating Checker
           </h1>
           <p className="text-muted-foreground">
@@ -324,7 +324,7 @@ function App() {
           <Card className="p-8">
             <div className="mb-6">
               <h2 className="text-xl font-semibold">Log in to claim your DR page</h2>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="mt-1 text-sm text-muted-foreground">
                 We send a one-time code to your email.
               </p>
             </div>
@@ -426,7 +426,7 @@ function App() {
 
         {captcha && !loading && (
           <Card className="p-6 mt-6">
-            <p className="text-sm text-muted-foreground mb-3">
+            <p className="mb-3 text-sm text-muted-foreground">
               {captcha.question || 'Complete the captcha to continue.'}
             </p>
             <form onSubmit={handleCaptchaSubmit} className="flex gap-3">
@@ -447,24 +447,24 @@ function App() {
         {loading && (
           <Card className="p-8">
             <div className="flex flex-col items-center">
-              <Skeleton className="h-24 w-32 mb-4" />
-              <Skeleton className="h-6 w-48 mb-8" />
-              <div className="grid grid-cols-2 gap-6 w-full">
+              <Skeleton className="w-32 h-24 mb-4" />
+              <Skeleton className="w-48 h-6 mb-8" />
+              <div className="grid w-full grid-cols-2 gap-6">
                 <div>
-                  <Skeleton className="h-5 w-24 mb-2" />
-                  <Skeleton className="h-8 w-32" />
+                  <Skeleton className="w-24 h-5 mb-2" />
+                  <Skeleton className="w-32 h-8" />
                 </div>
                 <div>
-                  <Skeleton className="h-5 w-24 mb-2" />
-                  <Skeleton className="h-8 w-32" />
+                  <Skeleton className="w-24 h-5 mb-2" />
+                  <Skeleton className="w-32 h-8" />
                 </div>
                 <div>
-                  <Skeleton className="h-5 w-24 mb-2" />
-                  <Skeleton className="h-8 w-32" />
+                  <Skeleton className="w-24 h-5 mb-2" />
+                  <Skeleton className="w-32 h-8" />
                 </div>
                 <div>
-                  <Skeleton className="h-5 w-24 mb-2" />
-                  <Skeleton className="h-8 w-32" />
+                  <Skeleton className="w-24 h-5 mb-2" />
+                  <Skeleton className="w-32 h-8" />
                 </div>
               </div>
             </div>
@@ -478,27 +478,27 @@ function App() {
             transition={{ duration: 0.4 }}
           >
             <Card className="p-8">
-              <div className="text-center mb-8">
+              <div className="mb-8 text-center">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.3, delay: 0.1 }}
-                  className="text-accent text-7xl md:text-8xl font-bold mb-2"
+                  className="mb-2 font-bold text-accent text-7xl md:text-8xl"
                 >
                   {domainRatingInt}
                 </motion.div>
-                <p className="text-muted-foreground text-sm">Domain Rating</p>
+                <p className="text-sm text-muted-foreground">Domain Rating</p>
               </div>
 
               {badgeUrl && pageUrl && (
-                <div className="mb-8 rounded-lg border border-border p-4 flex flex-col items-center gap-2">
+                <div className="flex flex-col items-center gap-2 p-4 mb-8 border rounded-lg border-border">
                   <img src={badgeUrl} alt={`Verified DR for ${badgeTarget}`} width={200} height={50} />
-                  <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">
+                  <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="text-sm underline text-primary">
                     View your public page
                   </a>
                   <div className="w-full">
-                    <p className="text-xs text-muted-foreground mb-2">Embed this badge:</p>
-                    <pre className="text-xs bg-muted/60 rounded-md p-3 overflow-x-auto">{embedSnippet}</pre>
+                    <p className="mb-2 text-xs text-muted-foreground">Embed this badge:</p>
+                    <pre className="p-3 overflow-x-auto text-xs rounded-md bg-muted/60">{embedSnippet}</pre>
                     <Button
                       type="button"
                       variant="secondary"
@@ -511,52 +511,46 @@ function App() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
+                  <div className="p-2 rounded-lg bg-primary/10">
                     <Link size={20} className="text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Total Backlinks</p>
+                    <p className="mb-1 text-sm text-muted-foreground">Total Backlinks</p>
                     <p className="text-2xl font-semibold">{data.backlinks.toLocaleString()}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
+                  <div className="p-2 rounded-lg bg-primary/10">
                     <Globe size={20} className="text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Referring Domains</p>
+                    <p className="mb-1 text-sm text-muted-foreground">Referring Domains</p>
                     <p className="text-2xl font-semibold">{data.refdomains.toLocaleString()}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-secondary rounded-lg">
+                  <div className="p-2 rounded-lg bg-secondary">
                     <Link size={20} className="text-secondary-foreground" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Dofollow Backlinks</p>
+                    <p className="mb-1 text-sm text-muted-foreground">Dofollow Backlinks</p>
                     <p className="text-2xl font-semibold">{data.dofollowBacklinks.toLocaleString()}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-secondary rounded-lg">
+                  <div className="p-2 rounded-lg bg-secondary">
                     <Globe size={20} className="text-secondary-foreground" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Dofollow Refdomains</p>
+                    <p className="mb-1 text-sm text-muted-foreground">Dofollow Refdomains</p>
                     <p className="text-2xl font-semibold">{data.dofollowRefdomains.toLocaleString()}</p>
                   </div>
                 </div>
-              </div>
-
-              <div className="mt-6 pt-6 border-t border-border">
-                <Badge variant="secondary" className="text-xs">
-                  Powered by Ahrefs
-                </Badge>
               </div>
             </Card>
           </motion.div>

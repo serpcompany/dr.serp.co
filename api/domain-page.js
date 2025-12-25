@@ -14,7 +14,7 @@ function renderPage({ target, domainRating, provider, errorMessage, baseUrl, bad
   const safeTarget = escapeHtml(target)
   const badgePath = `/badge/${encodeURIComponent(target)}`
   const badgeUrl = `${badgeBaseUrl}${badgePath}`
-  const pageUrl = `${baseUrl}/${encodeURIComponent(target)}`
+  const pageUrl = `${baseUrl}/sites/${encodeURIComponent(target)}`
   const title = `DR for ${safeTarget} | SERP`
   const description =
     domainRating !== null
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
   }
 
   const baseUrl = process.env.DR_PUBLIC_BASE_URL || 'https://dr.serp.co'
-  const badgeBaseUrl = process.env.DR_BADGE_BASE_URL || 'https://embeds.serp.co'
+  const badgeBaseUrl = process.env.DR_BADGE_BASE_URL || 'https://dr.serp.co'
 
   try {
     const cachedClaim = await getClaim(normalizedTarget)
