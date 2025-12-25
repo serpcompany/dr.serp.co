@@ -69,44 +69,18 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
   return (
     <div className="bg-background flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-4xl space-y-6">
-        <header className="space-y-2">
+        <header className="space-y-2 text-center">
           <h1 className="scroll-m-20 text-3xl font-semibold tracking-tight">{domain}</h1>
-          <p className="text-sm text-muted-foreground">Verified Domain Rating</p>
-          <ClaimClient domain={domain} />
         </header>
 
         <div className="grid gap-6 md:grid-cols-3">
           <div className="md:col-span-1 space-y-4">
             <DrRadialShape value={domainRating} />
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium">Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {lastCheckedAt ? (
-                  <div className="text-xs text-muted-foreground">
-                    Last checked:{" "}
-                    {new Intl.DateTimeFormat("en-US", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                      timeZone: "UTC",
-                    }).format(lastCheckedAt)}{" "}
-                    UTC
-                  </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground">Not checked yet.</div>
-                )}
-                <RecheckButton domain={domain} />
-              </CardContent>
-            </Card>
           </div>
 
           <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Embed this badge</CardTitle>
-            </CardHeader>
             <CardContent className="space-y-4">
-              <div>
+              <div className="flex justify-center">
                 <img
                   src={badgeUrl}
                   alt={`Verified DR badge for ${domain}`}

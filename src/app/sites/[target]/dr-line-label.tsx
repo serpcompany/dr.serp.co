@@ -31,8 +31,8 @@ export function DrLineLabel({ points }: { points: Point[] }) {
         <CardDescription>Recent checks</CardDescription>
       </CardHeader>
       <CardContent>
-        {chartData.length < 2 ? (
-          <p className="text-sm text-muted-foreground">Not enough history yet.</p>
+        {chartData.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No checks yet. Click “Recheck DR” to add the first point.</p>
         ) : (
           <ChartContainer config={chartConfig}>
             <LineChart
@@ -80,4 +80,3 @@ export function DrLineLabel({ points }: { points: Point[] }) {
     </Card>
   )
 }
-
