@@ -27,6 +27,15 @@ export function Home() {
     if (savedEmail) {
       setAuthEmail(savedEmail)
       setAuthStep("authed")
+      return
+    }
+
+    const pendingEmail = window.sessionStorage.getItem("dr-otp-email")
+    const pendingToken = window.sessionStorage.getItem("dr-otp-token")
+    if (pendingEmail && pendingToken) {
+      setAuthEmail(pendingEmail)
+      setOtpToken(pendingToken)
+      setAuthStep("otp")
     }
   }, [])
 
@@ -56,7 +65,12 @@ export function Home() {
 
       setAuthStep("otp")
       setOtpCode("")
-      setOtpToken(typeof payload?.token === "string" ? payload.token : "")
+      const token = typeof payload?.token === "string" ? payload.token : ""
+      setOtpToken(token)
+      if (token) {
+        window.sessionStorage.setItem("dr-otp-email", email)
+        window.sessionStorage.setItem("dr-otp-token", token)
+      }
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Failed to send code.")
     } finally {
@@ -89,6 +103,8 @@ export function Home() {
       }
 
       window.localStorage.setItem("dr-auth-email", email)
+      window.sessionStorage.removeItem("dr-otp-email")
+      window.sessionStorage.removeItem("dr-otp-token")
       setAuthStep("authed")
       setOtpToken("")
     } catch (error) {
@@ -100,6 +116,8 @@ export function Home() {
 
   const logout = () => {
     window.localStorage.removeItem("dr-auth-email")
+    window.sessionStorage.removeItem("dr-otp-email")
+    window.sessionStorage.removeItem("dr-otp-token")
     setAuthStep("email")
     setAuthEmail("")
     setOtpCode("")
@@ -135,7 +153,13 @@ export function Home() {
                 error={authError}
                 onCodeChange={setOtpCode}
                 onSubmit={verifyOtp}
-                onEditEmail={() => setAuthStep("email")}
+                onEditEmail={() => {
+                  window.sessionStorage.removeItem("dr-otp-email")
+                  window.sessionStorage.removeItem("dr-otp-token")
+                  setOtpToken("")
+                  setOtpCode("")
+                  setAuthStep("email")
+                }}
               />
             )}
           </Card>
