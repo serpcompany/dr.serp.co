@@ -71,7 +71,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
           </div>
 
           <div className="mt-6 flex items-center gap-6">
-            <img src={badgeUrl} alt={`Verified DR badge for ${domain}`} width={200} height={50} />
+            <img src={badgeUrl} alt={`Verified DR badge for ${domain}`} width={280} height={70} />
             {domainRating !== null ? (
               <div>
                 <div className="text-5xl font-bold">{domainRating}</div>
