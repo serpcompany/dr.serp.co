@@ -68,7 +68,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
 
   return (
     <div className="bg-background flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-4xl space-y-6">
+      <div className="w-full max-w-[1200px] space-y-6">
         <header className="space-y-2 text-center">
           <h1 className="scroll-m-20 text-3xl font-semibold tracking-tight">{domain}</h1>
         </header>
