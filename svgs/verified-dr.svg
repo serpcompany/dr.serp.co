@@ -1,27 +1,71 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="50" viewBox="0 0 200 50">
-  <rect x="0.5" y="0.5" width="199" height="49" rx="12" fill="#ffffff" stroke="#d8d8d8" />
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="200"
+  height="50"
+  viewBox="0 0 250 54"
+>
+  <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+    <g transform="translate(-130, -73)">
+      <g transform="translate(130, 73)">
+        
+        <!-- Rounded background -->
+        <rect
+          x="0.5"
+          y="10"
+          width="135"
+          height="30"
+          rx="10"
+          fill="#fff"
+          stroke="#d8d8d8"
+          stroke-width="1"
+        />
 
-  <circle cx="26" cy="25" r="14" fill="#10a64a" />
-  <text
-    x="26"
-    y="30"
-    font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial"
-    font-size="14"
-    font-weight="800"
-    fill="#ffffff"
-    text-anchor="middle"
-  >
-    <tspan>15</tspan>
-  </text>
+        <!-- Verified checkmark (moved to left) -->
+        <a href="https://serp.co/verified"><g
+          id="verified"
+          transform="translate(10, 16
+          ) scale(0.16)"
+          fill="#10a64a"
+          stroke="none"
+          fill-rule="nonzero"
+        >
+          <polygon
+            points="
+            61.37 8.24   80.43 0   90.88 17.79
+            111.15 22.32 109.15 42.85 122.88 58.43
+            109.2 73.87 111.15 94.55 91 99
+            80.43 116.87 61.51 108.62 42.45 116.87
+            32 99.08 11.73 94.55 13.73 74.01
+            0 58.43 13.68 42.99 11.73 22.32
+            31.88 17.87 42.45 0 61.37 8.24
+            61.37 8.24"
+          />
+          <text font-family="Inter" font-size="40" font-weight="700" fill="#fff" text-anchor="middle" x="60" y="75">
+          <tspan>15</tspan>
+        </text>
+        </g></a>
 
-  <text
-    x="62"
-    y="30"
-    font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial"
-    font-size="12"
-    font-weight="800"
-    fill="#111111"
-  >
-    <tspan>VERIFIED DR</tspan>
-  </text>
+        <!-- Separator line -->
+        <g transform="translate(-12,0)">
+          <line
+            x1="50"
+            y1="10"
+            x2="50"
+            y2="40"
+            stroke="#d8d8d8"
+            stroke-width="1"
+          />
+        </g>
+
+        <!-- SERP -->
+        <a href="https://serp.co" target="_blank">
+
+        <g><text font-family="Inter" font-size="12" font-weight="800" fill="#000000" text-anchor="middle" x="84" y="30">
+          <tspan>VERIFIED DR</tspan>
+        </text>
+          </g>
+        </a>
+      </g>
+    </g>
+  </g>
 </svg>
