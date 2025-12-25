@@ -1,4 +1,7 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/" }]
+  "rewrites": [
+    { "source": "/badge/:target", "destination": "/api/badge?target=:target" },
+    { "source": "/:target((?!.*\\.).*)", "destination": "/api/domain-page?target=:target" },
+    { "source": "/(.*)", "destination": "/" }
+  ]
 }
-

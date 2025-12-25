@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { MagnifyingGlass, Link, Globe, Warning } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 
 interface AhrefsResponse {
+  target: string
   domainRating: number
   backlinks: number
   refdomains: number
@@ -18,12 +20,107 @@ interface AhrefsResponse {
 }
 
 function App() {
+  const [authStep, setAuthStep] = useState<'email' | 'otp' | 'authed'>('email')
+  const [authEmail, setAuthEmail] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
+
   const [domain, setDomain] = useState('')
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<AhrefsResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [captcha, setCaptcha] = useState<{ hash?: string; question?: string } | null>(null)
   const [captchaAnswer, setCaptchaAnswer] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    const savedEmail = window.localStorage.getItem('dr-auth-email')
+    if (savedEmail) {
+      setAuthEmail(savedEmail)
+      setAuthStep('authed')
+    }
+  }, [])
+
+  const requestOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const email = authEmail.trim().toLowerCase()
+    if (!email) {
+      setAuthError('Enter your email to continue.')
+      return
+    }
+
+    setAuthLoading(true)
+    setAuthError(null)
+
+    try {
+      const response = await fetch('/api/auth/request-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const payload = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        const message = typeof payload?.error === 'string' ? payload.error : 'Failed to send code.'
+        throw new Error(message)
+      }
+
+      setAuthStep('otp')
+      setOtpCode('')
+      toast.success('Code sent to your email.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to send code.'
+      setAuthError(message)
+      toast.error(message)
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const verifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const email = authEmail.trim().toLowerCase()
+    if (!email || otpCode.trim().length !== 6) {
+      setAuthError('Enter the 6-digit code.')
+      return
+    }
+
+    setAuthLoading(true)
+    setAuthError(null)
+
+    try {
+      const response = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: otpCode.trim() }),
+      })
+      const payload = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        const message = typeof payload?.error === 'string' ? payload.error : 'Invalid code.'
+        throw new Error(message)
+      }
+
+      window.localStorage.setItem('dr-auth-email', email)
+      setAuthStep('authed')
+      toast.success('You are logged in.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to verify code.'
+      setAuthError(message)
+      toast.error(message)
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const logout = () => {
+    window.localStorage.removeItem('dr-auth-email')
+    setAuthStep('email')
+    setAuthEmail('')
+    setOtpCode('')
+    setAuthError(null)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,6 +168,7 @@ function App() {
       }
 
       setData({
+        target: typeof payload?.target === 'string' ? payload.target : cleanDomain,
         domainRating,
         backlinks: 0,
         refdomains: 0,
@@ -134,6 +232,7 @@ function App() {
       setCaptcha(null)
       setCaptchaAnswer('')
       setData({
+        target: typeof payload?.target === 'string' ? payload.target : cleanDomain,
         domainRating,
         backlinks: 0,
         refdomains: 0,
@@ -153,6 +252,25 @@ function App() {
   }
 
   const domainRatingInt = data ? Math.floor(data.domainRating) : null
+  const badgeTarget = data?.target || domain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '')
+  const badgeUrl = badgeTarget ? `${window.location.origin}/badge/${encodeURIComponent(badgeTarget)}` : ''
+  const pageUrl = badgeTarget ? `${window.location.origin}/${encodeURIComponent(badgeTarget)}` : ''
+  const embedSnippet = badgeUrl && pageUrl
+    ? `<a href="${pageUrl}"><img src="${badgeUrl}" alt="Verified DR for ${badgeTarget}" width="200" height="50"></a>`
+    : ''
+
+  const handleCopyEmbed = async () => {
+    if (!embedSnippet) return
+    try {
+      await navigator.clipboard.writeText(embedSnippet)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+      toast.success('Embed code copied.')
+    } catch (err) {
+      console.error('Copy failed:', err)
+      toast.error('Copy failed. Select and copy manually.')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -166,36 +284,97 @@ function App() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex gap-3 mb-6">
-          <Input
-            type="text"
-            placeholder="example.com"
-            value={domain}
-            onChange={(e) => setDomain(e.target.value)}
-            disabled={loading}
-            className="flex-1 h-12 text-base"
-            id="domain-input"
-          />
-          <Button 
-            type="submit" 
-            disabled={loading || !domain.trim()}
-            className="h-12 px-6"
-          >
-            {loading ? (
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-              >
-                <MagnifyingGlass size={20} />
-              </motion.div>
-            ) : (
-              <>
-                <MagnifyingGlass size={20} className="mr-2" />
-                Check
-              </>
+        {authStep !== 'authed' ? (
+          <Card className="p-8">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold">Log in to claim your DR page</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                We send a one-time code to your email.
+              </p>
+            </div>
+
+            {authStep === 'email' && (
+              <form onSubmit={requestOtp} className="flex flex-col gap-4">
+                <Input
+                  type="email"
+                  placeholder="you@domain.com"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  disabled={authLoading}
+                  className="h-12 text-base"
+                />
+                {authError && <p className="text-sm text-destructive">{authError}</p>}
+                <Button type="submit" disabled={authLoading || !authEmail.trim()}>
+                  {authLoading ? 'Sending...' : 'Send code'}
+                </Button>
+              </form>
             )}
-          </Button>
-        </form>
+
+            {authStep === 'otp' && (
+              <form onSubmit={verifyOtp} className="flex flex-col gap-4">
+                <div className="text-sm text-muted-foreground">
+                  Code sent to <span className="font-medium text-foreground">{authEmail}</span>
+                </div>
+                <InputOTP maxLength={6} value={otpCode} onChange={setOtpCode}>
+                  <InputOTPGroup>
+                    {[0, 1, 2, 3, 4, 5].map((index) => (
+                      <InputOTPSlot key={index} index={index} />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+                {authError && <p className="text-sm text-destructive">{authError}</p>}
+                <div className="flex gap-3">
+                  <Button type="submit" disabled={authLoading || otpCode.length !== 6} className="flex-1">
+                    {authLoading ? 'Verifying...' : 'Verify code'}
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => setAuthStep('email')} disabled={authLoading}>
+                    Edit email
+                  </Button>
+                </div>
+              </form>
+            )}
+          </Card>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-4 text-sm text-muted-foreground">
+              <span>Signed in as {authEmail}</span>
+              <Button variant="ghost" size="sm" onClick={logout}>
+                Log out
+              </Button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="flex gap-3 mb-6">
+              <Input
+                type="text"
+                placeholder="example.com"
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+                disabled={loading}
+                className="flex-1 h-12 text-base"
+                id="domain-input"
+              />
+              <Button
+                type="submit"
+                disabled={loading || !domain.trim()}
+                className="h-12 px-6"
+              >
+                {loading ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  >
+                    <MagnifyingGlass size={20} />
+                  </motion.div>
+                ) : (
+                  <>
+                    <MagnifyingGlass size={20} className="mr-2" />
+                    Submit
+                  </>
+                )}
+              </Button>
+            </form>
+          </>
+        )}
 
         {error && (
           <Card className="p-6 bg-destructive/10 border-destructive/20">
@@ -274,6 +453,27 @@ function App() {
                 </motion.div>
                 <p className="text-muted-foreground text-sm">Domain Rating</p>
               </div>
+
+              {badgeUrl && pageUrl && (
+                <div className="mb-8 rounded-lg border border-border p-4 flex flex-col items-center gap-2">
+                  <img src={badgeUrl} alt={`Verified DR for ${badgeTarget}`} width={200} height={50} />
+                  <a href={pageUrl} className="text-sm text-primary underline">
+                    View your public page
+                  </a>
+                  <div className="w-full">
+                    <p className="text-xs text-muted-foreground mb-2">Embed this badge:</p>
+                    <pre className="text-xs bg-muted/60 rounded-md p-3 overflow-x-auto">{embedSnippet}</pre>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-3"
+                      onClick={handleCopyEmbed}
+                    >
+                      {copied ? 'Copied' : 'Click to copy embed code'}
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex items-start gap-3">

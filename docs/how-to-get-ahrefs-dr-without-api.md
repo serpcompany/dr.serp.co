@@ -7,7 +7,7 @@
 3. hit enter
 4. pull the ahres dr from their HTML
 
-SEE: /Users/devin/Desktop/spark-template/docs/1.png
+SEE: /Users/devin/Desktop/dr.serp.co/docs/1.png
 
 
 ## editoriallink
@@ -17,7 +17,7 @@ SEE: /Users/devin/Desktop/spark-template/docs/1.png
 3. hit enter
 4. pull the ahres dr from their HTML
 
-SEE: /Users/devin/Desktop/spark-template/docs/2.png
+SEE: /Users/devin/Desktop/dr.serp.co/docs/2.png
 
 
 ## other similars

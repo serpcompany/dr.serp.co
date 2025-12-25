@@ -21,7 +21,7 @@ async function fetchText(url, { cookieHeader = '', headers = {}, method = 'GET',
     method,
     headers: {
       accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'user-agent': 'spark-template/dr-proxy',
+      'user-agent': 'dr.serp.co/dr-proxy',
       ...(cookieHeader ? { cookie: cookieHeader } : {}),
       ...headers,
     },
