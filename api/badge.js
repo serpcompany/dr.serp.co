@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import { fetchDomainRating, normalizeTarget } from '../server/dr-providers.mjs'
+import { getClaim, upsertClaim } from '../server/db.mjs'
 
 const templateUrl = new URL('../svgs/verified-dr.svg', import.meta.url)
 const badgeTemplate = globalThis.__badgeTemplate || fs.readFileSync(templateUrl, 'utf8')
@@ -23,12 +24,29 @@ export default async function handler(req, res) {
   }
 
   try {
+    const cachedClaim = await getClaim(normalizedTarget)
+    if (cachedClaim?.domain_rating !== null && cachedClaim?.domain_rating !== undefined) {
+      const dr = Math.max(0, Math.min(100, Math.floor(Number(cachedClaim.domain_rating))))
+      const svg = renderBadgeSvg(Number.isFinite(dr) ? String(dr) : '??')
+      res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8')
+      res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+      res.status(200).send(svg)
+      return
+    }
+
     const result = await fetchDomainRating({ target: normalizedTarget })
     if (result?.captchaRequired) {
       throw new Error('DR provider requires CAPTCHA')
     }
 
     const dr = Math.max(0, Math.min(100, Math.floor(Number(result?.domainRating))))
+    if (Number.isFinite(dr)) {
+      await upsertClaim({
+        domain: normalizedTarget,
+        domainRating: dr,
+        provider: result?.provider || null,
+      })
+    }
     const svg = renderBadgeSvg(Number.isFinite(dr) ? String(dr) : '??')
 
     res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8')

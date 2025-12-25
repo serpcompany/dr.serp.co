@@ -1,4 +1,5 @@
 import { fetchDomainRating, normalizeTarget } from '../server/dr-providers.mjs'
+import { getClaim, upsertClaim } from '../server/db.mjs'
 
 function escapeHtml(value) {
   return String(value)
@@ -92,6 +93,22 @@ export default async function handler(req, res) {
   const badgeBaseUrl = process.env.DR_BADGE_BASE_URL || 'https://embeds.serp.co'
 
   try {
+    const cachedClaim = await getClaim(normalizedTarget)
+    if (cachedClaim?.domain_rating !== null && cachedClaim?.domain_rating !== undefined) {
+      const html = renderPage({
+        target: normalizedTarget,
+        domainRating: Number(cachedClaim.domain_rating),
+        provider: cachedClaim.provider || null,
+        errorMessage: null,
+        baseUrl,
+        badgeBaseUrl,
+      })
+      res.setHeader('Content-Type', 'text/html; charset=utf-8')
+      res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+      res.status(200).send(html)
+      return
+    }
+
     const result = await fetchDomainRating({ target: normalizedTarget })
     if (result?.captchaRequired) {
       const html = renderPage({
@@ -109,6 +126,13 @@ export default async function handler(req, res) {
     }
 
     const dr = Math.max(0, Math.min(100, Math.floor(Number(result?.domainRating))))
+    if (Number.isFinite(dr)) {
+      await upsertClaim({
+        domain: normalizedTarget,
+        domainRating: dr,
+        provider: result?.provider || null,
+      })
+    }
     const html = renderPage({
       target: normalizedTarget,
       domainRating: Number.isFinite(dr) ? dr : null,

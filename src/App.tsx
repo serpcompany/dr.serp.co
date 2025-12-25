@@ -180,6 +180,21 @@ function App() {
         dofollowRefdomains: 0,
         provider: typeof payload?.provider === 'string' ? payload.provider : undefined,
       })
+
+      const savedEmail = window.localStorage.getItem('dr-auth-email')
+      if (savedEmail) {
+        fetch('/api/claims', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            domain: cleanDomain,
+            domainRating,
+            provider: typeof payload?.provider === 'string' ? payload.provider : null,
+            email: savedEmail,
+          }),
+        }).catch(() => {})
+      }
+
       toast.success('Domain rating fetched successfully')
     } catch (err) {
       console.error('Fetch error:', err)
@@ -244,6 +259,21 @@ function App() {
         dofollowRefdomains: 0,
         provider: typeof payload?.provider === 'string' ? payload.provider : undefined,
       })
+
+      const savedEmail = window.localStorage.getItem('dr-auth-email')
+      if (savedEmail) {
+        fetch('/api/claims', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            domain: cleanDomain,
+            domainRating,
+            provider: typeof payload?.provider === 'string' ? payload.provider : null,
+            email: savedEmail,
+          }),
+        }).catch(() => {})
+      }
+
       toast.success('Domain rating fetched successfully')
     } catch (err) {
       console.error('Captcha fetch error:', err)
