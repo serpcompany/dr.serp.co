@@ -1,6 +1,11 @@
-import { sql } from '@vercel/postgres'
+import { neon } from "@neondatabase/serverless"
 
-const hasDb = Boolean(process.env.POSTGRES_URL)
+const connectionString =
+  process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.STORAGE_URL
+
+const hasDb = Boolean(connectionString)
+
+const sql = hasDb ? neon(connectionString) : null
 
 async function ensureTables() {
   if (!hasDb) return

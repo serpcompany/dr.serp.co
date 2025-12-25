@@ -25,7 +25,6 @@ export function DrRadialShape({ value }: { value: number | null }) {
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
         <CardTitle>Domain Rating</CardTitle>
-        <CardDescription>Latest snapshot</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[250px]">
@@ -48,9 +47,6 @@ export function DrRadialShape({ value }: { value: number | null }) {
                         <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-4xl font-bold">
                           {display}
                         </tspan>
-                        <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 24} className="fill-muted-foreground">
-                          DR
-                        </tspan>
                       </text>
                     )
                   }
@@ -60,12 +56,6 @@ export function DrRadialShape({ value }: { value: number | null }) {
           </RadialBarChart>
         </ChartContainer>
       </CardContent>
-      <CardFooter className="flex-col gap-2 text-sm">
-        <div className="flex items-center gap-2 leading-none font-medium">
-          Verified rating <TrendingUp className="h-4 w-4" />
-        </div>
-        <div className="text-muted-foreground leading-none">Recheck anytime to track changes.</div>
-      </CardFooter>
     </Card>
   )
 }
