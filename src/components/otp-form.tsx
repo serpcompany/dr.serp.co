@@ -16,7 +16,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp"
 
-type OTPFormProps = React.ComponentProps<"div"> & {
+type OTPFormProps = Omit<React.ComponentProps<"div">, "onSubmit"> & {
   email: string
   code: string
   loading?: boolean

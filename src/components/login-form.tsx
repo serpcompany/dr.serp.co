@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
-type LoginFormProps = React.ComponentProps<"div"> & {
+type LoginFormProps = Omit<React.ComponentProps<"div">, "onSubmit"> & {
   email: string
   loading?: boolean
   error?: string | null
