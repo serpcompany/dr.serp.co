@@ -31,9 +31,7 @@ export function EmbedCard({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-md bg-muted p-3 text-xs overflow-x-auto">
-        <pre>{snippet}</pre>
-      </div>
+      <textarea readOnly value={snippet} className="sr-only" aria-hidden />
       <Button type="button" variant="secondary" onClick={copy}>
         {copied ? "Copied" : "Copy embed code"}
       </Button>
