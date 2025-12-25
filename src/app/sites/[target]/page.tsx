@@ -5,7 +5,7 @@ import { getClaim, getDrChecks, recordDrCheck, upsertClaim } from "@/server/db.m
 import { fetchDomainRating, normalizeTarget } from "@/server/dr-providers.mjs"
 import { EmbedCard } from "./embed-card"
 import { ClaimClient } from "./claim-client"
-import { DrLineInteractive } from "./dr-line-interactive"
+import { DrLineLabel } from "./dr-line-label"
 import { RecheckButton } from "./recheck-button"
 import { DrRadialShape } from "./dr-radial-shape"
 
@@ -120,7 +120,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
           </Card>
         </div>
 
-        <DrLineInteractive
+        <DrLineLabel
           points={checks.map((row: any) => ({
             checkedAt: String(row.checked_at),
             domainRating: Number(row.domain_rating),
