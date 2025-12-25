@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { SiteHeader } from "@/app/_components/site-header"
 import { Toaster } from "@/components/ui/sonner"
+import { ThemeProvider } from "@/components/theme-provider"
 
 export const metadata: Metadata = {
   title: "Domain Rating Checker",
@@ -14,9 +15,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-svh bg-background text-foreground antialiased">
-        <SiteHeader />
-        {children}
-        <Toaster />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <SiteHeader />
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   )

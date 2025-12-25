@@ -25,16 +25,16 @@ export function DrLineInteractive({ points }: { points: Point[] }) {
       .filter((p) => Number.isFinite(p.domainRating))
       .map((p) => ({
         date: new Date(p.checkedAt).toISOString().slice(0, 10),
-        dr: Math.max(0, Math.min(100, Math.floor(p.domainRating))),
+        desktop: Math.max(0, Math.min(100, Math.floor(p.domainRating))),
       }))
 
-    const drValues = filtered.map((row) => row.dr)
+    const drValues = filtered.map((row) => row.desktop)
     const avgValues = movingAverage(drValues, 7).map((v) => Math.round(v * 10) / 10)
 
     return filtered.map((row, index) => ({
       date: row.date,
-      dr: row.dr,
-      avg: avgValues[index] ?? row.dr,
+      desktop: row.desktop,
+      mobile: avgValues[index] ?? row.desktop,
     }))
   }, [points])
 
@@ -42,22 +42,23 @@ export function DrLineInteractive({ points }: { points: Point[] }) {
     views: {
       label: "Domain Rating",
     },
-    dr: {
+    desktop: {
       label: "DR",
       color: "var(--chart-2)",
     },
-    avg: {
+    mobile: {
       label: "7d avg",
       color: "var(--chart-1)",
     },
   } satisfies ChartConfig
 
-  const [activeChart, setActiveChart] = React.useState<keyof typeof chartConfig>("dr")
+  const [activeChart, setActiveChart] =
+    React.useState<keyof typeof chartConfig>("desktop")
 
   const totals = React.useMemo(
     () => ({
-      dr: chartData.length ? chartData[chartData.length - 1].dr : 0,
-      avg: chartData.length ? chartData[chartData.length - 1].avg : 0,
+      desktop: chartData.length ? chartData[chartData.length - 1].desktop : 0,
+      mobile: chartData.length ? chartData[chartData.length - 1].mobile : 0,
     }),
     [chartData]
   )
@@ -70,7 +71,7 @@ export function DrLineInteractive({ points }: { points: Point[] }) {
           <CardDescription>Showing recent checks for this domain</CardDescription>
         </div>
         <div className="flex">
-          {(["dr", "avg"] as const).map((key) => {
+          {(["desktop", "mobile"] as const).map((key) => {
             const chart = key as keyof typeof chartConfig
             return (
               <button
