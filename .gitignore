@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *-dist
+.next
+.vercel
+.turbo
+out
 *.local
 
 # Editor directories and files
@@ -32,3 +36,5 @@ pids
 .devcontainer/
 
 .spark-workbench-id
+.spark-initial-sha
+spark.meta.json

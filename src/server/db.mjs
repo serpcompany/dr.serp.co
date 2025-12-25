@@ -16,6 +16,9 @@ async function ensureTables() {
   `
 }
 
+/**
+ * @param {string} domain
+ */
 export async function getClaim(domain) {
   if (!hasDb) return null
   await ensureTables()
@@ -28,6 +31,9 @@ export async function getClaim(domain) {
   return rows[0] || null
 }
 
+/**
+ * @param {{ domain: string, email?: (string|null), domainRating: number, provider?: (string|null) }} input
+ */
 export async function upsertClaim({ domain, email = null, domainRating, provider = null }) {
   if (!hasDb) return null
   await ensureTables()
