@@ -7,18 +7,45 @@ import { getClaim, upsertClaim } from "@/server/db.mjs"
 export const runtime = "nodejs"
 
 const templatePath = path.join(process.cwd(), "svgs", "verified-dr.svg")
-const badgeTemplate = (globalThis as any).__badgeTemplate || fs.readFileSync(templatePath, "utf8")
-;(globalThis as any).__badgeTemplate = badgeTemplate
 
-function renderBadgeSvg(value: string) {
-  return badgeTemplate.replace(/<tspan>[^<]*<\/tspan>/, `<tspan>${value}</tspan>`)
+function readBadgeTemplate() {
+  return fs.readFileSync(templatePath, "utf8")
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ target: string }> }) {
+function getFontSizeForValue(value: string) {
+  if (value === "??") return "76"
+  if (value.length <= 1) return "84"
+  if (value.length === 2) return "78"
+  return "66"
+}
+
+function renderBadgeSvg(value: string) {
+  const badgeTemplate = readBadgeTemplate()
+  const safeValue = value === "??" ? "??" : value.replace(/[^0-9]/g, "")
+  const fontSize = getFontSizeForValue(safeValue || "??")
+  return badgeTemplate
+    .replaceAll("__DR__", safeValue || "??")
+    .replaceAll("__DR_FONT_SIZE__", fontSize)
+}
+
+export async function GET(request: Request, context: { params: Promise<{ target: string }> }) {
   const params = await context.params
   const normalizedTarget = normalizeTarget(params?.target)
   if (!normalizedTarget) {
     return new Response("Missing target", { status: 400 })
+  }
+
+  const url = new URL(request.url)
+  const override = url.searchParams.get("dr")
+  if (override !== null) {
+    const dr = Math.max(0, Math.min(100, Math.floor(Number(override))))
+    const svg = renderBadgeSvg(Number.isFinite(dr) ? String(dr) : "??")
+    return new Response(svg, {
+      headers: {
+        "Content-Type": "image/svg+xml; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
+    })
   }
 
   try {

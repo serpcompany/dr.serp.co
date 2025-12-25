@@ -7,7 +7,6 @@
   <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
     <g transform="translate(-130, -73)">
       <g transform="translate(130, 73)">
-        
         <!-- Rounded background -->
         <rect
           x="0.5"
@@ -20,11 +19,10 @@
           stroke-width="1"
         />
 
-        <!-- Verified checkmark (moved to left) -->
-        <a href="https://serp.co/verified"><g
+        <!-- Verified medallion (left) -->
+        <g
           id="verified"
-          transform="translate(10, 16
-          ) scale(0.22)"
+          transform="translate(10, 16) scale(0.16)"
           fill="#10a64a"
           stroke="none"
           fill-rule="nonzero"
@@ -40,10 +38,19 @@
             31.88 17.87 42.45 0 61.37 8.24
             61.37 8.24"
           />
-          <text font-family="Inter" font-size="60" font-weight="700" fill="#fff" text-anchor="middle" x="60" y="75">
-          <tspan>15</tspan>
-        </text>
-        </g></a>
+          <text
+            font-family="Inter"
+            font-size="__DR_FONT_SIZE__"
+            font-weight="700"
+            fill="#fff"
+            text-anchor="middle"
+            x="61"
+            y="58"
+            dy="0.35em"
+          >
+            <tspan id="dr-value">__DR__</tspan>
+          </text>
+        </g>
 
         <!-- Separator line -->
         <g transform="translate(-12,0)">
@@ -57,14 +64,12 @@
           />
         </g>
 
-        <!-- SERP -->
-        <a href="https://serp.co" target="_blank">
-
-        <g><text font-family="Inter" font-size="12" font-weight="900" fill="#000000" text-anchor="middle" x="81" y="30">
-          <tspan>VERIFIED DR</tspan>
-        </text>
-          </g>
-        </a>
+        <!-- VERIFIED DR -->
+        <g>
+          <text font-family="Inter" font-size="12" font-weight="900" fill="#000000" text-anchor="middle" x="81" y="30">
+            <tspan>VERIFIED DR</tspan>
+          </text>
+        </g>
       </g>
     </g>
   </g>
