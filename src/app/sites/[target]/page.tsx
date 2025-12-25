@@ -70,8 +70,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
             <ClaimClient domain={domain} />
           </div>
 
-          <div className="mt-6 flex items-center gap-6">
-            <img src={badgeUrl} alt={`Verified DR badge for ${domain}`} width={280} height={70} />
+          <div className="mt-6 flex items-start justify-between gap-6">
             {domainRating !== null ? (
               <div>
                 <div className="text-5xl font-bold">{domainRating}</div>
@@ -114,6 +113,20 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
         </Card>
 
         <Card className="p-6">
+          <h2 className="text-sm font-medium mb-3">Embed this badge</h2>
+          <div className="mb-4">
+            <img
+              src={badgeUrl}
+              alt={`Verified DR badge for ${domain}`}
+              width={320}
+              height={80}
+              className="max-w-full"
+            />
+          </div>
+          <EmbedCard pageUrl={pageUrl} badgeUrl={badgeUrl} domain={domain} />
+        </Card>
+
+        <Card className="p-6">
           <h2 className="text-sm font-medium mb-3">DR over time</h2>
           <DrChart
             points={checks.map((row: any) => ({
@@ -121,11 +134,6 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
               domainRating: Number(row.domain_rating),
             }))}
           />
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="text-sm font-medium mb-3">Embed this badge</h2>
-          <EmbedCard pageUrl={pageUrl} badgeUrl={badgeUrl} domain={domain} />
         </Card>
       </div>
     </div>

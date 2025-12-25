@@ -22,7 +22,7 @@
         <!-- Verified medallion (left) -->
         <g
           id="verified"
-          transform="translate(10, 16) scale(0.16)"
+          transform="translate(8, 14) scale(0.19)"
           fill="#10a64a"
           stroke="none"
           fill-rule="nonzero"

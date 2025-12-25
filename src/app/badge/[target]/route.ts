@@ -15,8 +15,8 @@ function readBadgeTemplate() {
 function getFontSizeForValue(value: string) {
   if (value === "??") return "76"
   if (value.length <= 1) return "84"
-  if (value.length === 2) return "78"
-  return "66"
+  if (value.length === 2) return "72"
+  return "60"
 }
 
 function renderBadgeSvg(value: string) {
