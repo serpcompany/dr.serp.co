@@ -5,9 +5,9 @@ import { getClaim, getDrChecks, recordDrCheck, upsertClaim } from "@/server/db.m
 import { fetchDomainRating, normalizeTarget } from "@/server/dr-providers.mjs"
 import { EmbedCard } from "./embed-card"
 import { ClaimClient } from "./claim-client"
-import { DrChart } from "./dr-chart"
+import { DrLineInteractive } from "./dr-line-interactive"
 import { RecheckButton } from "./recheck-button"
-import { DrRadial } from "./dr-radial"
+import { DrRadialShape } from "./dr-radial-shape"
 
 export const runtime = "nodejs"
 
@@ -71,13 +71,13 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
         </header>
 
         <div className="grid gap-6 md:grid-cols-3">
-          <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Domain Rating</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <DrRadial value={domainRating} />
-              <div className="space-y-1">
+          <div className="md:col-span-1 space-y-4">
+            <DrRadialShape value={domainRating} />
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 {provider ? <div className="text-xs text-muted-foreground">Source: {provider}</div> : null}
                 {lastCheckedAt ? (
                   <div className="text-xs text-muted-foreground">
@@ -92,10 +92,10 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
                 ) : (
                   <div className="text-xs text-muted-foreground">Not checked yet.</div>
                 )}
-              </div>
-              <RecheckButton domain={domain} />
-            </CardContent>
-          </Card>
+                <RecheckButton domain={domain} />
+              </CardContent>
+            </Card>
+          </div>
 
           <Card className="md:col-span-2">
             <CardHeader>
@@ -116,19 +116,12 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">DR over time</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DrChart
-              points={checks.map((row: any) => ({
-                checkedAt: String(row.checked_at),
-                domainRating: Number(row.domain_rating),
-              }))}
-            />
-          </CardContent>
-        </Card>
+        <DrLineInteractive
+          points={checks.map((row: any) => ({
+            checkedAt: String(row.checked_at),
+            domainRating: Number(row.domain_rating),
+          }))}
+        />
       </div>
     </div>
   )
