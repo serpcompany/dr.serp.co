@@ -2,23 +2,12 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { LoginForm } from '@/components/login-form'
 import { OTPForm } from '@/components/otp-form'
-import { MagnifyingGlass, Link, Globe, Warning } from '@phosphor-icons/react'
+import { MagnifyingGlass, Warning } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-
-interface AhrefsResponse {
-  target: string
-  domainRating: number
-  backlinks: number
-  refdomains: number
-  dofollowBacklinks: number
-  dofollowRefdomains: number
-  provider?: string
-}
 
 function App() {
   const [authStep, setAuthStep] = useState<'email' | 'otp' | 'authed'>('email')
@@ -30,11 +19,9 @@ function App() {
 
   const [domain, setDomain] = useState('')
   const [loading, setLoading] = useState(false)
-  const [data, setData] = useState<AhrefsResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [captcha, setCaptcha] = useState<{ hash?: string; question?: string } | null>(null)
   const [captchaAnswer, setCaptchaAnswer] = useState('')
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     const savedEmail = window.localStorage.getItem('dr-auth-email')
@@ -137,7 +124,6 @@ function App() {
 
     setLoading(true)
     setError(null)
-    setData(null)
     setCaptcha(null)
     setCaptchaAnswer('')
 
@@ -172,16 +158,6 @@ function App() {
         throw new Error('Invalid response from Ahrefs proxy (missing domainRating)')
       }
 
-      setData({
-        target: typeof payload?.target === 'string' ? payload.target : cleanDomain,
-        domainRating,
-        backlinks: 0,
-        refdomains: 0,
-        dofollowBacklinks: 0,
-        dofollowRefdomains: 0,
-        provider: typeof payload?.provider === 'string' ? payload.provider : undefined,
-      })
-
       const savedEmail = window.localStorage.getItem('dr-auth-email')
       if (savedEmail) {
         fetch('/api/claims', {
@@ -196,7 +172,8 @@ function App() {
         }).catch(() => {})
       }
 
-      toast.success('Domain rating fetched successfully')
+      window.location.assign(`/sites/${encodeURIComponent(cleanDomain)}`)
+      return
     } catch (err) {
       console.error('Fetch error:', err)
       const errorMessage = err instanceof Error ? err.message : 'An error occurred'
@@ -251,15 +228,6 @@ function App() {
 
       setCaptcha(null)
       setCaptchaAnswer('')
-      setData({
-        target: typeof payload?.target === 'string' ? payload.target : cleanDomain,
-        domainRating,
-        backlinks: 0,
-        refdomains: 0,
-        dofollowBacklinks: 0,
-        dofollowRefdomains: 0,
-        provider: typeof payload?.provider === 'string' ? payload.provider : undefined,
-      })
 
       const savedEmail = window.localStorage.getItem('dr-auth-email')
       if (savedEmail) {
@@ -275,7 +243,8 @@ function App() {
         }).catch(() => {})
       }
 
-      toast.success('Domain rating fetched successfully')
+      window.location.assign(`/sites/${encodeURIComponent(cleanDomain)}`)
+      return
     } catch (err) {
       console.error('Captcha fetch error:', err)
       const errorMessage = err instanceof Error ? err.message : 'An error occurred'
@@ -283,29 +252,6 @@ function App() {
       toast.error('Failed to fetch domain rating')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const domainRatingInt = data ? Math.floor(data.domainRating) : null
-  const badgeTarget = data?.target || domain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '')
-  const publicBase = import.meta.env.VITE_PUBLIC_BASE_URL || 'https://dr.serp.co'
-  const badgeBase = import.meta.env.VITE_BADGE_BASE_URL || 'https://dr.serp.co'
-  const badgeUrl = badgeTarget ? `${badgeBase}/badge/${encodeURIComponent(badgeTarget)}` : ''
-  const pageUrl = badgeTarget ? `${publicBase}/sites/${encodeURIComponent(badgeTarget)}` : ''
-  const embedSnippet = badgeUrl && pageUrl
-    ? `<a href="${pageUrl}" target="_blank" rel="noopener noreferrer"><img src="${badgeUrl}" alt="Verified DR for ${badgeTarget}" width="200" height="50"></a>`
-    : ''
-
-  const handleCopyEmbed = async () => {
-    if (!embedSnippet) return
-    try {
-      await navigator.clipboard.writeText(embedSnippet)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-      toast.success('Embed code copied.')
-    } catch (err) {
-      console.error('Copy failed:', err)
-      toast.error('Copy failed. Select and copy manually.')
     }
   }
 
@@ -443,91 +389,6 @@ function App() {
               </div>
             </div>
           </Card>
-        )}
-
-        {data && !loading && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            <Card className="p-8">
-              <div className="mb-8 text-center">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3, delay: 0.1 }}
-                  className="mb-2 font-bold text-accent text-7xl md:text-8xl"
-                >
-                  {domainRatingInt}
-                </motion.div>
-                <p className="text-sm text-muted-foreground">Domain Rating</p>
-              </div>
-
-              {badgeUrl && pageUrl && (
-                <div className="flex flex-col items-center gap-2 p-4 mb-8 border rounded-lg border-border">
-                  <img src={badgeUrl} alt={`Verified DR for ${badgeTarget}`} width={200} height={50} />
-                  <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="text-sm underline text-primary">
-                    View your public page
-                  </a>
-                  <div className="w-full">
-                    <p className="mb-2 text-xs text-muted-foreground">Embed this badge:</p>
-                    <pre className="p-3 overflow-x-auto text-xs rounded-md bg-muted/60">{embedSnippet}</pre>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="mt-3"
-                      onClick={handleCopyEmbed}
-                    >
-                      {copied ? 'Copied' : 'Click to copy embed code'}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Link size={20} className="text-primary" />
-                  </div>
-                  <div>
-                    <p className="mb-1 text-sm text-muted-foreground">Total Backlinks</p>
-                    <p className="text-2xl font-semibold">{data.backlinks.toLocaleString()}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Globe size={20} className="text-primary" />
-                  </div>
-                  <div>
-                    <p className="mb-1 text-sm text-muted-foreground">Referring Domains</p>
-                    <p className="text-2xl font-semibold">{data.refdomains.toLocaleString()}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-secondary">
-                    <Link size={20} className="text-secondary-foreground" />
-                  </div>
-                  <div>
-                    <p className="mb-1 text-sm text-muted-foreground">Dofollow Backlinks</p>
-                    <p className="text-2xl font-semibold">{data.dofollowBacklinks.toLocaleString()}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-secondary">
-                    <Globe size={20} className="text-secondary-foreground" />
-                  </div>
-                  <div>
-                    <p className="mb-1 text-sm text-muted-foreground">Dofollow Refdomains</p>
-                    <p className="text-2xl font-semibold">{data.dofollowRefdomains.toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
         )}
       </div>
     </div>
