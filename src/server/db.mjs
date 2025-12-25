@@ -130,3 +130,46 @@ export async function getDrChecks(domain, opts = {}) {
   `
   return rows.reverse()
 }
+
+/**
+ * List claimed domains for /sites.
+ * @param {{ query?: string, limit?: number, offset?: number }} [opts]
+ */
+export async function listClaims(opts = {}) {
+  if (!hasDb) return []
+  await ensureTables()
+
+  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
+  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+  const q = String(opts.query ?? "").trim()
+  const pattern = q ? `%${q}%` : null
+
+  const { rows } = await sql`
+    SELECT domain, domain_rating, updated_at
+    FROM dr_claims
+    WHERE ${pattern === null} OR domain ILIKE ${pattern}
+    ORDER BY updated_at DESC NULLS LAST
+    LIMIT ${limit}
+    OFFSET ${offset}
+  `
+  return rows
+}
+
+/**
+ * Count claimed domains for /sites pagination.
+ * @param {{ query?: string }} [opts]
+ */
+export async function countClaims(opts = {}) {
+  if (!hasDb) return 0
+  await ensureTables()
+
+  const q = String(opts.query ?? "").trim()
+  const pattern = q ? `%${q}%` : null
+
+  const { rows } = await sql`
+    SELECT COUNT(*)::int AS count
+    FROM dr_claims
+    WHERE ${pattern === null} OR domain ILIKE ${pattern}
+  `
+  return Number(rows?.[0]?.count) || 0
+}
