@@ -50,3 +50,22 @@ export async function upsertClaim({ domain, email = null, domainRating, provider
   `
   return rows[0] || null
 }
+
+/**
+ * Associate a domain with an email without overwriting the DR/provider.
+ * @param {{ domain: string, email: string }} input
+ */
+export async function setClaimEmail({ domain, email }) {
+  if (!hasDb) return null
+  await ensureTables()
+  const { rows } = await sql`
+    INSERT INTO dr_claims (domain, email)
+    VALUES (${domain}, ${email})
+    ON CONFLICT (domain)
+    DO UPDATE SET
+      email = EXCLUDED.email,
+      updated_at = NOW()
+    RETURNING domain, email, domain_rating, provider, claimed_at, updated_at
+  `
+  return rows[0] || null
+}

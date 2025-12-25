@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card"
 import { getClaim, upsertClaim } from "@/server/db.mjs"
 import { fetchDomainRating, normalizeTarget } from "@/server/dr-providers.mjs"
 import { EmbedCard } from "./embed-card"
+import { ClaimClient } from "./claim-client"
 
 export const runtime = "nodejs"
 
@@ -48,6 +49,9 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
         <Card className="p-6">
           <h1 className="text-xl font-semibold">{domain}</h1>
           <p className="text-sm text-muted-foreground">Verified Domain Rating</p>
+          <div className="mt-1">
+            <ClaimClient domain={domain} />
+          </div>
 
           <div className="mt-6 flex items-center gap-6">
             <img src={badgeUrl} alt={`Verified DR badge for ${domain}`} width={200} height={50} />
