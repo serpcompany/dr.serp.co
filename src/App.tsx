@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
+import { LoginForm } from '@/components/login-form'
+import { OTPForm } from '@/components/otp-form'
 import { MagnifyingGlass, Link, Globe, Warning } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
@@ -322,52 +323,25 @@ function App() {
 
         {authStep !== 'authed' ? (
           <Card className="p-8">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold">Log in to claim your DR page</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                We send a one-time code to your email.
-              </p>
-            </div>
-
             {authStep === 'email' && (
-              <form onSubmit={requestOtp} className="flex flex-col gap-4">
-                <Input
-                  type="email"
-                  placeholder="you@domain.com"
-                  value={authEmail}
-                  onChange={(e) => setAuthEmail(e.target.value)}
-                  disabled={authLoading}
-                  className="h-12 text-base"
-                />
-                {authError && <p className="text-sm text-destructive">{authError}</p>}
-                <Button type="submit" disabled={authLoading || !authEmail.trim()}>
-                  {authLoading ? 'Sending...' : 'Send code'}
-                </Button>
-              </form>
+              <LoginForm
+                email={authEmail}
+                loading={authLoading}
+                error={authError}
+                onEmailChange={setAuthEmail}
+                onSubmit={requestOtp}
+              />
             )}
-
             {authStep === 'otp' && (
-              <form onSubmit={verifyOtp} className="flex flex-col gap-4">
-                <div className="text-sm text-muted-foreground">
-                  Code sent to <span className="font-medium text-foreground">{authEmail}</span>
-                </div>
-                <InputOTP maxLength={6} value={otpCode} onChange={setOtpCode}>
-                  <InputOTPGroup>
-                    {[0, 1, 2, 3, 4, 5].map((index) => (
-                      <InputOTPSlot key={index} index={index} />
-                    ))}
-                  </InputOTPGroup>
-                </InputOTP>
-                {authError && <p className="text-sm text-destructive">{authError}</p>}
-                <div className="flex gap-3">
-                  <Button type="submit" disabled={authLoading || otpCode.length !== 6} className="flex-1">
-                    {authLoading ? 'Verifying...' : 'Verify code'}
-                  </Button>
-                  <Button type="button" variant="secondary" onClick={() => setAuthStep('email')} disabled={authLoading}>
-                    Edit email
-                  </Button>
-                </div>
-              </form>
+              <OTPForm
+                email={authEmail}
+                code={otpCode}
+                loading={authLoading}
+                error={authError}
+                onCodeChange={setOtpCode}
+                onSubmit={verifyOtp}
+                onEditEmail={() => setAuthStep('email')}
+              />
             )}
           </Card>
         ) : (
