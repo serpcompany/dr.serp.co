@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import "./globals.css"
 import { SiteHeader } from "@/app/_components/site-header"
+import { Toaster } from "@/components/ui/sonner"
 
 export const metadata: Metadata = {
   title: "Domain Rating Checker",
@@ -15,6 +16,7 @@ export default function RootLayout({
       <body className="min-h-svh bg-background text-foreground antialiased">
         <SiteHeader />
         {children}
+        <Toaster />
       </body>
     </html>
   )

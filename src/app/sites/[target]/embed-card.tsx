@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 
@@ -24,6 +25,7 @@ export function EmbedCard({
       await navigator.clipboard.writeText(snippet)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
+      toast.success("Embed code copied")
     } catch {
       // ignore
     }

@@ -2,7 +2,9 @@
 
 import { useMemo } from "react"
 
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
+
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 
 export function DrChart({
   points,
@@ -23,9 +25,14 @@ export function DrChart({
   }
 
   return (
-    <div className="h-44 w-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <ChartContainer
+      className="h-56 w-full"
+      config={{
+        dr: { label: "DR", color: "#10a64a" },
+      }}
+    >
         <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <CartesianGrid vertical={false} />
           <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={8} minTickGap={24} />
           <YAxis
             domain={[0, 100]}
@@ -33,15 +40,15 @@ export function DrChart({
             tickMargin={8}
             width={30}
           />
-          <Tooltip
-            contentStyle={{ fontSize: 12 }}
-            labelStyle={{ fontSize: 12 }}
-            formatter={(value) => [`${value}`, "DR"]}
+          <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+          <Line
+            type="monotone"
+            dataKey="dr"
+            stroke="var(--color-dr)"
+            strokeWidth={2}
+            dot={false}
           />
-          <Line type="monotone" dataKey="dr" stroke="currentColor" strokeWidth={2} dot={false} />
         </LineChart>
-      </ResponsiveContainer>
-    </div>
+    </ChartContainer>
   )
 }
-

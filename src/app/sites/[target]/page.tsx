@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation"
 
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getClaim, getDrChecks, recordDrCheck, upsertClaim } from "@/server/db.mjs"
 import { fetchDomainRating, normalizeTarget } from "@/server/dr-providers.mjs"
 import { EmbedCard } from "./embed-card"
 import { ClaimClient } from "./claim-client"
 import { DrChart } from "./dr-chart"
 import { RecheckButton } from "./recheck-button"
+import { DrRadial } from "./dr-radial"
 
 export const runtime = "nodejs"
 
@@ -62,18 +63,21 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
 
   return (
     <div className="bg-background flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-2xl space-y-6">
-        <Card className="p-6">
-          <h1 className="text-xl font-semibold">{domain}</h1>
+      <div className="w-full max-w-4xl space-y-6">
+        <header className="space-y-2">
+          <h1 className="scroll-m-20 text-3xl font-semibold tracking-tight">{domain}</h1>
           <p className="text-sm text-muted-foreground">Verified Domain Rating</p>
-          <div className="mt-1">
-            <ClaimClient domain={domain} />
-          </div>
+          <ClaimClient domain={domain} />
+        </header>
 
-          <div className="mt-6 flex items-start justify-between gap-6">
-            {domainRating !== null ? (
-              <div>
-                <div className="text-5xl font-bold">{domainRating}</div>
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card className="md:col-span-1">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Domain Rating</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <DrRadial value={domainRating} />
+              <div className="space-y-1">
                 {provider ? <div className="text-xs text-muted-foreground">Source: {provider}</div> : null}
                 {lastCheckedAt ? (
                   <div className="text-xs text-muted-foreground">
@@ -85,55 +89,45 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
                     }).format(lastCheckedAt)}{" "}
                     UTC
                   </div>
-                ) : null}
-                <div className="mt-3">
-                  <RecheckButton domain={domain} />
-                </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground">Not checked yet.</div>
+                )}
               </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                Rating unavailable right now.
-                {lastCheckedAt ? (
-                  <div className="mt-1 text-xs">
-                    Last checked:{" "}
-                    {new Intl.DateTimeFormat("en-US", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                      timeZone: "UTC",
-                    }).format(lastCheckedAt)}{" "}
-                    UTC
-                  </div>
-                ) : null}
-                <div className="mt-3">
-                  <RecheckButton domain={domain} />
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
+              <RecheckButton domain={domain} />
+            </CardContent>
+          </Card>
 
-        <Card className="p-6">
-          <h2 className="text-sm font-medium mb-3">Embed this badge</h2>
-          <div className="mb-4">
-            <img
-              src={badgeUrl}
-              alt={`Verified DR badge for ${domain}`}
-              width={320}
-              height={80}
-              className="max-w-full"
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Embed this badge</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <img
+                  src={badgeUrl}
+                  alt={`Verified DR badge for ${domain}`}
+                  width={360}
+                  height={90}
+                  className="max-w-full"
+                />
+              </div>
+              <EmbedCard pageUrl={pageUrl} badgeUrl={badgeUrl} domain={domain} />
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">DR over time</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DrChart
+              points={checks.map((row: any) => ({
+                checkedAt: String(row.checked_at),
+                domainRating: Number(row.domain_rating),
+              }))}
             />
-          </div>
-          <EmbedCard pageUrl={pageUrl} badgeUrl={badgeUrl} domain={domain} />
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="text-sm font-medium mb-3">DR over time</h2>
-          <DrChart
-            points={checks.map((row: any) => ({
-              checkedAt: String(row.checked_at),
-              domainRating: Number(row.domain_rating),
-            }))}
-          />
+          </CardContent>
         </Card>
       </div>
     </div>
