@@ -1,10 +1,23 @@
 {
   "redirects": [
-    { "source": "/:target((?!.*\\.).*)", "destination": "/sites/:target", "permanent": true }
+    {
+      "source": "/:target((?!sites$|badge$|api$)[^/.]+)",
+      "destination": "/sites/:target",
+      "permanent": true
+    }
   ],
   "rewrites": [
-    { "source": "/badge/:target", "destination": "/api/badge?target=:target" },
-    { "source": "/sites/:target", "destination": "/api/domain-page?target=:target" },
-    { "source": "/(.*)", "destination": "/" }
+    {
+      "source": "/badge/:target",
+      "destination": "/api/badge?target=:target"
+    },
+    {
+      "source": "/sites/:target",
+      "destination": "/api/domain-page?target=:target"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
   ]
 }
