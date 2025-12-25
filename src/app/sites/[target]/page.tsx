@@ -15,7 +15,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
   if (!domain) notFound()
 
   const publicBase = process.env.DR_PUBLIC_BASE_URL || "https://dr.serp.co"
-  const badgeBase = process.env.DR_BADGE_BASE_URL || "https://embeds.serp.co"
+  const badgeBase = process.env.DR_BADGE_BASE_URL || publicBase
 
   const pageUrl = `${publicBase}/sites/${encodeURIComponent(domain)}`
   const badgeUrl = `${badgeBase}/badge/${encodeURIComponent(domain)}`
