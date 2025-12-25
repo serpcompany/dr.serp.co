@@ -61,6 +61,13 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
     await recordDrCheck({ domain, domainRating, provider: providerForStorage, checkedAt: seedAt })
     checks = await getDrChecks(domain, { limit: 60 })
   }
+
+  if ((domainRating === null || !Number.isFinite(domainRating)) && checks.length > 0) {
+    const last = checks[checks.length - 1]
+    const lastValue = Number(last?.domain_rating)
+    if (Number.isFinite(lastValue)) domainRating = lastValue
+    if (!lastCheckedAt && last?.checked_at) lastCheckedAt = new Date(last.checked_at)
+  }
   if (!lastCheckedAt && checks.length > 0) {
     const last = checks[checks.length - 1]
     if (last?.checked_at) lastCheckedAt = new Date(last.checked_at)

@@ -2,7 +2,7 @@ import fs from "node:fs"
 import path from "node:path"
 
 import { fetchDomainRating, normalizeTarget } from "@/server/dr-providers.mjs"
-import { getClaim, upsertClaim } from "@/server/db.mjs"
+import { getClaim, recordDrCheck, upsertClaim } from "@/server/db.mjs"
 
 export const runtime = "nodejs"
 
@@ -66,7 +66,10 @@ export async function GET(request: Request, context: { params: Promise<{ target:
 
     const dr = Math.max(0, Math.min(100, Math.floor(Number((result as any)?.domainRating))))
     if (Number.isFinite(dr)) {
-      await upsertClaim({ domain: normalizedTarget, domainRating: dr, provider: (result as any)?.provider || null })
+      const provider = (result as any)?.provider || null
+      const updated = await upsertClaim({ domain: normalizedTarget, domainRating: dr, provider })
+      const checkedAt = updated?.updated_at ? new Date(updated.updated_at) : new Date()
+      await recordDrCheck({ domain: normalizedTarget, domainRating: dr, provider, checkedAt })
     }
 
     const svg = renderBadgeSvg(Number.isFinite(dr) ? String(dr) : "??")
