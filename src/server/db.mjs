@@ -14,6 +14,16 @@ async function ensureTables() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `
+  await sql`
+    CREATE TABLE IF NOT EXISTS dr_checks (
+      id BIGSERIAL PRIMARY KEY,
+      domain TEXT NOT NULL,
+      domain_rating INT NOT NULL,
+      provider TEXT,
+      checked_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS dr_checks_domain_checked_at_idx ON dr_checks (domain, checked_at DESC)`
 }
 
 /**
@@ -68,4 +78,38 @@ export async function setClaimEmail({ domain, email }) {
     RETURNING domain, email, domain_rating, provider, claimed_at, updated_at
   `
   return rows[0] || null
+}
+
+/**
+ * Record a DR check point for charting.
+ * @param {{ domain: string, domainRating: number, provider?: (string|null), checkedAt?: (Date|null) }} input
+ */
+export async function recordDrCheck({ domain, domainRating, provider = null, checkedAt = null }) {
+  if (!hasDb) return null
+  await ensureTables()
+  const { rows } = await sql`
+    INSERT INTO dr_checks (domain, domain_rating, provider, checked_at)
+    VALUES (${domain}, ${domainRating}, ${provider}, COALESCE(${checkedAt}, NOW()))
+    RETURNING id, domain, domain_rating, provider, checked_at
+  `
+  return rows[0] || null
+}
+
+/**
+ * Fetch recent DR checks for a domain.
+ * @param {string} domain
+ * @param {{ limit?: number }} [opts]
+ */
+export async function getDrChecks(domain, opts = {}) {
+  if (!hasDb) return []
+  await ensureTables()
+  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
+  const { rows } = await sql`
+    SELECT domain_rating, provider, checked_at
+    FROM dr_checks
+    WHERE domain = ${domain}
+    ORDER BY checked_at DESC
+    LIMIT ${limit}
+  `
+  return rows.reverse()
 }

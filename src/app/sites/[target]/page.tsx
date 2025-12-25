@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation"
 
 import { Card } from "@/components/ui/card"
-import { getClaim, upsertClaim } from "@/server/db.mjs"
+import { getClaim, getDrChecks, recordDrCheck, upsertClaim } from "@/server/db.mjs"
 import { fetchDomainRating, normalizeTarget } from "@/server/dr-providers.mjs"
 import { EmbedCard } from "./embed-card"
 import { ClaimClient } from "./claim-client"
+import { DrChart } from "./dr-chart"
 
 export const runtime = "nodejs"
 
@@ -21,11 +22,13 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
 
   let domainRating: number | null = null
   let provider: string | null = null
+  let lastCheckedAt: Date | null = null
 
   const claim = await getClaim(domain)
   if (claim?.domain_rating !== null && claim?.domain_rating !== undefined) {
     domainRating = Number(claim.domain_rating)
     provider = claim.provider || null
+    lastCheckedAt = claim.updated_at ? new Date(claim.updated_at) : null
   } else {
     try {
       const result = await fetchDomainRating({ target: domain })
@@ -35,12 +38,20 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
         domainRating = Math.max(0, Math.min(100, Math.floor(Number((result as any)?.domainRating))))
         provider = (result as any)?.provider || null
         if (Number.isFinite(domainRating)) {
-          await upsertClaim({ domain, domainRating, provider })
+          const updated = await upsertClaim({ domain, domainRating, provider })
+          lastCheckedAt = updated?.updated_at ? new Date(updated.updated_at) : new Date()
+          await recordDrCheck({ domain, domainRating, provider, checkedAt: lastCheckedAt })
         }
       }
     } catch {
       domainRating = null
     }
+  }
+
+  const checks = await getDrChecks(domain, { limit: 60 })
+  if (!lastCheckedAt && checks.length > 0) {
+    const last = checks[checks.length - 1]
+    if (last?.checked_at) lastCheckedAt = new Date(last.checked_at)
   }
 
   return (
@@ -59,11 +70,45 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
               <div>
                 <div className="text-5xl font-bold">{domainRating}</div>
                 {provider ? <div className="text-xs text-muted-foreground">Source: {provider}</div> : null}
+                {lastCheckedAt ? (
+                  <div className="text-xs text-muted-foreground">
+                    Last checked:{" "}
+                    {new Intl.DateTimeFormat("en-US", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                      timeZone: "UTC",
+                    }).format(lastCheckedAt)}{" "}
+                    UTC
+                  </div>
+                ) : null}
               </div>
             ) : (
-              <div className="text-sm text-muted-foreground">Rating unavailable right now.</div>
+              <div className="text-sm text-muted-foreground">
+                Rating unavailable right now.
+                {lastCheckedAt ? (
+                  <div className="mt-1 text-xs">
+                    Last checked:{" "}
+                    {new Intl.DateTimeFormat("en-US", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                      timeZone: "UTC",
+                    }).format(lastCheckedAt)}{" "}
+                    UTC
+                  </div>
+                ) : null}
+              </div>
             )}
           </div>
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="text-sm font-medium mb-3">DR over time</h2>
+          <DrChart
+            points={checks.map((row: any) => ({
+              checkedAt: String(row.checked_at),
+              domainRating: Number(row.domain_rating),
+            }))}
+          />
         </Card>
 
         <Card className="p-6">
