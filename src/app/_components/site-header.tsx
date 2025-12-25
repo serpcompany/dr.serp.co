@@ -27,6 +27,11 @@ export function SiteHeader() {
                 Sites
               </Link>
             </NavigationMenuItem>
+            <NavigationMenuItem>
+              <Link href="/pricing" className={navigationMenuTriggerStyle()}>
+                Pricing
+              </Link>
+            </NavigationMenuItem>
           </NavigationMenuList>
         </NavigationMenu>
       </div>
