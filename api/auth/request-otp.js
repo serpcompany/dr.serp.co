@@ -1,4 +1,5 @@
 import { createOtp } from '../../server/otp-store.mjs'
+import { createOtpToken } from '../../server/otp-token.mjs'
 
 function sendJson(res, statusCode, data) {
   res.status(statusCode).json(data)
@@ -35,7 +36,7 @@ export default async function handler(req, res) {
     return
   }
 
-  const { ok, code, retryAfterMs } = createOtp(email)
+  const { ok, code, retryAfterMs, expiresAt } = createOtp(email)
   if (!ok) {
     sendJson(res, 429, { error: 'Please wait before requesting another code', retryAfterMs })
     return
@@ -44,6 +45,12 @@ export default async function handler(req, res) {
   const apiKey = process.env.USESEND_API_KEY
   if (!apiKey) {
     sendJson(res, 500, { error: 'Missing USESEND_API_KEY' })
+    return
+  }
+
+  const otpSecret = process.env.USESEND_OTP_SECRET || apiKey
+  if (!otpSecret) {
+    sendJson(res, 500, { error: 'Missing USESEND_OTP_SECRET' })
     return
   }
 
@@ -73,5 +80,7 @@ export default async function handler(req, res) {
     return
   }
 
-  sendJson(res, 200, { ok: true })
+  const token = createOtpToken({ email, code, expiresAt, secret: otpSecret })
+  sendJson(res, 200, { ok: true, token, expiresAt })
 }
+

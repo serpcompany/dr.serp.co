@@ -23,6 +23,7 @@ function App() {
   const [authStep, setAuthStep] = useState<'email' | 'otp' | 'authed'>('email')
   const [authEmail, setAuthEmail] = useState('')
   const [otpCode, setOtpCode] = useState('')
+  const [otpToken, setOtpToken] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
 
@@ -68,6 +69,7 @@ function App() {
 
       setAuthStep('otp')
       setOtpCode('')
+      setOtpToken(typeof payload?.token === 'string' ? payload.token : '')
       toast.success('Code sent to your email.')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to send code.'
@@ -93,7 +95,7 @@ function App() {
       const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: otpCode.trim() }),
+        body: JSON.stringify({ email, code: otpCode.trim(), token: otpToken }),
       })
       const payload = await response.json().catch(() => ({}))
 
@@ -104,6 +106,7 @@ function App() {
 
       window.localStorage.setItem('dr-auth-email', email)
       setAuthStep('authed')
+      setOtpToken('')
       toast.success('You are logged in.')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to verify code.'
@@ -119,6 +122,7 @@ function App() {
     setAuthStep('email')
     setAuthEmail('')
     setOtpCode('')
+    setOtpToken('')
     setAuthError(null)
   }
 

@@ -1,4 +1,4 @@
-import { verifyOtp } from '../../server/otp-store.mjs'
+import { verifyOtpToken } from '../../server/otp-token.mjs'
 
 function sendJson(res, statusCode, data) {
   res.status(statusCode).json(data)
@@ -31,17 +31,31 @@ export default async function handler(req, res) {
   const body = await readJson(req).catch(() => ({}))
   const email = String(body?.email || '').trim().toLowerCase()
   const code = String(body?.code || '').trim()
+  const token = String(body?.token || '').trim()
 
-  if (!isValidEmail(email) || !code) {
-    sendJson(res, 400, { error: 'Email and code required' })
+  if (!isValidEmail(email) || !code || !token) {
+    sendJson(res, 400, { error: 'Email, code, and token required' })
     return
   }
 
-  const result = verifyOtp(email, code)
+  const secret = process.env.USESEND_OTP_SECRET || process.env.USESEND_API_KEY
+  if (!secret) {
+    sendJson(res, 500, { error: 'Missing USESEND_OTP_SECRET' })
+    return
+  }
+
+  const result = verifyOtpToken({ token, secret })
   if (!result.ok) {
     sendJson(res, 401, { error: result.error || 'Invalid code' })
     return
   }
 
+  const payload = result.payload
+  if (payload.email !== email || payload.code !== code) {
+    sendJson(res, 401, { error: 'Invalid code' })
+    return
+  }
+
   sendJson(res, 200, { ok: true })
 }
+
