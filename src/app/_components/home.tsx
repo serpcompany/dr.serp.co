@@ -133,8 +133,14 @@ export function Home() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-6 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6 py-10">
       <div className="w-full max-w-xl space-y-6">
+        <header className="space-y-2 text-center">
+          <h1 className="text-3xl font-semibold tracking-tight">DR pages + embeddable badge</h1>
+          <p className="text-sm text-muted-foreground">
+            Look up a domain’s DR, generate a shareable page, and embed a verified badge on your site.
+          </p>
+        </header>
         {authStep !== "authed" ? (
           <Card className="px-0">
             <CardContent className="px-6">
@@ -168,9 +174,7 @@ export function Home() {
         ) : (
           <Card>
             <CardHeader>
-              <h1 className="text-xl font-semibold leading-none tracking-tight">
-                Generate your DR page
-              </h1>
+              <h2 className="text-xl font-semibold leading-none tracking-tight">Generate your DR page</h2>
               <CardDescription>
                 Enter a domain to generate its permanent page and embeddable badge.
               </CardDescription>

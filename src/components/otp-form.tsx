@@ -1,5 +1,4 @@
 import type React from "react"
-import { GalleryVerticalEnd } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -42,12 +41,6 @@ export function OTPForm({
       <form onSubmit={onSubmit}>
         <FieldGroup>
           <div className="flex flex-col items-center gap-2 text-center">
-            <a href="#" className="flex flex-col items-center gap-2 font-medium">
-              <div className="flex size-8 items-center justify-center rounded-md">
-                <GalleryVerticalEnd className="size-6" />
-              </div>
-              <span className="sr-only">SERP</span>
-            </a>
             <h1 className="text-xl font-bold">Enter verification code</h1>
             <FieldDescription>
               We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>.
@@ -82,10 +75,7 @@ export function OTPForm({
               <FieldDescription className="text-center text-destructive">{error}</FieldDescription>
             ) : (
               <FieldDescription className="text-center">
-                Didn&apos;t receive the code?{" "}
-                <button type="button" className="underline underline-offset-4" onClick={onEditEmail} disabled={loading}>
-                  Resend
-                </button>
+                Enter the code to continue.
               </FieldDescription>
             )}
           </Field>
@@ -101,10 +91,6 @@ export function OTPForm({
           </Field>
         </FieldGroup>
       </form>
-      <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
-        and <a href="#">Privacy Policy</a>.
-      </FieldDescription>
     </div>
   )
 }

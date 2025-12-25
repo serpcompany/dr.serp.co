@@ -6,6 +6,7 @@ import { fetchDomainRating, normalizeTarget } from "@/server/dr-providers.mjs"
 import { EmbedCard } from "./embed-card"
 import { ClaimClient } from "./claim-client"
 import { DrChart } from "./dr-chart"
+import { RecheckButton } from "./recheck-button"
 
 export const runtime = "nodejs"
 
@@ -48,7 +49,12 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
     }
   }
 
-  const checks = await getDrChecks(domain, { limit: 60 })
+  let checks = await getDrChecks(domain, { limit: 60 })
+  if (checks.length === 0 && domainRating !== null && Number.isFinite(domainRating)) {
+    const seedAt = lastCheckedAt || new Date()
+    await recordDrCheck({ domain, domainRating, provider, checkedAt: seedAt })
+    checks = await getDrChecks(domain, { limit: 60 })
+  }
   if (!lastCheckedAt && checks.length > 0) {
     const last = checks[checks.length - 1]
     if (last?.checked_at) lastCheckedAt = new Date(last.checked_at)
@@ -81,6 +87,9 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
                     UTC
                   </div>
                 ) : null}
+                <div className="mt-3">
+                  <RecheckButton domain={domain} />
+                </div>
               </div>
             ) : (
               <div className="text-sm text-muted-foreground">
@@ -96,6 +105,9 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
                     UTC
                   </div>
                 ) : null}
+                <div className="mt-3">
+                  <RecheckButton domain={domain} />
+                </div>
               </div>
             )}
           </div>
