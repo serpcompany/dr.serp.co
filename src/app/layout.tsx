@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import "./globals.css"
+import { SiteHeader } from "@/app/_components/site-header"
 
 export const metadata: Metadata = {
   title: "Domain Rating Checker",
@@ -11,7 +12,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="min-h-svh bg-background text-foreground antialiased">
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   )
 }

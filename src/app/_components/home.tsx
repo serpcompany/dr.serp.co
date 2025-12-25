@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/components/ui/card"
 
 import { LoginForm } from "@/components/login-form"
 import { OTPForm } from "@/components/otp-form"
@@ -133,60 +133,71 @@ export function Home() {
   }
 
   return (
-    <div className="bg-background flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-      <div className="w-full max-w-2xl">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-6 py-10">
+      <div className="w-full max-w-xl space-y-6">
         {authStep !== "authed" ? (
-          <Card className="p-6">
-            {authStep === "email" ? (
-              <LoginForm
-                email={authEmail}
-                loading={authLoading}
-                error={authError}
-                onEmailChange={setAuthEmail}
-                onSubmit={requestOtp}
-              />
-            ) : (
-              <OTPForm
-                email={authEmail}
-                code={otpCode}
-                loading={authLoading}
-                error={authError}
-                onCodeChange={setOtpCode}
-                onSubmit={verifyOtp}
-                onEditEmail={() => {
-                  window.sessionStorage.removeItem("dr-otp-email")
-                  window.sessionStorage.removeItem("dr-otp-token")
-                  setOtpToken("")
-                  setOtpCode("")
-                  setAuthStep("email")
-                }}
-              />
-            )}
+          <Card className="px-0">
+            <CardContent className="px-6">
+              {authStep === "email" ? (
+                <LoginForm
+                  email={authEmail}
+                  loading={authLoading}
+                  error={authError}
+                  onEmailChange={setAuthEmail}
+                  onSubmit={requestOtp}
+                />
+              ) : (
+                <OTPForm
+                  email={authEmail}
+                  code={otpCode}
+                  loading={authLoading}
+                  error={authError}
+                  onCodeChange={setOtpCode}
+                  onSubmit={verifyOtp}
+                  onEditEmail={() => {
+                    window.sessionStorage.removeItem("dr-otp-email")
+                    window.sessionStorage.removeItem("dr-otp-token")
+                    setOtpToken("")
+                    setOtpCode("")
+                    setAuthStep("email")
+                  }}
+                />
+              )}
+            </CardContent>
           </Card>
         ) : (
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4 text-sm text-muted-foreground">
-              <span>Signed in as {authEmail}</span>
+          <Card>
+            <CardHeader>
+              <h1 className="text-xl font-semibold leading-none tracking-tight">
+                Generate your DR page
+              </h1>
+              <CardDescription>
+                Enter a domain to generate its permanent page and embeddable badge.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleDomainSubmit} className="flex gap-3">
+                <Input
+                  type="text"
+                  placeholder="example.com"
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  className="h-12 text-base"
+                />
+                <Button type="submit" disabled={!domain.trim()} className="h-12 px-6">
+                  Submit
+                </Button>
+              </form>
+            </CardContent>
+            <CardFooter className="justify-between">
+              <span className="text-sm text-muted-foreground">Signed in as {authEmail}</span>
               <Button variant="ghost" size="sm" onClick={logout}>
                 Log out
               </Button>
-            </div>
-
-            <form onSubmit={handleDomainSubmit} className="flex gap-3">
-              <Input
-                type="text"
-                placeholder="example.com"
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-                className="flex-1 h-12 text-base"
-              />
-              <Button type="submit" disabled={!domain.trim()} className="h-12 px-6">
-                Submit
-              </Button>
-            </form>
+            </CardFooter>
           </Card>
         )}
       </div>
-    </div>
+    </main>
   )
 }
