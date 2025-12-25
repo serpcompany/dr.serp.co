@@ -1,6 +1,6 @@
 {
   "redirects": [
-    { "source": "/:target((?!.*\.).*)", "destination": "/sites/:target", "permanent": true }
+    { "source": "/:target((?!.*\\.).*)", "destination": "/sites/:target", "permanent": true }
   ],
   "rewrites": [
     { "source": "/badge/:target", "destination": "/api/badge?target=:target" },
