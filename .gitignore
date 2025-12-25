@@ -36,3 +36,5 @@ pids
 .devcontainer/
 
 .spark-workbench-id
+.spark-initial-sha
+spark.meta.json
