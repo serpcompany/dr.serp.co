@@ -24,7 +24,7 @@
         <a href="https://serp.co/verified"><g
           id="verified"
           transform="translate(10, 16
-          ) scale(0.16)"
+          ) scale(0.22)"
           fill="#10a64a"
           stroke="none"
           fill-rule="nonzero"
@@ -40,7 +40,7 @@
             31.88 17.87 42.45 0 61.37 8.24
             61.37 8.24"
           />
-          <text font-family="Inter" font-size="40" font-weight="700" fill="#fff" text-anchor="middle" x="60" y="75">
+          <text font-family="Inter" font-size="60" font-weight="700" fill="#fff" text-anchor="middle" x="60" y="75">
           <tspan>15</tspan>
         </text>
         </g></a>
@@ -60,7 +60,7 @@
         <!-- SERP -->
         <a href="https://serp.co" target="_blank">
 
-        <g><text font-family="Inter" font-size="12" font-weight="800" fill="#000000" text-anchor="middle" x="84" y="30">
+        <g><text font-family="Inter" font-size="12" font-weight="900" fill="#000000" text-anchor="middle" x="81" y="30">
           <tspan>VERIFIED DR</tspan>
         </text>
           </g>
