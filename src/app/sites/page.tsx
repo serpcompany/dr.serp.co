@@ -1,10 +1,18 @@
 import Link from "next/link"
 
 import { listSites, countSites } from "@/server/db.mjs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import {
+  Section,
+  SectionDescription,
+  SectionGroup,
+  SectionHeader,
+  SectionHeaderRow,
+  SectionTitle,
+} from "@/components/content/section"
 
 import { SitesSearch } from "./sites-search"
+import { SitesDataTable } from "./sites-data-table"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -47,16 +55,19 @@ export default async function SitesPage({
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <div className="mx-auto max-w-5xl px-4 py-12">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Top Sites</h1>
-        </div>
+    <SectionGroup>
+      <Section>
+        <SectionHeader>
+          <SectionTitle>Top Sites</SectionTitle>
+          <SectionDescription>Browse sites and their current Domain Rating.</SectionDescription>
+        </SectionHeader>
+      </Section>
 
-        <div className="rounded-lg border bg-background">
-          <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm">
-              <span className="font-semibold">
+      <Section>
+        <SectionHeaderRow>
+          <SectionHeader>
+            <SectionDescription className="tabular-nums">
+              <span className="font-medium text-foreground">
                 {totalCount.toLocaleString()} domain{totalCount === 1 ? "" : "s"}
               </span>
               {query ? (
@@ -65,9 +76,12 @@ export default async function SitesPage({
                   · showing {showingFrom.toLocaleString()}–{showingTo.toLocaleString()}
                 </span>
               ) : null}
-            </div>
-            <SitesSearch initialQuery={query} />
-          </div>
+            </SectionDescription>
+          </SectionHeader>
+          <SitesSearch initialQuery={query} />
+        </SectionHeaderRow>
+
+        <div className="rounded-lg border bg-background">
 
           {rows.length === 0 ? (
             <div className="p-10 text-center">
@@ -87,36 +101,7 @@ export default async function SitesPage({
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[70px] text-center">#</TableHead>
-                    <TableHead>Domain</TableHead>
-                    <TableHead className="text-right">DR</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(rows as ClaimRow[]).map((row, index) => {
-                    const domain = String(row.domain)
-                    const domainRating = row.domain_rating
-                    const rank = offset + index + 1
-
-                    return (
-                      <TableRow key={domain}>
-                        <TableCell className="text-center text-muted-foreground">{rank}</TableCell>
-                        <TableCell>
-                          <Link href={`/sites/${encodeURIComponent(domain)}`} className="text-foreground hover:underline">
-                            {domain}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span className="font-medium">{Number.isFinite(domainRating) ? domainRating : "—"}</span>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+              <SitesDataTable rows={rows as ClaimRow[]} offset={offset} />
 
               <div className="flex items-center justify-between border-t p-4">
                 <span className="text-sm text-muted-foreground">
@@ -147,7 +132,7 @@ export default async function SitesPage({
             </>
           )}
         </div>
-      </div>
-    </div>
+      </Section>
+    </SectionGroup>
   )
 }

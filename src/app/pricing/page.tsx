@@ -1,60 +1,72 @@
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  ActionCard,
+  ActionCardContent,
+  ActionCardDescription,
+  ActionCardFooter,
+  ActionCardGroup,
+  ActionCardHeader,
+  ActionCardTitle,
+} from "@/components/content/action-card"
+import { Section, SectionDescription, SectionGroup, SectionHeader, SectionTitle } from "@/components/content/section"
 
 export default function PricingPage() {
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12">
-      <div className="space-y-10">
-        <header className="space-y-2 text-center">
-          <h1 className="text-3xl font-semibold tracking-tight">Pricing</h1>
-          <p className="text-sm text-muted-foreground">Simple pricing while we ship the MVP.</p>
-        </header>
+    <main className="w-full flex-1">
+      <SectionGroup>
+        <Section>
+          <SectionHeader className="text-center">
+            <SectionTitle className="text-3xl font-semibold tracking-tight">Pricing</SectionTitle>
+            <SectionDescription>Simple pricing while we ship the MVP.</SectionDescription>
+          </SectionHeader>
+        </Section>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Free</CardTitle>
-              <CardDescription>Generate shareable pages and badges.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">$0</p>
-              <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-                <li>Public DR page per domain</li>
-                <li>Embeddable verified badge</li>
-                <li>Recheck button (best-effort)</li>
-              </ul>
-            </CardContent>
-            <CardFooter>
-              <Button asChild className="w-full">
-                <Link href="/">Get started</Link>
-              </Button>
-            </CardFooter>
-          </Card>
+        <Section>
+          <ActionCardGroup className="grid gap-6 md:grid-cols-2">
+            <ActionCard>
+              <ActionCardHeader>
+                <ActionCardTitle>Free</ActionCardTitle>
+                <ActionCardDescription>Generate shareable pages and badges.</ActionCardDescription>
+              </ActionCardHeader>
+              <ActionCardContent>
+                <p className="text-3xl font-semibold">$0</p>
+                <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+                  <li>Public DR page per domain</li>
+                  <li>Embeddable verified badge</li>
+                  <li>Recheck button (best-effort)</li>
+                </ul>
+              </ActionCardContent>
+              <ActionCardFooter>
+                <Button asChild className="w-full">
+                  <Link href="/">Get started</Link>
+                </Button>
+              </ActionCardFooter>
+            </ActionCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Pro</CardTitle>
-              <CardDescription>For teams and higher volume.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">Contact</p>
-              <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-                <li>Higher rate limits</li>
-                <li>Priority support</li>
-                <li>Custom badge designs</li>
-              </ul>
-            </CardContent>
-            <CardFooter>
-              <Button variant="secondary" asChild className="w-full">
-                <a href="mailto:devin@serp.co?subject=DR%20Badge%20Pro">Email us</a>
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      </div>
+            <ActionCard>
+              <ActionCardHeader>
+                <ActionCardTitle>Pro</ActionCardTitle>
+                <ActionCardDescription>For teams and higher volume.</ActionCardDescription>
+              </ActionCardHeader>
+              <ActionCardContent>
+                <p className="text-3xl font-semibold">Contact</p>
+                <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+                  <li>Higher rate limits</li>
+                  <li>Priority support</li>
+                  <li>Custom badge designs</li>
+                </ul>
+              </ActionCardContent>
+              <ActionCardFooter>
+                <Button variant="secondary" asChild className="w-full">
+                  <a href="mailto:devin@serp.co?subject=DR%20Badge%20Pro">Email us</a>
+                </Button>
+              </ActionCardFooter>
+            </ActionCard>
+          </ActionCardGroup>
+        </Section>
+      </SectionGroup>
     </main>
   )
 }
-

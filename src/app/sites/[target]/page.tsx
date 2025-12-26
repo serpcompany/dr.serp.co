@@ -17,6 +17,7 @@ import { ClaimClient } from "./claim-client"
 import { DrLineLabel } from "./dr-line-label"
 import { RecheckButton } from "./recheck-button"
 import { DrRadialShape } from "./dr-radial-shape"
+import { Section, SectionGroup, SectionHeader, SectionHeaderRow, SectionTitle } from "@/components/content/section"
 
 export const runtime = "nodejs"
 
@@ -54,7 +55,6 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
   const embedBase = process.env.DR_PUBLIC_BASE_URL || "https://dr.serp.co"
   const embedBadgeBase = process.env.DR_BADGE_BASE_URL || embedBase
   const embedBadgeUrl = `${embedBadgeBase}/badge/${encodeURIComponent(domain)}`
-  const badgeDisplayUrl = `/badge/${encodeURIComponent(domain)}`
 
   let domainRating: number | null = null
   let providerForStorage: string | null = null
@@ -143,53 +143,57 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
         : []
 
   return (
-    <div className="bg-background flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-[1200px] space-y-6">
-        <header className="space-y-3 text-center">
-          <div className="flex justify-center">
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/">Home</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/sites">Sites</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>{domain}</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-          <h1 className="scroll-m-20 text-3xl font-semibold tracking-tight">{domain}</h1>
-          <div className="flex flex-col items-center justify-center gap-2 sm:flex-row">
+    <SectionGroup>
+      <Section>
+        <SectionHeaderRow>
+          <SectionHeader>
+            <div className="flex">
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link href="/">Home</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link href="/sites">Sites</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{domain}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+            <SectionTitle className="text-2xl font-semibold tracking-tight">{domain}</SectionTitle>
+          </SectionHeader>
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
             <RecheckButton domain={domain} />
             <ClaimClient domain={domain} />
           </div>
-        </header>
+        </SectionHeaderRow>
+      </Section>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <div className="md:col-span-1 space-y-4">
+      <Section>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-1">
             <DrRadialShape value={domainRating} />
           </div>
 
-          <Card className="md:col-span-2">
+          <Card className="lg:col-span-2">
             <CardContent className="flex flex-1 flex-col items-center justify-center gap-6 py-6">
               <BadgeEmbed domain={domain} dr={domainRating} linkUrl={embedBase} badgeUrl={embedBadgeUrl} />
             </CardContent>
           </Card>
         </div>
+      </Section>
 
-        <DrLineLabel
-          points={chartPoints}
-        />
-      </div>
-    </div>
+      <Section>
+        <DrLineLabel points={chartPoints} />
+      </Section>
+    </SectionGroup>
   )
 }

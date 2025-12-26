@@ -1,17 +1,28 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/components/ui/card"
 
 import { LoginForm } from "@/components/login-form"
 import { OTPForm } from "@/components/otp-form"
 import { MySites } from "./my-sites"
 import { AllSites } from "./all-sites"
 import { upsertSiteHistory } from "@/lib/site-history"
+import { Section, SectionDescription, SectionGroup, SectionHeader, SectionTitle } from "@/components/content/section"
+import { ActionCard, ActionCardDescription, ActionCardGroup, ActionCardHeader, ActionCardTitle } from "@/components/content/action-card"
+import {
+  FormCard,
+  FormCardContent,
+  FormCardDescription,
+  FormCardEmpty,
+  FormCardFooter,
+  FormCardHeader,
+  FormCardTitle,
+} from "@/components/forms/form-card"
 
 export function Home() {
   const router = useRouter()
@@ -117,17 +128,6 @@ export function Home() {
     }
   }
 
-  const logout = () => {
-    window.localStorage.removeItem("dr-auth-email")
-    window.sessionStorage.removeItem("dr-otp-email")
-    window.sessionStorage.removeItem("dr-otp-token")
-    setAuthStep("email")
-    setAuthEmail("")
-    setOtpCode("")
-    setOtpToken("")
-    setAuthError(null)
-  }
-
   const handleDomainSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const cleanDomain = domain.trim().replace(/^https?:\/\//, "").replace(/\/$/, "")
@@ -146,75 +146,135 @@ export function Home() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6 py-10">
-      <div className="w-full max-w-xl space-y-6">
-        <header className="space-y-2 text-center">
-          <h1 className="text-3xl font-semibold tracking-tight">Verified DR Badge</h1>
-          <p className="text-sm text-muted-foreground">
-            Verify your DR with an embeddable badge to display on your site.
-          </p>
-        </header>
-        {authStep !== "authed" ? (
-          <div className="space-y-6">
-            <Card className="px-0">
-              <CardContent className="px-6">
-                {authStep === "email" ? (
-                  <LoginForm
-                    email={authEmail}
-                    loading={authLoading}
-                    error={authError}
-                    onEmailChange={setAuthEmail}
-                    onSubmit={requestOtp}
-                  />
-                ) : (
-                  <OTPForm
-                    email={authEmail}
-                    code={otpCode}
-                    loading={authLoading}
-                    error={authError}
-                    onCodeChange={setOtpCode}
-                    onSubmit={verifyOtp}
-                    onEditEmail={() => {
-                      window.sessionStorage.removeItem("dr-otp-email")
-                      window.sessionStorage.removeItem("dr-otp-token")
-                      setOtpToken("")
-                      setOtpCode("")
-                      setAuthStep("email")
-                    }}
-                  />
-                )}
-              </CardContent>
-            </Card>
+    <main className="w-full flex-1">
+      <SectionGroup>
+        <Section>
+          <SectionHeader>
+            <SectionTitle>Getting Started</SectionTitle>
+            <SectionDescription>Verify your DR and generate an embeddable badge.</SectionDescription>
+          </SectionHeader>
+        </Section>
 
-            <AllSites />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <h2 className="text-xl font-semibold leading-none tracking-tight">Add another domain</h2>
-  
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleDomainSubmit} className="flex gap-3">
-                  <Input
-                    type="text"
-                    placeholder="example.com"
-                    value={domain}
-                    onChange={(e) => setDomain(e.target.value)}
-                    className="h-12 text-base"
-                  />
-                  <Button type="submit" disabled={!domain.trim()} className="h-12 px-6">
-                    Submit
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
+        <Section>
+          <SectionHeader>
+            <SectionDescription className="tabular-nums">
+              Step <span className="font-medium text-foreground">1</span> of{" "}
+              <span className="font-medium text-foreground">2</span>
+            </SectionDescription>
+          </SectionHeader>
+          <FormCard>
+            <FormCardHeader>
+              <FormCardTitle>{authStep === "email" ? "Sign in" : authStep === "otp" ? "Verify code" : "Signed in"}</FormCardTitle>
+              <FormCardDescription>
+                {authStep === "email"
+                  ? "Enter your email and we’ll send you a 6‑digit code."
+                  : authStep === "otp"
+                    ? "Enter the 6‑digit code we sent to your email."
+                    : "You're ready to add a domain."}
+              </FormCardDescription>
+            </FormCardHeader>
+            <FormCardContent>
+              {authStep === "email" ? (
+                <LoginForm
+                  email={authEmail}
+                  loading={authLoading}
+                  error={authError}
+                  onEmailChange={setAuthEmail}
+                  onSubmit={requestOtp}
+                />
+              ) : authStep === "otp" ? (
+                <OTPForm
+                  email={authEmail}
+                  code={otpCode}
+                  loading={authLoading}
+                  error={authError}
+                  onCodeChange={setOtpCode}
+                  onSubmit={verifyOtp}
+                  onEditEmail={() => {
+                    window.sessionStorage.removeItem("dr-otp-email")
+                    window.sessionStorage.removeItem("dr-otp-token")
+                    setOtpToken("")
+                    setOtpCode("")
+                    setAuthStep("email")
+                  }}
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground">Signed in as {authEmail.trim().toLowerCase()}.</div>
+              )}
+            </FormCardContent>
+          </FormCard>
+        </Section>
 
+        <Section>
+          <SectionHeader>
+            <SectionDescription className="tabular-nums">
+              Step <span className="font-medium text-foreground">2</span> of{" "}
+              <span className="font-medium text-foreground">2</span>
+            </SectionDescription>
+          </SectionHeader>
+          <FormCard>
+            {authStep !== "authed" ? <FormCardEmpty /> : null}
+            <FormCardHeader>
+              <FormCardTitle>Add a domain</FormCardTitle>
+              <FormCardDescription>Look up a domain and generate a verified badge.</FormCardDescription>
+            </FormCardHeader>
+            <FormCardContent>
+              <form onSubmit={handleDomainSubmit} className="flex gap-3">
+                <Input
+                  type="text"
+                  placeholder="example.com"
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  className="h-12 text-base"
+                  disabled={authStep !== "authed"}
+                />
+                <Button type="submit" disabled={authStep !== "authed" || !domain.trim()} className="h-12 px-6">
+                  Submit
+                </Button>
+              </form>
+            </FormCardContent>
+            {authStep !== "authed" ? (
+              <FormCardFooter>
+                <div className="text-sm text-muted-foreground">Complete step 1 to enable domain lookups.</div>
+              </FormCardFooter>
+            ) : null}
+          </FormCard>
+        </Section>
+
+        {authStep === "authed" ? (
+          <Section>
             <MySites email={authEmail} />
-          </div>
+          </Section>
+        ) : (
+          <Section>
+            <AllSites />
+          </Section>
         )}
-      </div>
+
+        <Section>
+          <SectionHeader>
+            <SectionDescription>What&apos;s next?</SectionDescription>
+          </SectionHeader>
+          <ActionCardGroup className="sm:grid-cols-2">
+            <Link href="/sites">
+              <ActionCard className="h-full w-full">
+                <ActionCardHeader>
+                  <ActionCardTitle>Browse top sites</ActionCardTitle>
+                  <ActionCardDescription>See the current leaderboard.</ActionCardDescription>
+                </ActionCardHeader>
+              </ActionCard>
+            </Link>
+            <Link href="/pricing">
+              <ActionCard className="h-full w-full">
+                <ActionCardHeader>
+                  <ActionCardTitle>Pricing</ActionCardTitle>
+                  <ActionCardDescription>Simple pricing while we ship the MVP.</ActionCardDescription>
+                </ActionCardHeader>
+              </ActionCard>
+            </Link>
+          </ActionCardGroup>
+        </Section>
+      </SectionGroup>
     </main>
   )
 }
