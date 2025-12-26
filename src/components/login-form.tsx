@@ -32,15 +32,12 @@ export function LoginForm({
       <form onSubmit={onSubmit}>
         <FieldGroup>
           <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-xl font-bold">Log in to claim your DR page</h1>
-            <FieldDescription>We&apos;ll email you a one-time code.</FieldDescription>
           </div>
           <Field>
-            <FieldLabel htmlFor="email">Email</FieldLabel>
             <Input
               id="email"
               type="email"
-              placeholder="you@company.com"
+              placeholder="astley@rick.roll"
               value={email}
               onChange={(event) => onEmailChange(event.target.value)}
               required

@@ -99,3 +99,13 @@ export function filterSiteHistory(email: string, query: string) {
   return q ? rows.filter((row) => row.domain.includes(q)) : rows
 }
 
+export function removeSiteHistory(email: string, domain: string) {
+  if (typeof window === "undefined") return
+  const key = storageKey(email)
+  const normalized = safeDomain(domain)
+  if (!normalized) return
+
+  const existing = readSiteHistory(email)
+  const next = existing.filter((row) => row.domain !== normalized)
+  window.localStorage.setItem(key, JSON.stringify(next.slice(0, 100)))
+}

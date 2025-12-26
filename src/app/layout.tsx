@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import "./globals.css"
 import { SiteHeader } from "@/app/_components/site-header"
+import { SiteFooter } from "@/app/_components/site-footer"
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 
@@ -14,10 +15,11 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-svh bg-background text-foreground antialiased">
+      <body className="min-h-svh bg-background text-foreground antialiased flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <SiteHeader />
-          {children}
+          <div className="flex-1">{children}</div>
+          <SiteFooter />
           <Toaster />
         </ThemeProvider>
       </body>

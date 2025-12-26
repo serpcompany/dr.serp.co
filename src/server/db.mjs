@@ -249,6 +249,41 @@ export async function setClaimEmail({ domain, email }) {
 }
 
 /**
+ * Remove a claim's email association if it matches the provided email.
+ * Keeps the domain + DR data intact (so it can still appear in /sites).
+ * @param {{ domain: string, email: string }} input
+ */
+export async function clearClaimEmail({ domain, email }) {
+  const normalizedDomain = String(domain ?? "").trim()
+  const normalizedEmail = String(email ?? "").trim().toLowerCase()
+  if (!normalizedDomain || !normalizedEmail) return null
+
+  if (!hasDb) {
+    const previous = fallbackClaims.get(normalizedDomain)
+    if (!previous) return null
+    if (String(previous.email ?? "").trim().toLowerCase() !== normalizedEmail) return previous
+    const now = new Date()
+    const next = {
+      ...previous,
+      email: null,
+      updated_at: now,
+    }
+    fallbackClaims.set(normalizedDomain, next)
+    schedulePersist()
+    return next
+  }
+
+  await ensureTables()
+  const rows = rowsFrom(await sql`
+    UPDATE dr_claims
+    SET email = NULL, updated_at = NOW()
+    WHERE domain = ${normalizedDomain} AND email = ${normalizedEmail}
+    RETURNING domain, email, domain_rating, provider, claimed_at, updated_at
+  `)
+  return rows[0] || null
+}
+
+/**
  * Ensure a domain exists in storage even if DR cannot be fetched yet.
  * This keeps /sites from showing "No domains" after a user visits a domain page.
  * @param {string} domain

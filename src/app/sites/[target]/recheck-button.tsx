@@ -40,4 +40,3 @@ export function RecheckButton({ domain }: { domain: string }) {
     </div>
   )
 }
-

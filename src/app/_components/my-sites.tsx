@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
-import { filterSiteHistory, type SiteRow } from "@/lib/site-history"
+import { filterSiteHistory, removeSiteHistory, type SiteRow } from "@/lib/site-history"
 
 function formatUpdatedAt(value: string | null) {
   if (!value) return null
@@ -24,6 +26,7 @@ export function MySites({ email }: { email: string }) {
   const [sites, setSites] = useState<SiteRow[]>([])
 
   const trimmedEmail = email.trim().toLowerCase()
+  const [removing, setRemoving] = useState<string | null>(null)
 
   const fetchSites = useMemo(() => {
     let controller: AbortController | null = null
@@ -77,6 +80,33 @@ export function MySites({ email }: { email: string }) {
     return () => window.clearTimeout(handle)
   }, [fetchSites, query])
 
+  const remove = async (domain: string) => {
+    const normalizedDomain = String(domain ?? "").trim().toLowerCase()
+    if (!normalizedDomain) return
+
+    setRemoving(normalizedDomain)
+    setSites((prev) => prev.filter((row) => row.domain !== normalizedDomain))
+    removeSiteHistory(trimmedEmail, normalizedDomain)
+
+    try {
+      const response = await fetch("/api/claims", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, domain: normalizedDomain }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(typeof payload?.error === "string" ? payload.error : "Failed to delete site.")
+      }
+      toast.success("Removed from your sites")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete site.")
+      fetchSites.run(query.trim())
+    } finally {
+      setRemoving(null)
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -116,29 +146,45 @@ export function MySites({ email }: { email: string }) {
           <div className="space-y-3">
             {error ? <p className="text-xs text-muted-foreground">Some sites may be missing: {error}</p> : null}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {sites.map((site) => {
-                const dr =
-                  typeof site.domain_rating === "number" && Number.isFinite(site.domain_rating) ? site.domain_rating : null
-                const updated = formatUpdatedAt(site.updated_at)
+            {sites.map((site) => {
+              const dr =
+                typeof site.domain_rating === "number" && Number.isFinite(site.domain_rating) ? site.domain_rating : null
+              const updated = formatUpdatedAt(site.updated_at)
 
-                return (
+              return (
+                <div key={site.domain} className="relative">
                   <Link
-                    key={site.domain}
                     href={`/sites/${encodeURIComponent(site.domain)}`}
-                    className="group rounded-lg border bg-background p-4 transition hover:bg-muted/20"
+                    className="group block rounded-lg border bg-background p-4 transition hover:bg-muted/20"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium group-hover:underline">{site.domain}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {updated ? `Last checked ${updated}` : "No recent check"}
-                        </p>
-                      </div>
-                      <Badge variant="secondary">{dr === null ? "DR —" : `DR ${dr}`}</Badge>
-                    </div>
-                  </Link>
-                )
-              })}
+	                    <div className="flex items-start justify-between gap-3">
+	                      <div className="min-w-0">
+	                        <p className="truncate text-sm font-medium group-hover:underline">{site.domain}</p>
+	                        <p className="mt-1 text-xs text-muted-foreground">
+	                          {updated ? `Last checked ${updated}` : "No recent check"}
+	                        </p>
+	                      </div>
+	                      <Badge variant="secondary">{dr === null ? "DR —" : `DR ${dr}`}</Badge>
+	                    </div>
+	                  </Link>
+	                  <Button
+	                    type="button"
+	                    variant="ghost"
+	                    size="icon"
+                    className="absolute right-2 top-2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                    aria-label={`Remove ${site.domain}`}
+                    disabled={removing === site.domain}
+                    onClick={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      remove(site.domain)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )
+            })}
             </div>
           </div>
         )}

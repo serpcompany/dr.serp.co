@@ -37,7 +37,7 @@ export function ClaimClient({ domain }: { domain: string }) {
 
   return (
     <p className="text-xs text-muted-foreground">
-      {status === "claimed" ? "Claimed to your email." : "Could not claim this domain to your email."}
+      {status === "claimed" ? "Claimed via email" : "Could not claim this domain to your email."}
     </p>
   )
 }

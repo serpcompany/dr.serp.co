@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/co
 import { LoginForm } from "@/components/login-form"
 import { OTPForm } from "@/components/otp-form"
 import { MySites } from "./my-sites"
+import { AllSites } from "./all-sites"
 import { upsertSiteHistory } from "@/lib/site-history"
 
 export function Home() {
@@ -150,47 +151,49 @@ export function Home() {
         <header className="space-y-2 text-center">
           <h1 className="text-3xl font-semibold tracking-tight">Verified DR Badge</h1>
           <p className="text-sm text-muted-foreground">
-            Look up a domain’s DR, generate a shareable page, and embed a verified badge on your site.
+            Verify your DR with an embeddable badge to display on your site.
           </p>
         </header>
         {authStep !== "authed" ? (
-          <Card className="px-0">
-            <CardContent className="px-6">
-              {authStep === "email" ? (
-                <LoginForm
-                  email={authEmail}
-                  loading={authLoading}
-                  error={authError}
-                  onEmailChange={setAuthEmail}
-                  onSubmit={requestOtp}
-                />
-              ) : (
-                <OTPForm
-                  email={authEmail}
-                  code={otpCode}
-                  loading={authLoading}
-                  error={authError}
-                  onCodeChange={setOtpCode}
-                  onSubmit={verifyOtp}
-                  onEditEmail={() => {
-                    window.sessionStorage.removeItem("dr-otp-email")
-                    window.sessionStorage.removeItem("dr-otp-token")
-                    setOtpToken("")
-                    setOtpCode("")
-                    setAuthStep("email")
-                  }}
-                />
-              )}
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card className="px-0">
+              <CardContent className="px-6">
+                {authStep === "email" ? (
+                  <LoginForm
+                    email={authEmail}
+                    loading={authLoading}
+                    error={authError}
+                    onEmailChange={setAuthEmail}
+                    onSubmit={requestOtp}
+                  />
+                ) : (
+                  <OTPForm
+                    email={authEmail}
+                    code={otpCode}
+                    loading={authLoading}
+                    error={authError}
+                    onCodeChange={setOtpCode}
+                    onSubmit={verifyOtp}
+                    onEditEmail={() => {
+                      window.sessionStorage.removeItem("dr-otp-email")
+                      window.sessionStorage.removeItem("dr-otp-token")
+                      setOtpToken("")
+                      setOtpCode("")
+                      setAuthStep("email")
+                    }}
+                  />
+                )}
+              </CardContent>
+            </Card>
+
+            <AllSites />
+          </div>
         ) : (
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <h2 className="text-xl font-semibold leading-none tracking-tight">Generate your DR page</h2>
-                <CardDescription>
-                  Enter a domain to generate its permanent page and embeddable badge.
-                </CardDescription>
+                <h2 className="text-xl font-semibold leading-none tracking-tight">DR Lookup</h2>
+  
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleDomainSubmit} className="flex gap-3">
