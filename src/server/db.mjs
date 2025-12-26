@@ -130,6 +130,13 @@ function clampDr(value) {
   return Number.isFinite(dr) ? dr : null
 }
 
+function rowsFrom(result) {
+  if (!result) return []
+  if (Array.isArray(result)) return result
+  if (Array.isArray(result.rows)) return result.rows
+  return []
+}
+
 async function ensureTables() {
   if (!hasDb) return
   await sql`
@@ -163,12 +170,12 @@ export async function getClaim(domain) {
     return row || null
   }
   await ensureTables()
-  const { rows } = await sql`
+  const rows = rowsFrom(await sql`
     SELECT domain, email, domain_rating, provider, claimed_at, updated_at
     FROM dr_claims
     WHERE domain = ${domain}
     LIMIT 1
-  `
+  `)
   return rows[0] || null
 }
 
@@ -193,7 +200,7 @@ export async function upsertClaim({ domain, email = null, domainRating, provider
     return next
   }
   await ensureTables()
-  const { rows } = await sql`
+  const rows = rowsFrom(await sql`
     INSERT INTO dr_claims (domain, email, domain_rating, provider)
     VALUES (${domain}, ${email}, ${domainRating}, ${provider})
     ON CONFLICT (domain)
@@ -203,7 +210,7 @@ export async function upsertClaim({ domain, email = null, domainRating, provider
       provider = EXCLUDED.provider,
       updated_at = NOW()
     RETURNING domain, email, domain_rating, provider, claimed_at, updated_at
-  `
+  `)
   return rows[0] || null
 }
 
@@ -229,7 +236,7 @@ export async function setClaimEmail({ domain, email }) {
     return next
   }
   await ensureTables()
-  const { rows } = await sql`
+  const rows = rowsFrom(await sql`
     INSERT INTO dr_claims (domain, email)
     VALUES (${domain}, ${email})
     ON CONFLICT (domain)
@@ -237,7 +244,7 @@ export async function setClaimEmail({ domain, email }) {
       email = EXCLUDED.email,
       updated_at = NOW()
     RETURNING domain, email, domain_rating, provider, claimed_at, updated_at
-  `
+  `)
   return rows[0] || null
 }
 
@@ -268,14 +275,14 @@ export async function touchDomain(domain) {
   }
 
   await ensureTables()
-  const { rows } = await sql`
+  const rows = rowsFrom(await sql`
     INSERT INTO dr_claims (domain)
     VALUES (${normalized})
     ON CONFLICT (domain)
     DO UPDATE SET
       updated_at = NOW()
     RETURNING domain, email, domain_rating, provider, claimed_at, updated_at
-  `
+  `)
   return rows[0] || null
 }
 
@@ -301,11 +308,11 @@ export async function recordDrCheck({ domain, domainRating, provider = null, che
     return { id: null, domain, ...next }
   }
   await ensureTables()
-  const { rows } = await sql`
+  const rows = rowsFrom(await sql`
     INSERT INTO dr_checks (domain, domain_rating, provider, checked_at)
     VALUES (${domain}, ${domainRating}, ${provider}, COALESCE(${checkedAt}, NOW()))
     RETURNING id, domain, domain_rating, provider, checked_at
-  `
+  `)
   return rows[0] || null
 }
 
@@ -322,13 +329,13 @@ export async function getDrChecks(domain, opts = {}) {
   }
   await ensureTables()
   const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
-  const { rows } = await sql`
+  const rows = rowsFrom(await sql`
     SELECT domain_rating, provider, checked_at
     FROM dr_checks
     WHERE domain = ${domain}
     ORDER BY checked_at DESC
     LIMIT ${limit}
-  `
+  `)
   return rows.reverse()
 }
 
@@ -380,7 +387,7 @@ export async function listClaims(opts = {}) {
   const pattern = q ? `%${q}%` : null
   const sort = opts.sort === "updated" ? "updated" : "dr"
 
-  const { rows } =
+  const result =
     sort === "updated"
       ? await sql`
           SELECT domain, domain_rating, updated_at
@@ -398,7 +405,7 @@ export async function listClaims(opts = {}) {
           LIMIT ${limit}
           OFFSET ${offset}
         `
-  return rows
+  return rowsFrom(result)
 }
 
 /**
@@ -420,11 +427,11 @@ export async function countClaims(opts = {}) {
   const q = String(opts.query ?? "").trim()
   const pattern = q ? `%${q}%` : null
 
-  const { rows } = await sql`
+  const rows = rowsFrom(await sql`
     SELECT COUNT(*)::int AS count
     FROM dr_claims
     WHERE ${pattern === null} OR domain ILIKE ${pattern}
-  `
+  `)
   return Number(rows?.[0]?.count) || 0
 }
 
@@ -481,7 +488,7 @@ export async function listClaimsByEmail(opts) {
   const pattern = q ? `%${q}%` : null
   const sort = opts.sort === "updated" ? "updated" : "dr"
 
-  const { rows } =
+  const result =
     sort === "updated"
       ? await sql`
           SELECT domain, domain_rating, updated_at
@@ -500,7 +507,7 @@ export async function listClaimsByEmail(opts) {
           OFFSET ${offset}
         `
 
-  return rows
+  return rowsFrom(result)
 }
 
 /**
@@ -527,11 +534,11 @@ export async function countClaimsByEmail(opts) {
   const q = String(opts.query ?? "").trim()
   const pattern = q ? `%${q}%` : null
 
-  const { rows } = await sql`
+  const rows = rowsFrom(await sql`
     SELECT COUNT(*)::int AS count
     FROM dr_claims
     WHERE email = ${email} AND (${pattern === null} OR domain ILIKE ${pattern})
-  `
+  `)
   return Number(rows?.[0]?.count) || 0
 }
 
@@ -604,7 +611,7 @@ export async function listSites(opts = {}) {
   const pattern = q ? `%${q}%` : null
   const sort = opts.sort === "updated" ? "updated" : "dr"
 
-  const { rows } =
+  const result =
     sort === "updated"
       ? await sql`
           SELECT
@@ -653,7 +660,7 @@ export async function listSites(opts = {}) {
           OFFSET ${offset}
         `
 
-  return rows
+  return rowsFrom(result)
 }
 
 /**
@@ -677,7 +684,7 @@ export async function countSites(opts = {}) {
   const q = String(opts.query ?? "").trim()
   const pattern = q ? `%${q}%` : null
 
-  const { rows } = await sql`
+  const rows = rowsFrom(await sql`
     SELECT COUNT(*)::int AS count
     FROM (
       SELECT domain FROM dr_claims
@@ -685,6 +692,6 @@ export async function countSites(opts = {}) {
       SELECT domain FROM dr_checks
     ) d
     WHERE ${pattern === null} OR d.domain ILIKE ${pattern}
-  `
+  `)
   return Number(rows?.[0]?.count) || 0
 }
