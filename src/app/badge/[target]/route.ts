@@ -6,9 +6,18 @@ import { getClaim, getDrChecks, recordDrCheck, upsertClaim } from "@/server/db.m
 
 export const runtime = "nodejs"
 
-const templatePath = path.join(process.cwd(), "svgs", "verified-dr.svg")
+const templates = {
+  badge1: path.join(process.cwd(), "svgs", "badges", "badge1.svg"),
+  verified: path.join(process.cwd(), "svgs", "verified-dr.svg"),
+}
 
-function readBadgeTemplate() {
+function resolveTemplatePath(style: string | null) {
+  const key = String(style ?? "").trim().toLowerCase()
+  if (key && key in templates) return templates[key as keyof typeof templates]
+  return templates.verified
+}
+
+function readBadgeTemplate(templatePath: string) {
   return fs.readFileSync(templatePath, "utf8")
 }
 
@@ -19,8 +28,8 @@ function getFontSizeForValue(value: string) {
   return "60"
 }
 
-function renderBadgeSvg(value: string) {
-  const badgeTemplate = readBadgeTemplate()
+function renderBadgeSvg(templatePath: string, value: string) {
+  const badgeTemplate = readBadgeTemplate(templatePath)
   const safeValue = value === "??" ? "??" : value.replace(/[^0-9]/g, "")
   const fontSize = getFontSizeForValue(safeValue || "??")
   return badgeTemplate
@@ -36,10 +45,11 @@ export async function GET(request: Request, context: { params: Promise<{ target:
   }
 
   const url = new URL(request.url)
+  const templatePath = resolveTemplatePath(url.searchParams.get("style"))
   const override = url.searchParams.get("dr")
   if (override !== null) {
     const dr = Math.max(0, Math.min(100, Math.floor(Number(override))))
-    const svg = renderBadgeSvg(Number.isFinite(dr) ? String(dr) : "??")
+    const svg = renderBadgeSvg(templatePath, Number.isFinite(dr) ? String(dr) : "??")
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",
@@ -52,7 +62,7 @@ export async function GET(request: Request, context: { params: Promise<{ target:
     const cachedClaim = await getClaim(normalizedTarget)
     if (cachedClaim?.domain_rating !== null && cachedClaim?.domain_rating !== undefined) {
       const dr = Math.max(0, Math.min(100, Math.floor(Number(cachedClaim.domain_rating))))
-      const svg = renderBadgeSvg(Number.isFinite(dr) ? String(dr) : "??")
+      const svg = renderBadgeSvg(templatePath, Number.isFinite(dr) ? String(dr) : "??")
       return new Response(svg, {
         headers: {
           "Content-Type": "image/svg+xml; charset=utf-8",
@@ -67,7 +77,7 @@ export async function GET(request: Request, context: { params: Promise<{ target:
       const dr = Math.max(0, Math.min(100, Math.floor(Number(last?.domain_rating))))
       if (Number.isFinite(dr)) {
         await upsertClaim({ domain: normalizedTarget, domainRating: dr, provider: last?.provider ?? null })
-        const svg = renderBadgeSvg(String(dr))
+        const svg = renderBadgeSvg(templatePath, String(dr))
         return new Response(svg, {
           headers: {
             "Content-Type": "image/svg+xml; charset=utf-8",
@@ -88,7 +98,7 @@ export async function GET(request: Request, context: { params: Promise<{ target:
       await recordDrCheck({ domain: normalizedTarget, domainRating: dr, provider, checkedAt })
     }
 
-    const svg = renderBadgeSvg(Number.isFinite(dr) ? String(dr) : "??")
+    const svg = renderBadgeSvg(templatePath, Number.isFinite(dr) ? String(dr) : "??")
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",
@@ -96,7 +106,7 @@ export async function GET(request: Request, context: { params: Promise<{ target:
       },
     })
   } catch (error) {
-    const svg = renderBadgeSvg("??")
+    const svg = renderBadgeSvg(templatePath, "??")
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",

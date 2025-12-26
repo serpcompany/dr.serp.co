@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { getClaim, getDrChecks, recordDrCheck, touchDomain, upsertClaim } from "@/server/db.mjs"
 import { fetchDomainRating, normalizeTarget } from "@/server/dr-providers.mjs"
-import { EmbedCard } from "./embed-card"
+import { BadgeEmbed } from "@/components/badges/badge-embed"
 import { ClaimClient } from "./claim-client"
 import { DrLineLabel } from "./dr-line-label"
 import { RecheckButton } from "./recheck-button"
@@ -181,14 +181,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
 
           <Card className="md:col-span-2">
             <CardContent className="flex flex-1 flex-col items-center justify-center gap-6 py-6">
-              <img
-                src={badgeDisplayUrl}
-                alt={`Verified DR badge for ${domain}`}
-                width={360}
-                height={90}
-                className="max-w-full"
-              />
-              <EmbedCard linkUrl={embedBase} badgeUrl={embedBadgeUrl} domain={domain} />
+              <BadgeEmbed domain={domain} dr={domainRating} linkUrl={embedBase} badgeUrl={embedBadgeUrl} />
             </CardContent>
           </Card>
         </div>
