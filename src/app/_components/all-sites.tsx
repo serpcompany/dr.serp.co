@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 type SiteRow = {
   domain: string
@@ -23,6 +24,7 @@ function formatUpdatedAt(value: string | null) {
 export function AllSites() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [total, setTotal] = useState(0)
   const [sites, setSites] = useState<SiteRow[]>([])
 
   const fetchSites = useMemo(() => {
@@ -39,10 +41,12 @@ export function AllSites() {
         if (!response.ok) {
           throw new Error(typeof payload?.error === "string" ? payload.error : "Failed to load sites.")
         }
+        setTotal(Number(payload?.total) || 0)
         setSites(Array.isArray(payload?.sites) ? payload.sites : [])
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return
         setError(err instanceof Error ? err.message : "Failed to load sites.")
+        setTotal(0)
         setSites([])
       } finally {
         setLoading(false)
@@ -60,7 +64,10 @@ export function AllSites() {
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <CardTitle>All sites</CardTitle>
+        <div className="space-y-1">
+          <CardTitle>Top sites</CardTitle>
+          <p className="text-xs text-muted-foreground">{total ? `${total.toLocaleString()} domains` : "—"}</p>
+        </div>
         <Button asChild variant="secondary" size="sm">
           <Link href="/sites">View all</Link>
         </Button>
@@ -84,32 +91,39 @@ export function AllSites() {
             <p className="text-sm text-muted-foreground">No sites yet.</p>
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {sites.map((site) => {
-              const dr =
-                typeof site.domain_rating === "number" && Number.isFinite(site.domain_rating) ? site.domain_rating : null
-              const updated = formatUpdatedAt(site.updated_at)
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[70px] text-center">#</TableHead>
+                <TableHead>Domain</TableHead>
+                <TableHead className="text-right">DR</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sites.map((site, index) => {
+                const dr =
+                  typeof site.domain_rating === "number" && Number.isFinite(site.domain_rating) ? site.domain_rating : null
+                const updated = formatUpdatedAt(site.updated_at)
 
-              return (
-                <Link
-                  key={site.domain}
-                  href={`/sites/${encodeURIComponent(site.domain)}`}
-                  className="group rounded-lg border bg-background p-4 transition hover:bg-muted/20"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium group-hover:underline">{site.domain}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{updated ? `Last checked ${updated}` : "—"}</p>
-                    </div>
-                    <Badge variant="secondary">{dr === null ? "DR —" : `DR ${dr}`}</Badge>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
+                return (
+                  <TableRow key={site.domain}>
+                    <TableCell className="text-center text-muted-foreground">{index + 1}</TableCell>
+                    <TableCell>
+                      <Link href={`/sites/${encodeURIComponent(site.domain)}`} className="text-foreground hover:underline">
+                        {site.domain}
+                      </Link>
+                      {updated ? <div className="mt-1 text-xs text-muted-foreground">Last checked {updated}</div> : null}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="secondary">{dr === null ? "DR —" : `DR ${dr}`}</Badge>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
         )}
       </CardContent>
     </Card>
   )
 }
-

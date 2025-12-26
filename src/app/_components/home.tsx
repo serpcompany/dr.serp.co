@@ -192,7 +192,7 @@ export function Home() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <h2 className="text-xl font-semibold leading-none tracking-tight">DR Lookup</h2>
+                <h2 className="text-xl font-semibold leading-none tracking-tight">Add another domain</h2>
   
               </CardHeader>
               <CardContent>
@@ -209,12 +209,6 @@ export function Home() {
                   </Button>
                 </form>
               </CardContent>
-              <CardFooter className="justify-between">
-                <span className="text-sm text-muted-foreground">Signed in as {authEmail}</span>
-                <Button variant="ghost" size="sm" onClick={logout}>
-                  Log out
-                </Button>
-              </CardFooter>
             </Card>
 
             <MySites email={authEmail} />
