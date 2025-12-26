@@ -7,6 +7,7 @@
     "node": ">=20 <23"
   },
   "scripts": {
+    "predev": "node scripts/clean-next.mjs",
     "dev": "next dev",
     "build": "next build",
     "lint": "next lint",

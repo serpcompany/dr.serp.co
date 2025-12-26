@@ -38,3 +38,5 @@ pids
 .spark-workbench-id
 .spark-initial-sha
 spark.meta.json
+
+.cache

@@ -2,7 +2,7 @@ import fs from "node:fs"
 import path from "node:path"
 
 import { fetchDomainRating, normalizeTarget } from "@/server/dr-providers.mjs"
-import { getClaim, recordDrCheck, upsertClaim } from "@/server/db.mjs"
+import { getClaim, getDrChecks, recordDrCheck, upsertClaim } from "@/server/db.mjs"
 
 export const runtime = "nodejs"
 
@@ -59,6 +59,22 @@ export async function GET(request: Request, context: { params: Promise<{ target:
           "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
         },
       })
+    }
+
+    const checks = await getDrChecks(normalizedTarget, { limit: 1 })
+    if (checks.length > 0) {
+      const last = checks[checks.length - 1] as any
+      const dr = Math.max(0, Math.min(100, Math.floor(Number(last?.domain_rating))))
+      if (Number.isFinite(dr)) {
+        await upsertClaim({ domain: normalizedTarget, domainRating: dr, provider: last?.provider ?? null })
+        const svg = renderBadgeSvg(String(dr))
+        return new Response(svg, {
+          headers: {
+            "Content-Type": "image/svg+xml; charset=utf-8",
+            "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+          },
+        })
+      }
     }
 
     const result = await fetchDomainRating({ target: normalizedTarget })

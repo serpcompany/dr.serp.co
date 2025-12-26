@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
 import {
   Breadcrumb,
@@ -10,7 +10,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { getClaim, getDrChecks, recordDrCheck, upsertClaim } from "@/server/db.mjs"
+import { getClaim, getDrChecks, recordDrCheck, touchDomain, upsertClaim } from "@/server/db.mjs"
 import { fetchDomainRating, normalizeTarget } from "@/server/dr-providers.mjs"
 import { EmbedCard } from "./embed-card"
 import { ClaimClient } from "./claim-client"
@@ -29,7 +29,9 @@ async function getDrFromBadgeSvg(badgeUrl: string): Promise<number | null> {
     if (!res.ok) return null
     const svg = await res.text()
 
-    const match = svg.match(/<tspan[^>]*>(\d{1,3})<\/tspan>/i)
+    const match =
+      svg.match(/<tspan[^>]*id=["']dr-value["'][^>]*>(\d{1,3})<\/tspan>/i) ||
+      svg.match(/<tspan[^>]*>(\d{1,3})<\/tspan>/i)
     if (!match) return null
 
     const value = Number(match[1])
@@ -47,22 +49,32 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
   const domain = normalizeTarget(target)
   if (!domain) notFound()
 
-  const publicBase = process.env.DR_PUBLIC_BASE_URL || "https://dr.serp.co"
-  const badgeBase = process.env.DR_BADGE_BASE_URL || publicBase
+  await touchDomain(domain)
 
-  const pageUrl = `${publicBase}/sites/${encodeURIComponent(domain)}`
-  const badgeUrl = `${badgeBase}/badge/${encodeURIComponent(domain)}`
+  const embedBase = process.env.DR_PUBLIC_BASE_URL || "https://dr.serp.co"
+  const embedBadgeBase = process.env.DR_BADGE_BASE_URL || embedBase
+  const embedBadgeUrl = `${embedBadgeBase}/badge/${encodeURIComponent(domain)}`
+  const badgeDisplayUrl = `/badge/${encodeURIComponent(domain)}`
 
   let domainRating: number | null = null
   let providerForStorage: string | null = null
   let lastCheckedAt: Date | null = null
+
+  let checks = await getDrChecks(domain, { limit: 60 })
+  if (checks.length > 0) {
+    const last = checks[checks.length - 1]
+    const lastValue = Number(last?.domain_rating)
+    if (Number.isFinite(lastValue)) domainRating = Math.max(0, Math.min(100, Math.floor(lastValue)))
+    providerForStorage = (last as any)?.provider ?? null
+    if (last?.checked_at) lastCheckedAt = new Date(last.checked_at)
+  }
 
   const claim = await getClaim(domain)
   if (claim?.domain_rating !== null && claim?.domain_rating !== undefined) {
     domainRating = Number(claim.domain_rating)
     providerForStorage = claim.provider || null
     lastCheckedAt = claim.updated_at ? new Date(claim.updated_at) : null
-  } else {
+  } else if (checks.length === 0) {
     try {
       const result = await fetchDomainRating({ target: domain })
       if ((result as any)?.captchaRequired) {
@@ -79,6 +91,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
             provider: providerForStorage,
             checkedAt: lastCheckedAt,
           })
+          checks = await getDrChecks(domain, { limit: 60 })
         }
       }
     } catch {
@@ -86,9 +99,8 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
     }
   }
 
-  let checks = await getDrChecks(domain, { limit: 60 })
   if ((domainRating === null || !Number.isFinite(domainRating)) && checks.length === 0) {
-    const badgeDr = await getDrFromBadgeSvg(badgeUrl)
+    const badgeDr = await getDrFromBadgeSvg(embedBadgeUrl)
     if (badgeDr !== null) {
       domainRating = badgeDr
       providerForStorage = null
@@ -156,6 +168,10 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
             </Breadcrumb>
           </div>
           <h1 className="scroll-m-20 text-3xl font-semibold tracking-tight">{domain}</h1>
+          <div className="flex flex-col items-center justify-center gap-2 sm:flex-row">
+            <RecheckButton domain={domain} />
+            <ClaimClient domain={domain} />
+          </div>
         </header>
 
         <div className="grid gap-6 md:grid-cols-3">
@@ -164,17 +180,15 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
           </div>
 
           <Card className="md:col-span-2">
-            <CardContent className="space-y-4">
-              <div className="flex justify-center">
-                <img
-                  src={badgeUrl}
-                  alt={`Verified DR badge for ${domain}`}
-                  width={360}
-                  height={90}
-                  className="max-w-full"
-                />
-              </div>
-              <EmbedCard pageUrl={pageUrl} badgeUrl={badgeUrl} domain={domain} />
+            <CardContent className="flex flex-1 flex-col items-center justify-center gap-6 py-6">
+              <img
+                src={badgeDisplayUrl}
+                alt={`Verified DR badge for ${domain}`}
+                width={360}
+                height={90}
+                className="max-w-full"
+              />
+              <EmbedCard linkUrl={embedBase} badgeUrl={embedBadgeUrl} domain={domain} />
             </CardContent>
           </Card>
         </div>

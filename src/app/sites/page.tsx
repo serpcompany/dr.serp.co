@@ -1,187 +1,152 @@
 import Link from "next/link"
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { listSites, countSites } from "@/server/db.mjs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
-import { countClaims, listClaims } from "@/server/db.mjs"
+import { Button } from "@/components/ui/button"
+
+import { SitesSearch } from "./sites-search"
 
 export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
-function buildHref({ q, page }: { q: string; page: number }) {
-  const params = new URLSearchParams()
-  if (q) params.set("q", q)
-  if (page > 1) params.set("page", String(page))
-  const qs = params.toString()
-  return qs ? `/sites?${qs}` : "/sites"
+type ClaimRow = {
+  domain: string
+  domain_rating: number | null
+  updated_at: string | null
 }
 
-function getPageNumbers(currentPage: number, totalPages: number) {
-  const pages: (number | "…")[] = []
-  const windowSize = 2
-
-  const start = Math.max(1, currentPage - windowSize)
-  const end = Math.min(totalPages, currentPage + windowSize)
-
-  if (start > 1) {
-    pages.push(1)
-    if (start > 2) pages.push("…")
-  }
-
-  for (let p = start; p <= end; p++) pages.push(p)
-
-  if (end < totalPages) {
-    if (end < totalPages - 1) pages.push("…")
-    pages.push(totalPages)
-  }
-
-  return pages
+function asInt(value: unknown, fallback: number) {
+  const parsed = Number.parseInt(String(value ?? ""), 10)
+  return Number.isFinite(parsed) ? parsed : fallback
 }
 
-export default async function SitesIndexPage({
+export default async function SitesPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>
+  searchParams?: Promise<{ q?: string; page?: string }>
 }) {
-  const sp = await searchParams
-  const q = String(sp.q ?? "").trim()
-  const pageParam = Number(Array.isArray(sp.page) ? sp.page[0] : sp.page)
-  const currentPage = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1
-  const pageSize = 25
-  const offset = (currentPage - 1) * pageSize
+  const params = (await searchParams) ?? {}
+  const query = String(params.q ?? "").trim()
 
-  const [total, rows] = await Promise.all([
-    countClaims({ query: q }),
-    listClaims({ query: q, limit: pageSize, offset }),
-  ])
+  const limit = 50
+  const requestedPage = Math.max(1, asInt(params.page, 1))
+  const totalCount = await countSites({ query })
+  const totalPages = Math.max(1, Math.ceil(totalCount / limit))
+  const safePage = Math.min(requestedPage, totalPages)
+  const offset = (safePage - 1) * limit
+  const rows = await listSites({ query, limit, offset, sort: "dr" })
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const safePage = Math.min(currentPage, totalPages)
-  const prevHref = safePage > 1 ? buildHref({ q, page: safePage - 1 }) : null
-  const nextHref = safePage < totalPages ? buildHref({ q, page: safePage + 1 }) : null
+  const showingFrom = totalCount === 0 ? 0 : (safePage - 1) * limit + 1
+  const showingTo = Math.min(totalCount, (safePage - 1) * limit + rows.length)
+
+  const makeHref = (nextPage: number) => {
+    const url = new URL("https://local.invalid/sites")
+    if (query) url.searchParams.set("q", query)
+    if (nextPage > 1) url.searchParams.set("page", String(nextPage))
+    return `${url.pathname}${url.search}`
+  }
 
   return (
-    <div className="bg-background flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-[1200px] space-y-6">
-        <header className="space-y-3 text-center">
-          <div className="flex justify-center">
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/">Home</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Sites</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+    <div className="min-h-screen bg-muted/30">
+      <div className="mx-auto max-w-5xl px-4 py-12">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold tracking-tight">Top Sites</h1>
+        </div>
+
+        <div className="rounded-lg border bg-background">
+          <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm">
+              <span className="font-semibold">
+                {totalCount.toLocaleString()} domain{totalCount === 1 ? "" : "s"}
+              </span>
+              {query ? (
+                <span className="text-muted-foreground">
+                  {" "}
+                  · showing {showingFrom.toLocaleString()}–{showingTo.toLocaleString()}
+                </span>
+              ) : null}
+            </div>
+            <SitesSearch initialQuery={query} />
           </div>
-          <h1 className="scroll-m-20 text-3xl font-semibold tracking-tight">Sites</h1>
-          <p className="text-muted-foreground text-sm">Look up a domain’s DR page.</p>
-        </header>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>All sites</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form method="GET" action="/sites" className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Input name="q" defaultValue={q} placeholder="Search domains…" autoComplete="off" />
-              <Button type="submit" className="sm:w-auto">
-                Search
-              </Button>
-            </form>
-
-            <div className="mt-4 space-y-4">
+          {rows.length === 0 ? (
+            <div className="p-10 text-center">
+              <p className="text-sm text-muted-foreground">
+                {query ? "No domains match your search." : "No domains yet."}
+              </p>
+              <div className="mt-4 flex items-center justify-center gap-3">
+                <Button asChild>
+                  <Link href="/">Look up a domain</Link>
+                </Button>
+                {query ? (
+                  <Button variant="outline" asChild>
+                    <Link href="/sites">Clear search</Link>
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <>
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[70px] text-center">#</TableHead>
                     <TableHead>Domain</TableHead>
                     <TableHead className="text-right">DR</TableHead>
-                    <TableHead className="text-right">Last checked</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-muted-foreground py-10 text-center">
-                        No sites found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    rows.map((row: any) => (
-                      <TableRow key={row.domain}>
-                        <TableCell className="font-medium">
-                          <Link href={`/sites/${encodeURIComponent(row.domain)}`} className="hover:underline">
-                            {row.domain}
+                  {(rows as ClaimRow[]).map((row, index) => {
+                    const domain = String(row.domain)
+                    const domainRating = row.domain_rating
+                    const rank = offset + index + 1
+
+                    return (
+                      <TableRow key={domain}>
+                        <TableCell className="text-center text-muted-foreground">{rank}</TableCell>
+                        <TableCell>
+                          <Link href={`/sites/${encodeURIComponent(domain)}`} className="text-foreground hover:underline">
+                            {domain}
                           </Link>
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {row.domain_rating === null || row.domain_rating === undefined ? "—" : Number(row.domain_rating)}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {row.updated_at ? new Date(row.updated_at).toLocaleDateString("en-US") : "—"}
+                        <TableCell className="text-right">
+                          <span className="font-medium">{Number.isFinite(domainRating) ? domainRating : "—"}</span>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
+                    )
+                  })}
                 </TableBody>
               </Table>
 
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href={prevHref || "#"}
-                      className={prevHref ? undefined : "pointer-events-none opacity-50"}
-                    />
-                  </PaginationItem>
-
-                  {getPageNumbers(safePage, totalPages).map((p, idx) =>
-                    p === "…" ? (
-                      <PaginationItem key={`ellipsis-${idx}`}>
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    ) : (
-                      <PaginationItem key={p}>
-                        <PaginationLink href={buildHref({ q, page: p })} isActive={p === safePage}>
-                          {p}
-                        </PaginationLink>
-                      </PaginationItem>
-                    )
+              <div className="flex items-center justify-between border-t p-4">
+                <span className="text-sm text-muted-foreground">
+                  Page {safePage.toLocaleString()} of {totalPages.toLocaleString()}
+                </span>
+                <div className="flex items-center gap-2">
+                  {safePage <= 1 ? (
+                    <Button variant="outline" size="sm" disabled>
+                      Previous
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={makeHref(safePage - 1)}>Previous</Link>
+                    </Button>
                   )}
 
-                  <PaginationItem>
-                    <PaginationNext
-                      href={nextHref || "#"}
-                      className={nextHref ? undefined : "pointer-events-none opacity-50"}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          </CardContent>
-        </Card>
+                  {safePage >= totalPages ? (
+                    <Button variant="outline" size="sm" disabled>
+                      Next
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={makeHref(safePage + 1)}>Next</Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

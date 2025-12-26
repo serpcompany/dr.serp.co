@@ -15,19 +15,31 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export function DrLineLabel({ points }: { points: Point[] }) {
+  const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" })
+
   const chartData = points
-    .filter((p) => Number.isFinite(p.domainRating))
-    .map((p) => ({
-      month: new Date(p.checkedAt).toLocaleDateString("en-US", { month: "short" }),
-      desktop: Math.max(0, Math.min(100, Math.floor(p.domainRating))),
-    }))
+    .map((p) => {
+      const domainRating = Number(p.domainRating)
+      if (!Number.isFinite(domainRating)) return null
+
+      const date = new Date(p.checkedAt)
+      const ts = date.getTime()
+      if (!Number.isFinite(ts)) return null
+
+      return {
+        ts,
+        label: dateFormatter.format(date),
+        desktop: Math.max(0, Math.min(100, Math.floor(domainRating))),
+      }
+    })
+    .filter((p) => p !== null)
+    .sort((a, b) => a.ts - b.ts)
     .slice(-12)
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>DR over time</CardTitle>
-        <CardDescription>Recent checks</CardDescription>
       </CardHeader>
       <CardContent>
         {chartData.length === 0 ? (
@@ -45,11 +57,11 @@ export function DrLineLabel({ points }: { points: Point[] }) {
             >
               <CartesianGrid vertical={false} />
               <XAxis
-                dataKey="month"
+                dataKey="label"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                tickFormatter={(value) => String(value).slice(0, 3)}
+                tickFormatter={(value) => String(value)}
               />
               <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
               <Line

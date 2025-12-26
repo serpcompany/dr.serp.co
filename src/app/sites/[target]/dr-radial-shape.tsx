@@ -1,9 +1,8 @@
 "use client"
 
-import { TrendingUp } from "lucide-react"
-import { Label, PolarGrid, PolarRadiusAxis, RadialBar, RadialBarChart } from "recharts"
+import { Label, PolarAngleAxis, PolarGrid, PolarRadiusAxis, RadialBar, RadialBarChart } from "recharts"
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart"
 
 export function DrRadialShape({ value }: { value: number | null }) {
@@ -32,7 +31,8 @@ export function DrRadialShape({ value }: { value: number | null }) {
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[250px]">
-          <RadialBarChart data={chartData} endAngle={100} innerRadius={80} outerRadius={140}>
+          <RadialBarChart data={chartData} startAngle={90} endAngle={-270} innerRadius={80} outerRadius={140}>
+            <PolarAngleAxis dataKey="dr" type="number" domain={[0, 100]} tick={false} />
             <PolarGrid
               gridType="circle"
               radialLines={false}

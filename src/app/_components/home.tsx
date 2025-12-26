@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/co
 
 import { LoginForm } from "@/components/login-form"
 import { OTPForm } from "@/components/otp-form"
+import { MySites } from "./my-sites"
+import { upsertSiteHistory } from "@/lib/site-history"
 
 export function Home() {
   const router = useRouter()
@@ -129,6 +131,16 @@ export function Home() {
     event.preventDefault()
     const cleanDomain = domain.trim().replace(/^https?:\/\//, "").replace(/\/$/, "")
     if (!cleanDomain) return
+
+    const email = authEmail.trim().toLowerCase()
+    if (authStep === "authed" && email) {
+      upsertSiteHistory(email, { domain: cleanDomain })
+      fetch("/api/claims", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, domain: cleanDomain }),
+      }).catch(() => {})
+    }
     router.push(`/sites/${encodeURIComponent(cleanDomain)}`)
   }
 
@@ -136,7 +148,7 @@ export function Home() {
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6 py-10">
       <div className="w-full max-w-xl space-y-6">
         <header className="space-y-2 text-center">
-          <h1 className="text-3xl font-semibold tracking-tight">DR pages + embeddable badge</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Verified DR Badge</h1>
           <p className="text-sm text-muted-foreground">
             Look up a domain’s DR, generate a shareable page, and embed a verified badge on your site.
           </p>
@@ -172,34 +184,38 @@ export function Home() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardHeader>
-              <h2 className="text-xl font-semibold leading-none tracking-tight">Generate your DR page</h2>
-              <CardDescription>
-                Enter a domain to generate its permanent page and embeddable badge.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleDomainSubmit} className="flex gap-3">
-                <Input
-                  type="text"
-                  placeholder="example.com"
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  className="h-12 text-base"
-                />
-                <Button type="submit" disabled={!domain.trim()} className="h-12 px-6">
-                  Submit
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <h2 className="text-xl font-semibold leading-none tracking-tight">Generate your DR page</h2>
+                <CardDescription>
+                  Enter a domain to generate its permanent page and embeddable badge.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleDomainSubmit} className="flex gap-3">
+                  <Input
+                    type="text"
+                    placeholder="example.com"
+                    value={domain}
+                    onChange={(e) => setDomain(e.target.value)}
+                    className="h-12 text-base"
+                  />
+                  <Button type="submit" disabled={!domain.trim()} className="h-12 px-6">
+                    Submit
+                  </Button>
+                </form>
+              </CardContent>
+              <CardFooter className="justify-between">
+                <span className="text-sm text-muted-foreground">Signed in as {authEmail}</span>
+                <Button variant="ghost" size="sm" onClick={logout}>
+                  Log out
                 </Button>
-              </form>
-            </CardContent>
-            <CardFooter className="justify-between">
-              <span className="text-sm text-muted-foreground">Signed in as {authEmail}</span>
-              <Button variant="ghost" size="sm" onClick={logout}>
-                Log out
-              </Button>
-            </CardFooter>
-          </Card>
+              </CardFooter>
+            </Card>
+
+            <MySites email={authEmail} />
+          </div>
         )}
       </div>
     </main>
