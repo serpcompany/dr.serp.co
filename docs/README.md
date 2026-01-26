@@ -8,6 +8,7 @@ This folder contains documentation for [dr.serp.co](https://dr.serp.co).
 
 - [Badges](badges.md) — Badge styles, embedding options, and configuration
 - [Features](features.md) — Paid plan tiers, included features, and Stripe setup notes
+- [SaaS Plan](saas-plan.md) — Delivery phases and billing/entitlement decisions
 
 ### Tutorials
 
