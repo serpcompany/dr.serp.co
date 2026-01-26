@@ -7,8 +7,9 @@ import { getClaim, getDrChecks, recordDrCheck, upsertClaim } from "@/server/db.m
 export const runtime = "nodejs"
 
 const templates = {
-  badge1: path.join(process.cwd(), "svgs", "badges", "badge1.svg"),
-  verified: path.join(process.cwd(), "svgs", "verified-dr.svg"),
+  badge1: path.join(process.cwd(), "svgs", "badges", "verified-dr.svg"),
+  "serp-dr-v2": path.join(process.cwd(), "svgs", "badges", "serp-dr-v2.svg"),
+  verified: path.join(process.cwd(), "svgs", "badges", "verified-dr.svg"),
 }
 
 function resolveTemplatePath(style: string | null) {

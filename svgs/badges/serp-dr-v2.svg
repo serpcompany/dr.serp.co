@@ -1,0 +1,45 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="200"
+  height="50"
+  viewBox="0 0 200 50"
+>
+  <!-- Outer container -->
+  <rect
+    x="1"
+    y="1"
+    width="198"
+    height="48"
+    rx="8"
+    fill="#ffffff"
+    stroke="#059669"
+    stroke-width="2"
+  />
+
+  <!-- Verified check -->
+  <circle cx="32" cy="25" r="16" fill="#059669" />
+  <g transform="translate(20 13)">
+    <path
+      d="M20 6 9 17l-5-5"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="3"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+
+  <!-- Label -->
+  <text
+    x="60"
+    y="25"
+    font-family="Inter, Arial, sans-serif"
+    font-size="13"
+    font-weight="700"
+    dominant-baseline="middle"
+  >
+    <tspan fill="#111827">VERIFIED DR</tspan>
+    <tspan fill="#9ca3af"> | </tspan>
+    <tspan fill="#9ca3af" font-weight="600" font-variant-numeric="tabular-nums">__DR__</tspan>
+  </text>
+</svg>
