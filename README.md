@@ -61,7 +61,7 @@ See `.env.example`. Key variables:
 
 ## Database
 
-The app runs on Vercel and uses Neon Postgres via `@neondatabase/serverless`, configured through environment variables (see `src/server/db.mjs`):
+The app runs on Vercel and uses Neon Postgres via `@neondatabase/serverless`, configured through environment variables (see `src/server/db.mjs`). When you run `vercel link` + `vercel env pull`, Vercel writes these values to `.env.local` for local development:
 
 - `POSTGRES_URL` (primary)
 - or `POSTGRES_URL_NON_POOLING`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `STORAGE_URL`, `STORAGE_URL_NON_POOLING`
