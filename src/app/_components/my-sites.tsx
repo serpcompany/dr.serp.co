@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { BillingPortalButton } from "@/app/_components/billing-portal-button"
 
 import { filterSiteHistory, removeSiteHistory, type SiteRow } from "@/lib/site-history"
 
@@ -23,6 +24,7 @@ export function MySites({ email }: { email: string }) {
   const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [upgrade, setUpgrade] = useState<{ message: string; entitlement?: any } | null>(null)
   const [sites, setSites] = useState<SiteRow[]>([])
 
   const trimmedEmail = email.trim().toLowerCase()
@@ -36,6 +38,7 @@ export function MySites({ email }: { email: string }) {
 
       setLoading(true)
       setError(null)
+      setUpgrade(null)
       const localMatches = filterSiteHistory(trimmedEmail, nextQuery).slice(0, 12)
       setSites(localMatches)
 
@@ -47,6 +50,14 @@ export function MySites({ email }: { email: string }) {
           signal: controller.signal,
         })
         const payload = await response.json().catch(() => ({}))
+        if (response.status === 402 && payload?.code === "upgrade_required") {
+          setUpgrade({
+            message: typeof payload?.error === "string" ? payload.error : "Upgrade required to manage domains.",
+            entitlement: payload?.entitlement ?? null,
+          })
+          setSites(localMatches)
+          return
+        }
         if (!response.ok) {
           throw new Error(typeof payload?.error === "string" ? payload.error : "Failed to load sites.")
         }
@@ -116,7 +127,19 @@ export function MySites({ email }: { email: string }) {
         </div>
       </CardHeader>
       <CardContent>
-        {loading && sites.length === 0 ? (
+        {upgrade ? (
+          <div className="rounded-lg border bg-muted/20 p-6 text-center">
+            <p className="text-sm text-muted-foreground">{upgrade.message}</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <Button asChild size="sm">
+                <Link href="/pricing">View plans</Link>
+              </Button>
+              {upgrade.entitlement?.subscription?.stripeCustomerId ? (
+                <BillingPortalButton email={trimmedEmail} />
+              ) : null}
+            </div>
+          </div>
+        ) : loading && sites.length === 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, idx) => (
               <div key={idx} className="h-20 animate-pulse rounded-lg border bg-muted/20" />

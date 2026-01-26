@@ -37,6 +37,10 @@ function parsePriceConfig(): PriceConfig {
   return parsed
 }
 
+export function resetStripePricingCache() {
+  cachedConfig = null
+}
+
 export function getPriceId(domains: number, billing: BillingPeriod): string {
   const config = parsePriceConfig()
   const key = String(domains)

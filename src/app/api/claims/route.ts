@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 
 import { normalizeTarget } from "@/server/dr-providers.mjs"
-import { clearClaimEmail, setClaimEmail } from "@/server/db.mjs"
+import { clearClaimEmail, getClaim, setClaimEmail } from "@/server/db.mjs"
+import { resolveEntitlement } from "@/server/entitlements.mjs"
 
 function isValidEmail(email: string) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
@@ -16,6 +17,24 @@ export async function POST(request: Request) {
 
   if (!isValidEmail(email) || !domain) {
     return NextResponse.json({ error: "Valid email and domain required" }, { status: 400 })
+  }
+
+  const existing = await getClaim(domain)
+  const alreadyClaimedByUser =
+    existing && String(existing.email ?? "").trim().toLowerCase() === email
+
+  if (!alreadyClaimedByUser) {
+    const entitlement = await resolveEntitlement({ email })
+    if (!entitlement?.canClaim) {
+      return NextResponse.json(
+        {
+          error: "Upgrade required to claim more domains.",
+          code: "upgrade_required",
+          entitlement,
+        },
+        { status: 402 }
+      )
+    }
   }
 
   const claim = await setClaimEmail({ domain, email })

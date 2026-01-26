@@ -24,3 +24,9 @@
 - Audit log of billing changes
 - Monitoring + alerting
 - Rate limits on billing endpoints
+
+## Quality, testing, and SRE (cross-cutting)
+- Unit tests for webhook verification, entitlement logic, and edge cases
+- Integration tests for checkout + claim enforcement
+- Observability: webhook failure alerts + event replay runbook
+- Data reconciliation jobs (Stripe vs DB)

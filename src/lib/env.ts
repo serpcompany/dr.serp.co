@@ -28,3 +28,7 @@ export function getServerEnv(): ServerEnv {
 
   return cachedEnv
 }
+
+export function resetServerEnv() {
+  cachedEnv = null
+}

@@ -13,6 +13,7 @@ import {
 import { Section, SectionDescription, SectionGroup, SectionHeader, SectionTitle } from "@/components/content/section"
 import { PricingSelector } from "@/app/pricing/pricing-selector"
 import { FREE_FEATURES } from "@/lib/pricing"
+import { BillingEntry } from "@/app/_components/billing-entry"
 
 export default function PricingPage() {
   return (
@@ -26,6 +27,12 @@ export default function PricingPage() {
               include on-demand refreshes.
             </SectionDescription>
           </SectionHeader>
+        </Section>
+
+        <Section>
+          <div className="flex justify-center">
+            <BillingEntry />
+          </div>
         </Section>
 
         <Section>

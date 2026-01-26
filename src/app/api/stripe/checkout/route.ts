@@ -1,13 +1,28 @@
 import { NextResponse } from "next/server"
 
+import * as Sentry from "@sentry/nextjs"
+
 import { getStripe } from "@/lib/stripe"
 import { getPriceId } from "@/lib/stripe-pricing"
 import type { BillingPeriod } from "@/lib/pricing"
+import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 
 const ALLOWED_DOMAINS = [12, 25, 50, 100] as const
+const RATE_LIMIT_POINTS = Number(process.env.CHECKOUT_RATE_LIMIT_POINTS ?? 20)
+const RATE_LIMIT_DURATION = Number(process.env.CHECKOUT_RATE_LIMIT_DURATION ?? 60)
 
 export async function POST(request: Request) {
   try {
+    const rateKey = getRateLimitKey(request, "stripe-checkout")
+    const rate = await checkRateLimit({ key: rateKey, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
+    if (!rate.allowed) {
+      const retryAfter = Math.ceil(rate.retryAfterMs / 1000)
+      return NextResponse.json(
+        { error: "Too many checkout attempts. Please try again shortly." },
+        { status: 429, headers: { "Retry-After": String(retryAfter) } }
+      )
+    }
+
     const body = await request.json()
     const domains = Number(body?.domains)
     const billing = body?.billing as BillingPeriod
@@ -47,6 +62,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url })
   } catch (error) {
+    Sentry.captureException(error)
     const message = error instanceof Error ? error.message : "Unexpected error."
     return NextResponse.json({ error: message }, { status: 500 })
   }

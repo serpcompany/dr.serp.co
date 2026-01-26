@@ -17,6 +17,11 @@ This folder contains documentation for [dr.serp.co](https://dr.serp.co).
 ### Knowledge Base
 
 The `knowledge/` folder contains internal reference documentation.
+- [Billing Ops](knowledge/billing-ops.md) — Billing endpoints, audit logs, rate limits, and Sentry notes.
+
+### Runbooks
+
+- [Stripe Event Replay](runbooks/stripe-event-replay.md) — How to resend webhook events safely.
 
 ## Project Overview
 
