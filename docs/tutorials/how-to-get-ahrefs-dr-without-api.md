@@ -1,26 +1,26 @@
-# ideas for how to get ahrefs dr without api
+# How to Get Ahrefs DR Without API
 
-## rhinorank
+Research notes on public DR checker services that can be scraped for Domain Rating data.
 
-1. go to: https://www.rhinorank.io/da-dr-checker/
-2. enter the website into their input
-3. hit enter
-4. pull the ahres dr from their HTML
+## RhinoRank
 
-SEE: /Users/devin/Desktop/dr.serp.co/docs/1.png
+1. Go to: https://www.rhinorank.io/da-dr-checker/
+2. Enter the website into their input
+3. Hit enter
+4. Pull the Ahrefs DR from their HTML
 
+## EditorialLink
 
-## editoriallink
+1. Go to: https://editorial.link/da-dr-checker/
+2. Enter the website into their input
+3. Hit enter
+4. Pull the Ahrefs DR from their HTML
 
-1. https://editorial.link/da-dr-checker/
-2. enter the website into their input
-3. hit enter
-4. pull the ahres dr from their HTML
+## Other Similar Services
 
-SEE: /Users/devin/Desktop/dr.serp.co/docs/2.png
+- https://websiteseochecker.com/domain-authority-checker/#arearesult
+- https://www.dapachecker.org/dr-ur-checker
 
+## Implementation
 
-## other similars
-
-1. https://websiteseochecker.com/domain-authority-checker/#arearesult
-2. https://www.dapachecker.org/dr-ur-checker
+The actual scraping implementation is in [src/server/dr-providers.mjs](../../src/server/dr-providers.mjs).
