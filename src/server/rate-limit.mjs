@@ -1,11 +1,34 @@
-import { RateLimiterMemory } from "rate-limiter-flexible"
+import { RateLimiterMemory, RateLimiterRedis } from "rate-limiter-flexible"
+import Redis from "ioredis"
 
 const limiterCache = new Map()
+const redisClientKey = "__dr_serp_rate_limit_redis__"
+const redisUrl = process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL || ""
+
+function getRedisClient() {
+  if (!redisUrl) return null
+  const cached = globalThis[redisClientKey]
+  if (cached) return cached
+  try {
+    const client = new Redis(redisUrl, {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+    })
+    globalThis[redisClientKey] = client
+    return client
+  } catch {
+    return null
+  }
+}
 
 function getLimiter(points, duration) {
   const key = `${points}:${duration}`
   if (!limiterCache.has(key)) {
-    limiterCache.set(key, new RateLimiterMemory({ points, duration }))
+    const redisClient = getRedisClient()
+    const limiter = redisClient
+      ? new RateLimiterRedis({ storeClient: redisClient, points, duration })
+      : new RateLimiterMemory({ points, duration })
+    limiterCache.set(key, limiter)
   }
   return limiterCache.get(key)
 }

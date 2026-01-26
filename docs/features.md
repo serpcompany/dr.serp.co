@@ -12,6 +12,7 @@
 Notes:
 - Annual pricing is billed yearly at 10× the monthly price.
 - All paid tiers include the same features; only the domain limit changes.
+- New claims are blocked once the domain limit is reached and the UI prompts for an upgrade.
 
 ## Included with all paid tiers
 
@@ -27,6 +28,11 @@ Notes:
 - Domain directory listing
 - Do-follow backlinks (2 per domain)
 - No ads
+
+## Billing access
+
+- Billing status is available at `/billing` after signing in.
+- Stripe Customer Portal is available for self-serve plan changes and payment updates.
 
 ## Stripe setup
 

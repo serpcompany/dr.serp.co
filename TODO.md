@@ -26,7 +26,7 @@
 - [x] Add health checks + alerting for webhook failures
 - [x] Add Stripe event replay runbook
 - [ ] Configure Sentry project + DSN and alert rules for billing/webhook errors
-- [ ] Set up uptime monitor for `/api/stripe/webhook/health`
+- [ ] Set up external uptime monitor for `/api/stripe/webhook/health`
 
 ## Phase 5: Data + reporting
 - [x] Add admin report for subscriptions (status, plan, domains used)

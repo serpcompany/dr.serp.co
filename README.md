@@ -57,6 +57,16 @@ See `.env.example`. Key variables:
 | `STRIPE_PORTAL_RETURN_URL` | Optional return URL for billing portal |
 | `DR_ADMIN_TOKEN` | Token for admin subscription report endpoint |
 | `SENTRY_DSN` | Sentry DSN for server-side error monitoring |
+| `RATE_LIMIT_REDIS_URL` | Optional Redis URL for shared rate limiting |
+
+## Database
+
+The app runs on Vercel and uses Neon Postgres via `@neondatabase/serverless`, configured through environment variables (see `src/server/db.mjs`):
+
+- `POSTGRES_URL` (primary)
+- or `POSTGRES_URL_NON_POOLING`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `STORAGE_URL`, `STORAGE_URL_NON_POOLING`
+
+If none are set (common in local/dev), the app falls back to an in-memory store and persists to `.cache/dr-fallback.json`.
 
 ## License
 

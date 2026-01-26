@@ -6,23 +6,23 @@
 
 ## Delivery phases
 
-### Phase 1: Billing core (in progress)
+### Phase 1: Billing core (complete)
 - Stripe Checkout + webhook verification
 - Persist subscription state in `dr_subscriptions`
 
-### Phase 2: Entitlements + access control (next)
+### Phase 2: Entitlements + access control (complete)
 - Entitlement resolver (plan + status + domain limit)
 - Enforce limit on claim creation
 - Paid-only feature gating
 - Upgrade prompts
 
-### Phase 3: Customer self-service
+### Phase 3: Customer self-service (complete)
 - Stripe Customer Portal access
 - Billing status UI (plan + renewal date)
 
-### Phase 4: Ops + reliability
+### Phase 4: Ops + reliability (complete)
 - Audit log of billing changes
-- Monitoring + alerting
+- Monitoring + alerting (webhook health endpoint + runbook)
 - Rate limits on billing endpoints
 
 ## Quality, testing, and SRE (cross-cutting)
