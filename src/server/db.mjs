@@ -24,18 +24,21 @@ const hasDb = Boolean(sql)
 // In dev/local runs, a database is often not configured. Keep a global in-memory fallback so
 // checked domains still appear on /sites during the session (even across webpack bundles).
 const fallbackStoreKey = "__dr_serp_fallback_store__"
-/** @type {{ claims: Map<string, any>, checks: Map<string, any> }} */
+/** @type {{ claims: Map<string, any>, checks: Map<string, any>, subscriptions: Map<string, any> }} */
 const fallbackStore =
   /** @type {any} */ (globalThis)[fallbackStoreKey] ||
   ((/** @type {any} */ (globalThis)[fallbackStoreKey] = {
     claims: new Map(),
     checks: new Map(),
+    subscriptions: new Map(),
   }))
 
 /** @type {Map<string, {domain: string, email: (string|null), domain_rating: (number|null), provider: (string|null), claimed_at: Date, updated_at: Date}>} */
 const fallbackClaims = fallbackStore.claims
 /** @type {Map<string, Array<{domain_rating: number, provider: (string|null), checked_at: Date}>>} */
 const fallbackChecks = fallbackStore.checks
+/** @type {Map<string, any>} */
+const fallbackSubscriptions = fallbackStore.subscriptions
 
 const persistEnabled = !hasDb && process.env.NODE_ENV !== "production"
 const persistPath = path.join(process.cwd(), ".cache", "dr-fallback.json")
@@ -83,6 +86,34 @@ function hydrateFromDisk() {
       }
       if (next.length) fallbackChecks.set(normalizedDomain, next)
     }
+
+    const subscriptions = Array.isArray(parsed?.subscriptions) ? parsed.subscriptions : []
+    for (const row of subscriptions) {
+      const subscriptionId = String(row?.stripe_subscription_id ?? "").trim()
+      const email = normalizeEmail(row?.email)
+      if (!subscriptionId || !email) continue
+      const currentPeriodEnd = row?.current_period_end ? new Date(row.current_period_end) : null
+      const createdAt = row?.created_at ? new Date(row.created_at) : new Date()
+      const updatedAt = row?.updated_at ? new Date(row.updated_at) : new Date()
+      fallbackSubscriptions.set(subscriptionId, {
+        email,
+        stripe_customer_id: row?.stripe_customer_id ?? null,
+        stripe_subscription_id: subscriptionId,
+        stripe_price_id: row?.stripe_price_id ?? null,
+        billing_interval: row?.billing_interval ?? null,
+        domains_limit: Number.isFinite(Number(row?.domains_limit))
+          ? Number(row.domains_limit)
+          : null,
+        status: row?.status ?? null,
+        current_period_end: Number.isFinite(currentPeriodEnd?.getTime())
+          ? currentPeriodEnd
+          : null,
+        cancel_at_period_end:
+          typeof row?.cancel_at_period_end === "boolean" ? row.cancel_at_period_end : null,
+        created_at: Number.isFinite(createdAt.getTime()) ? createdAt : new Date(),
+        updated_at: Number.isFinite(updatedAt.getTime()) ? updatedAt : new Date(),
+      })
+    }
   } catch {
     // ignore
   }
@@ -116,7 +147,27 @@ function schedulePersist() {
         }))
       }
 
-      fs.writeFileSync(persistPath, JSON.stringify({ claims, checks }, null, 2))
+      const subscriptions = Array.from(fallbackSubscriptions.values()).map((row) => ({
+        email: row.email,
+        stripe_customer_id: row.stripe_customer_id ?? null,
+        stripe_subscription_id: row.stripe_subscription_id,
+        stripe_price_id: row.stripe_price_id ?? null,
+        billing_interval: row.billing_interval ?? null,
+        domains_limit: row.domains_limit ?? null,
+        status: row.status ?? null,
+        current_period_end:
+          row.current_period_end instanceof Date
+            ? row.current_period_end.toISOString()
+            : null,
+        cancel_at_period_end: row.cancel_at_period_end ?? null,
+        created_at: row.created_at instanceof Date ? row.created_at.toISOString() : null,
+        updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : null,
+      }))
+
+      fs.writeFileSync(
+        persistPath,
+        JSON.stringify({ claims, checks, subscriptions }, null, 2)
+      )
     } catch {
       // ignore
     }
@@ -159,6 +210,24 @@ async function ensureTables() {
     )
   `
   await sql`CREATE INDEX IF NOT EXISTS dr_checks_domain_checked_at_idx ON dr_checks (domain, checked_at DESC)`
+  await sql`
+    CREATE TABLE IF NOT EXISTS dr_subscriptions (
+      id BIGSERIAL PRIMARY KEY,
+      email TEXT NOT NULL,
+      stripe_customer_id TEXT,
+      stripe_subscription_id TEXT UNIQUE,
+      stripe_price_id TEXT,
+      billing_interval TEXT,
+      domains_limit INT,
+      status TEXT,
+      current_period_end TIMESTAMPTZ,
+      cancel_at_period_end BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS dr_subscriptions_email_idx ON dr_subscriptions (email)`
+  await sql`CREATE INDEX IF NOT EXISTS dr_subscriptions_customer_idx ON dr_subscriptions (stripe_customer_id)`
 }
 
 /**
@@ -729,4 +798,151 @@ export async function countSites(opts = {}) {
     WHERE ${pattern === null} OR d.domain ILIKE ${pattern}
   `)
   return Number(rows?.[0]?.count) || 0
+}
+
+function normalizeEmail(value) {
+  return String(value ?? "").trim().toLowerCase()
+}
+
+/**
+ * Upsert a subscription record keyed by stripe_subscription_id.
+ * @param {{
+ *  email: string,
+ *  stripeCustomerId?: (string|null),
+ *  stripeSubscriptionId: string,
+ *  stripePriceId?: (string|null),
+ *  billingInterval?: (string|null),
+ *  domainsLimit?: (number|null),
+ *  status?: (string|null),
+ *  currentPeriodEnd?: (Date|null),
+ *  cancelAtPeriodEnd?: (boolean|null)
+ * }} input
+ */
+export async function upsertSubscription({
+  email,
+  stripeCustomerId = null,
+  stripeSubscriptionId,
+  stripePriceId = null,
+  billingInterval = null,
+  domainsLimit = null,
+  status = null,
+  currentPeriodEnd = null,
+  cancelAtPeriodEnd = null,
+}) {
+  const normalizedEmail = normalizeEmail(email)
+  const subscriptionId = String(stripeSubscriptionId ?? "").trim()
+  if (!normalizedEmail || !subscriptionId) return null
+
+  if (!hasDb) {
+    const now = new Date()
+    const previous = fallbackSubscriptions.get(subscriptionId)
+    const next = {
+      email: normalizedEmail,
+      stripe_customer_id: stripeCustomerId ?? previous?.stripe_customer_id ?? null,
+      stripe_subscription_id: subscriptionId,
+      stripe_price_id: stripePriceId ?? previous?.stripe_price_id ?? null,
+      billing_interval: billingInterval ?? previous?.billing_interval ?? null,
+      domains_limit: domainsLimit ?? previous?.domains_limit ?? null,
+      status: status ?? previous?.status ?? null,
+      current_period_end: currentPeriodEnd ?? previous?.current_period_end ?? null,
+      cancel_at_period_end:
+        cancelAtPeriodEnd ?? previous?.cancel_at_period_end ?? null,
+      created_at: previous?.created_at ?? now,
+      updated_at: now,
+    }
+    fallbackSubscriptions.set(subscriptionId, next)
+    schedulePersist()
+    return next
+  }
+
+  await ensureTables()
+  const rows = rowsFrom(await sql`
+    INSERT INTO dr_subscriptions (
+      email,
+      stripe_customer_id,
+      stripe_subscription_id,
+      stripe_price_id,
+      billing_interval,
+      domains_limit,
+      status,
+      current_period_end,
+      cancel_at_period_end
+    )
+    VALUES (
+      ${normalizedEmail},
+      ${stripeCustomerId},
+      ${subscriptionId},
+      ${stripePriceId},
+      ${billingInterval},
+      ${domainsLimit},
+      ${status},
+      ${currentPeriodEnd},
+      ${cancelAtPeriodEnd}
+    )
+    ON CONFLICT (stripe_subscription_id)
+    DO UPDATE SET
+      email = COALESCE(EXCLUDED.email, dr_subscriptions.email),
+      stripe_customer_id = COALESCE(EXCLUDED.stripe_customer_id, dr_subscriptions.stripe_customer_id),
+      stripe_price_id = COALESCE(EXCLUDED.stripe_price_id, dr_subscriptions.stripe_price_id),
+      billing_interval = COALESCE(EXCLUDED.billing_interval, dr_subscriptions.billing_interval),
+      domains_limit = COALESCE(EXCLUDED.domains_limit, dr_subscriptions.domains_limit),
+      status = COALESCE(EXCLUDED.status, dr_subscriptions.status),
+      current_period_end = COALESCE(EXCLUDED.current_period_end, dr_subscriptions.current_period_end),
+      cancel_at_period_end = COALESCE(EXCLUDED.cancel_at_period_end, dr_subscriptions.cancel_at_period_end),
+      updated_at = NOW()
+    RETURNING
+      email,
+      stripe_customer_id,
+      stripe_subscription_id,
+      stripe_price_id,
+      billing_interval,
+      domains_limit,
+      status,
+      current_period_end,
+      cancel_at_period_end,
+      created_at,
+      updated_at
+  `)
+  return rows[0] || null
+}
+
+/**
+ * Fetch the most recent active subscription for an email.
+ * @param {string} email
+ */
+export async function getActiveSubscriptionByEmail(email) {
+  const normalizedEmail = normalizeEmail(email)
+  if (!normalizedEmail) return null
+
+  if (!hasDb) {
+    const matches = Array.from(fallbackSubscriptions.values()).filter(
+      (row) => row.email === normalizedEmail && ["active", "trialing"].includes(row.status)
+    )
+    if (!matches.length) return null
+    matches.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    return matches[0] || null
+  }
+
+  await ensureTables()
+  const rows = rowsFrom(await sql`
+    SELECT
+      email,
+      stripe_customer_id,
+      stripe_subscription_id,
+      stripe_price_id,
+      billing_interval,
+      domains_limit,
+      status,
+      current_period_end,
+      cancel_at_period_end,
+      created_at,
+      updated_at
+    FROM dr_subscriptions
+    WHERE email = ${normalizedEmail}
+      AND status IN ('active', 'trialing')
+      AND (current_period_end IS NULL OR current_period_end > NOW())
+    ORDER BY updated_at DESC
+    LIMIT 1
+  `)
+  return rows[0] || null
 }

@@ -11,6 +11,8 @@ import {
   ActionCardTitle,
 } from "@/components/content/action-card"
 import { Section, SectionDescription, SectionGroup, SectionHeader, SectionTitle } from "@/components/content/section"
+import { PricingSelector } from "@/app/pricing/pricing-selector"
+import { FREE_FEATURES } from "@/lib/pricing"
 
 export default function PricingPage() {
   return (
@@ -19,12 +21,15 @@ export default function PricingPage() {
         <Section>
           <SectionHeader className="text-center">
             <SectionTitle className="text-3xl font-semibold tracking-tight">Pricing</SectionTitle>
-            <SectionDescription>Simple pricing while we ship the MVP.</SectionDescription>
+            <SectionDescription>
+              Pick a plan based on how many domains you want to monitor. Paid plans update once a week and
+              include on-demand refreshes.
+            </SectionDescription>
           </SectionHeader>
         </Section>
 
         <Section>
-          <ActionCardGroup className="grid gap-6 md:grid-cols-2">
+          <ActionCardGroup className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
             <ActionCard>
               <ActionCardHeader>
                 <ActionCardTitle>Free</ActionCardTitle>
@@ -33,9 +38,9 @@ export default function PricingPage() {
               <ActionCardContent>
                 <p className="text-3xl font-semibold">$0</p>
                 <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-                  <li>Public DR page per domain</li>
-                  <li>Embeddable verified badge</li>
-                  <li>Recheck button (best-effort)</li>
+                  {FREE_FEATURES.map((feature) => (
+                    <li key={feature}>{feature}</li>
+                  ))}
                 </ul>
               </ActionCardContent>
               <ActionCardFooter>
@@ -45,25 +50,7 @@ export default function PricingPage() {
               </ActionCardFooter>
             </ActionCard>
 
-            <ActionCard>
-              <ActionCardHeader>
-                <ActionCardTitle>Pro</ActionCardTitle>
-                <ActionCardDescription>For teams and higher volume.</ActionCardDescription>
-              </ActionCardHeader>
-              <ActionCardContent>
-                <p className="text-3xl font-semibold">Contact</p>
-                <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-                  <li>Higher rate limits</li>
-                  <li>Priority support</li>
-                  <li>Custom badge designs</li>
-                </ul>
-              </ActionCardContent>
-              <ActionCardFooter>
-                <Button variant="secondary" asChild className="w-full">
-                  <a href="mailto:devin@serp.co?subject=DR%20Badge%20Pro">Email us</a>
-                </Button>
-              </ActionCardFooter>
-            </ActionCard>
+            <PricingSelector />
           </ActionCardGroup>
         </Section>
       </SectionGroup>

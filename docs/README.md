@@ -7,6 +7,7 @@ This folder contains documentation for [dr.serp.co](https://dr.serp.co).
 ### Guides
 
 - [Badges](badges.md) — Badge styles, embedding options, and configuration
+- [Features](features.md) — Paid plan tiers, included features, and Stripe setup notes
 
 ### Tutorials
 
@@ -14,7 +15,7 @@ This folder contains documentation for [dr.serp.co](https://dr.serp.co).
 
 ### Knowledge Base
 
-The `knowledge/` folder contains internal reference documentation (currently empty).
+The `knowledge/` folder contains internal reference documentation.
 
 ## Project Overview
 
