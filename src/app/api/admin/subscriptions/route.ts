@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   const counts = await Promise.all(
     emails.map(async (email) => {
       const total = await countClaimsByEmail({ email })
-      return [email, total]
+      return [email, total] as const
     })
   )
   const countsMap = new Map(counts)
