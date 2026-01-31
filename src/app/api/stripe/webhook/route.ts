@@ -117,7 +117,8 @@ export async function POST(request: Request) {
   }
 
   const stripe = getStripe()
-  const signature = headers().get("stripe-signature")
+  const headersList = await headers()
+  const signature = headersList.get("stripe-signature")
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
   if (!signature || !webhookSecret) {
