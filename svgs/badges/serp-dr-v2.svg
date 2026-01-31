@@ -40,6 +40,14 @@
   >
     <tspan fill="#111827">VERIFIED DR</tspan>
     <tspan fill="#9ca3af"> | </tspan>
-    <tspan fill="#9ca3af" font-weight="600" font-variant-numeric="tabular-nums">__DR__</tspan>
   </text>
+  <text
+    x="148"
+    y="26"
+    font-family="Inter, Arial, sans-serif"
+    font-size="16"
+    font-weight="900"
+    dominant-baseline="middle"
+    fill="#111827"
+  >__DR__</text>
 </svg>

@@ -41,4 +41,4 @@ spark.meta.json
 
 .cache
 .env*.local
-*.env
+*.envtsconfig.tsbuildinfo
