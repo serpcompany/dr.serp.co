@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { normalizeTarget, fetchDomainRating } from "@/server/dr-providers.mjs"
-import { recordDrCheck, upsertClaim } from "@/server/db.mjs"
+import { getClaim, recordDrCheck, upsertClaim } from "@/server/db.mjs"
 
 export const runtime = "nodejs"
 
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   try {
     const result = await fetchDomainRating({ target: domain })
     if ((result as any)?.captchaRequired) {
-      return NextResponse.json({ error: "Rating unavailable right now" }, { status: 503 })
+      throw new Error("captchaRequired")
     }
 
     const provider = (result as any)?.provider || null
@@ -35,11 +35,23 @@ export async function POST(request: Request) {
       provider,
       checkedAt: checkedAt.toISOString(),
     })
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to recheck" },
-      { status: 502 }
-    )
+  } catch {
+    // Provider failed — return the last cached rating if available
+    const cached = await getClaim(domain).catch(() => null)
+    if (cached?.domain_rating != null) {
+      const dr = Math.max(0, Math.min(100, Math.floor(Number(cached.domain_rating))))
+      if (Number.isFinite(dr)) {
+        return NextResponse.json({
+          ok: true,
+          domain,
+          domainRating: dr,
+          provider: cached.provider ?? null,
+          checkedAt: cached.updated_at ? new Date(cached.updated_at).toISOString() : null,
+          stale: true,
+        })
+      }
+    }
+    return NextResponse.json({ error: "Rating temporarily unavailable" }, { status: 503 })
   }
 }
 

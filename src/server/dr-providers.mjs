@@ -179,6 +179,90 @@ export async function fetchDrFromEditorialLink({ target } = {}) {
   }
 }
 
+/**
+ * FrogDR provider — uses a free frogdr.com account session to look up DR.
+ *
+ * Flow (free tier allows 3 tracked domains):
+ *   1. Add the domain:  GET /ajxDom?add={domain}  (authenticated)
+ *   2. Trigger refresh: GET /ajxDom?upd={domain}  (authenticated)
+ *   3. Scrape DR:       GET /{domain}              (public page, DR in HTML)
+ *   4. Remove domain:   GET /ajxDom?d={domain}    (authenticated, frees the slot)
+ *
+ * Required env var: FROGDR_SESSION  (value of the PHPSESSID cookie from a logged-in
+ * frogdr.com browser session — grab it from DevTools → Application → Cookies)
+ *
+ * NOTE: The /ajxDom?add= endpoint is inferred from the naming pattern of the other
+ * endpoints. If it silently fails, the alternative is a POST to / with body `d={domain}`.
+ */
+export async function fetchDrFromFrogDR({ target } = {}) {
+  const normalizedTarget = normalizeTarget(target)
+  if (!normalizedTarget) throw new Error('Missing "target"')
+
+  const session = process.env.FROGDR_SESSION
+  if (!session) throw new Error('FROGDR_SESSION env var not set')
+
+  const authHeaders = {
+    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'cookie': `PHPSESSID=${session}`,
+    'referer': 'https://frogdr.com/',
+  }
+
+  // Step 1: add domain to dashboard (may already be tracked — that's fine)
+  const addRes = await fetch(`https://frogdr.com/ajxDom?add=${encodeURIComponent(normalizedTarget)}`, {
+    headers: authHeaders,
+    redirect: 'follow',
+  })
+  if (!addRes.ok && addRes.status !== 200) {
+    throw new Error(`FrogDR add failed (${addRes.status})`)
+  }
+
+  // Step 2: trigger a fresh DR fetch
+  await fetch(`https://frogdr.com/ajxDom?upd=${encodeURIComponent(normalizedTarget)}`, {
+    headers: authHeaders,
+    redirect: 'follow',
+  })
+
+  // Step 3: poll the public domain page until DR data appears (up to ~15s)
+  let dr = null
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 2500))
+    const pageRes = await fetch(`https://frogdr.com/${encodeURIComponent(normalizedTarget)}`, {
+      headers: { ...authHeaders, 'accept': 'text/html' },
+      redirect: 'follow',
+    })
+    if (!pageRes.ok) continue
+    const html = await pageRes.text()
+    // DR appears as: <h3 style="font-size:20px;font-weight:bold;color:#000">91</h3>
+    const m = html.match(/<h3[^>]*font-size:20px[^>]*>\s*(\d+)\s*<\/h3>/)
+    if (m) {
+      dr = Number(m[1])
+      break
+    }
+  }
+
+  // Step 4: always remove the domain to keep the slot free
+  try {
+    await fetch(`https://frogdr.com/ajxDom?d=${encodeURIComponent(normalizedTarget)}`, {
+      headers: authHeaders,
+      redirect: 'follow',
+    })
+  } catch {
+    // Non-fatal — removal failure just uses up a slot until manual cleanup
+  }
+
+  if (dr === null || !Number.isFinite(dr)) {
+    throw new Error('FrogDR response missing DR number')
+  }
+
+  return {
+    provider: 'frogdr',
+    target: normalizedTarget,
+    domainRating: dr,
+    extra: null,
+  }
+}
+
 export async function fetchDomainRating({ target, provider, captchaAnswer, captchaHash } = {}) {
   const normalizedTarget = normalizeTarget(target)
   if (!normalizedTarget) throw new Error('Missing "target"')
@@ -189,25 +273,17 @@ export async function fetchDomainRating({ target, provider, captchaAnswer, captc
   if (provider === 'editoriallink') {
     return fetchDrFromEditorialLink({ target: normalizedTarget })
   }
-
-  const errors = []
-
-  try {
-    const rhino = await fetchDrFromRhinoRank({ target: normalizedTarget, captchaAnswer, captchaHash })
-    if (rhino?.captchaRequired) {
-      errors.push('RhinoRank requires CAPTCHA')
-    } else {
-      return rhino
-    }
-  } catch (e) {
-    errors.push(e instanceof Error ? e.message : String(e))
+  if (provider === 'frogdr') {
+    return fetchDrFromFrogDR({ target: normalizedTarget })
   }
 
-  try {
-    return await fetchDrFromEditorialLink({ target: normalizedTarget })
-  } catch (e) {
-    errors.push(e instanceof Error ? e.message : String(e))
+  // Try FrogDR if a session is configured
+  if (process.env.FROGDR_SESSION) {
+    return fetchDrFromFrogDR({ target: normalizedTarget })
   }
 
-  throw new Error(`All providers failed: ${errors.join(' | ')}`)
+  // No working provider available
+  throw new Error(
+    'All providers unavailable: RhinoRank requires Cloudflare Turnstile | Editorial.Link checker removed | Set FROGDR_SESSION to enable FrogDR'
+  )
 }
