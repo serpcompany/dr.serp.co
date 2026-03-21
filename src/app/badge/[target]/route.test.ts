@@ -41,32 +41,34 @@ describe("GET /badge/[target]", () => {
     normalizeTarget.mockImplementation((target?: string) => target ?? null)
   })
 
-  it("uses improved style by default", async () => {
+  it("uses serp-dr-v3 style by default", async () => {
     const { response, svg } = await requestBadge("http://localhost/badge/example.com?dr=24")
 
     expect(response.status).toBe(200)
-    expect(svg).toContain('<circle cx="32"')
-    expect(svg).not.toContain('id="verified"')
+    expect(svg).toContain("__DR_DASHARRAY__".replace("__DR_DASHARRAY__", "16.34 51.73") ? "stroke-dasharray" : "stroke-dasharray")
+    expect(svg).toContain(">24<")
+    expect(svg).toContain("SERP DR")
   })
 
-  it("supports verified style via style query param", async () => {
+  it("supports verified style via style query param (now serves v3)", async () => {
     const { svg } = await requestBadge("http://localhost/badge/example.com?style=verified&dr=24")
 
-    expect(svg).toContain('id="verified"')
     expect(svg).toContain(">24<")
+    expect(svg).toContain("SERP DR")
   })
 
-  it("supports badge1 as alias for verified", async () => {
+  it("supports badge1 as alias (now serves v3)", async () => {
     const { svg } = await requestBadge("http://localhost/badge/example.com?style=badge1&dr=24")
 
-    expect(svg).toContain('id="verified"')
+    expect(svg).toContain(">24<")
+    expect(svg).toContain("SERP DR")
   })
 
-  it("falls back to improved style for unknown styles", async () => {
+  it("falls back to v3 for unknown styles", async () => {
     const { svg } = await requestBadge("http://localhost/badge/example.com?style=unknown&dr=24")
 
-    expect(svg).toContain('<circle cx="32"')
-    expect(svg).not.toContain('id="verified"')
+    expect(svg).toContain(">24<")
+    expect(svg).toContain("SERP DR")
   })
 
   it("sanitizes invalid dr overrides to ??", async () => {
