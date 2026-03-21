@@ -1,0 +1,290 @@
+import Stripe from "stripe"
+import { headers } from "next/headers"
+import { NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
+
+import { getStripe } from "@/lib/stripe"
+import { getTierForPriceId } from "@/lib/stripe-pricing"
+import {
+  getLatestBillingAuditEvent,
+  getLatestBillingAuditFailure,
+  insertBillingAudit,
+  upsertSubscription,
+} from "@/server/db.mjs"
+import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
+
+export const runtime = "nodejs"
+
+const RATE_LIMIT_POINTS = Number(process.env.STRIPE_WEBHOOK_RATE_LIMIT_POINTS ?? 120)
+const RATE_LIMIT_DURATION = Number(process.env.STRIPE_WEBHOOK_RATE_LIMIT_DURATION ?? 60)
+const HEALTH_STALE_HOURS = Number(process.env.STRIPE_WEBHOOK_STALE_HOURS ?? 24)
+const HEALTH_FAILURE_WINDOW_MINUTES = Number(process.env.STRIPE_WEBHOOK_FAILURE_WINDOW_MINUTES ?? 60)
+
+function normalizeEmail(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase()
+}
+
+function billingFromInterval(interval: string | null | undefined) {
+  if (!interval) return null
+  return interval === "year" ? "annual" : "monthly"
+}
+
+function toDate(value: Date | string | null | undefined) {
+  if (!value) return null
+  if (value instanceof Date) return value
+  const parsed = new Date(value)
+  return Number.isFinite(parsed.getTime()) ? parsed : null
+}
+
+async function resolveCustomerEmail(stripe: Stripe, customerId?: string | null) {
+  if (!customerId) return null
+  const customer = await stripe.customers.retrieve(customerId)
+  if (customer && !("deleted" in customer)) {
+    return customer.email ?? null
+  }
+  return null
+}
+
+async function buildSubscriptionSnapshot(
+  stripe: Stripe,
+  subscription: Stripe.Subscription,
+  emailOverride?: string | null
+) {
+  const price = subscription.items.data[0]?.price
+  const priceId = price?.id ?? null
+  let tier = null
+  if (priceId) {
+    try {
+      tier = getTierForPriceId(priceId)
+    } catch {
+      tier = null
+    }
+  }
+  const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id
+
+  const emailFromCustomer = await resolveCustomerEmail(stripe, customerId)
+  const email = normalizeEmail(emailOverride ?? emailFromCustomer)
+
+  const billingInterval = tier?.billing ?? billingFromInterval(price?.recurring?.interval ?? null)
+  const domainsLimit = tier?.domains ?? null
+  const currentPeriodEnd = subscription.current_period_end
+    ? new Date(subscription.current_period_end * 1000)
+    : null
+
+  return {
+    email: email || null,
+    stripeCustomerId: customerId ?? null,
+    stripeSubscriptionId: subscription.id,
+    stripePriceId: priceId,
+    billingInterval,
+    domainsLimit,
+    status: subscription.status,
+    currentPeriodEnd,
+    cancelAtPeriodEnd: subscription.cancel_at_period_end ?? null,
+  }
+}
+
+async function syncSubscription(snapshot: Awaited<ReturnType<typeof buildSubscriptionSnapshot>>) {
+  if (!snapshot.email) {
+    console.warn("stripe.webhook: missing email for subscription", snapshot.stripeSubscriptionId)
+    return { record: null, snapshot }
+  }
+
+  const record = await upsertSubscription({
+    email: snapshot.email,
+    stripeCustomerId: snapshot.stripeCustomerId ?? null,
+    stripeSubscriptionId: snapshot.stripeSubscriptionId,
+    stripePriceId: snapshot.stripePriceId ?? null,
+    billingInterval: snapshot.billingInterval ?? null,
+    domainsLimit: snapshot.domainsLimit ?? null,
+    status: snapshot.status ?? null,
+    currentPeriodEnd: snapshot.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd ?? null,
+  })
+
+  return { record, snapshot }
+}
+
+export async function POST(request: Request) {
+  const rateKey = getRateLimitKey(request, "stripe-webhook")
+  const rate = await checkRateLimit({ key: rateKey, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
+  if (!rate.allowed) {
+    const retryAfter = Math.ceil(rate.retryAfterMs / 1000)
+    return NextResponse.json(
+      { error: "Too many webhook requests." },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
+    )
+  }
+
+  const stripe = getStripe()
+  const headersList = await headers()
+  const signature = headersList.get("stripe-signature")
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+
+  if (!signature || !webhookSecret) {
+    return NextResponse.json({ error: "Stripe webhook not configured." }, { status: 400 })
+  }
+
+  let event: Stripe.Event
+  try {
+    const body = Buffer.from(await request.arrayBuffer())
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+  } catch (error) {
+    Sentry.captureException(error)
+    const message = error instanceof Error ? error.message : "Invalid signature."
+    console.error("stripe.webhook: signature verification failed", message)
+    return NextResponse.json({ error: message }, { status: 400 })
+  }
+
+  const eventCreatedAt = event.created ? new Date(event.created * 1000) : null
+
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session
+        const subscriptionId = typeof session.subscription === "string" ? session.subscription : null
+        const email = session.customer_details?.email ?? session.customer_email ?? null
+        if (!subscriptionId) {
+          console.warn("stripe.webhook: checkout session missing subscription", session.id)
+          await insertBillingAudit({
+            stripeEventId: event.id,
+            stripeEventType: event.type,
+            eventCreatedAt,
+            success: false,
+            error: "checkout session missing subscription",
+          })
+          break
+        }
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+        const snapshot = await buildSubscriptionSnapshot(stripe, subscription, email)
+        await syncSubscription(snapshot)
+        await insertBillingAudit({
+          stripeEventId: event.id,
+          stripeEventType: event.type,
+          eventCreatedAt,
+          stripeCustomerId: snapshot.stripeCustomerId ?? null,
+          stripeSubscriptionId: snapshot.stripeSubscriptionId ?? null,
+          stripePriceId: snapshot.stripePriceId ?? null,
+          email: snapshot.email ?? null,
+          billingInterval: snapshot.billingInterval ?? null,
+          domainsLimit: snapshot.domainsLimit ?? null,
+          status: snapshot.status ?? null,
+          currentPeriodEnd: snapshot.currentPeriodEnd ?? null,
+          cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd ?? null,
+          success: true,
+        })
+        break
+      }
+      case "customer.subscription.created":
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription
+        const snapshot = await buildSubscriptionSnapshot(stripe, subscription, null)
+        await syncSubscription(snapshot)
+        await insertBillingAudit({
+          stripeEventId: event.id,
+          stripeEventType: event.type,
+          eventCreatedAt,
+          stripeCustomerId: snapshot.stripeCustomerId ?? null,
+          stripeSubscriptionId: snapshot.stripeSubscriptionId ?? null,
+          stripePriceId: snapshot.stripePriceId ?? null,
+          email: snapshot.email ?? null,
+          billingInterval: snapshot.billingInterval ?? null,
+          domainsLimit: snapshot.domainsLimit ?? null,
+          status: snapshot.status ?? null,
+          currentPeriodEnd: snapshot.currentPeriodEnd ?? null,
+          cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd ?? null,
+          success: true,
+        })
+        break
+      }
+      case "invoice.paid":
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice
+        const subscriptionId = typeof invoice.subscription === "string" ? invoice.subscription : null
+        if (!subscriptionId) {
+          await insertBillingAudit({
+            stripeEventId: event.id,
+            stripeEventType: event.type,
+            eventCreatedAt,
+            success: false,
+            error: "invoice missing subscription",
+          })
+          break
+        }
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+        const snapshot = await buildSubscriptionSnapshot(stripe, subscription, null)
+        await syncSubscription(snapshot)
+        await insertBillingAudit({
+          stripeEventId: event.id,
+          stripeEventType: event.type,
+          eventCreatedAt,
+          stripeCustomerId: snapshot.stripeCustomerId ?? null,
+          stripeSubscriptionId: snapshot.stripeSubscriptionId ?? null,
+          stripePriceId: snapshot.stripePriceId ?? null,
+          email: snapshot.email ?? null,
+          billingInterval: snapshot.billingInterval ?? null,
+          domainsLimit: snapshot.domainsLimit ?? null,
+          status: snapshot.status ?? null,
+          currentPeriodEnd: snapshot.currentPeriodEnd ?? null,
+          cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd ?? null,
+          success: true,
+        })
+        break
+      }
+      default: {
+        await insertBillingAudit({
+          stripeEventId: event.id,
+          stripeEventType: event.type,
+          eventCreatedAt,
+          success: true,
+        })
+        break
+      }
+    }
+  } catch (error) {
+    Sentry.captureException(error)
+    const message = error instanceof Error ? error.message : "Webhook handler failed."
+    console.error("stripe.webhook: handler error", message)
+    await insertBillingAudit({
+      stripeEventId: event?.id ?? null,
+      stripeEventType: event?.type ?? "unknown",
+      eventCreatedAt,
+      success: false,
+      error: message,
+    })
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+
+  return NextResponse.json({ received: true })
+}
+
+export async function GET() {
+  const [latest, latestFailure] = await Promise.all([
+    getLatestBillingAuditEvent(),
+    getLatestBillingAuditFailure(),
+  ])
+
+  const now = new Date()
+  const lastEventAt = toDate(latest?.created_at ?? null)
+  const lastFailureAt = toDate(latestFailure?.created_at ?? null)
+
+  let status = "ok"
+  if (!lastEventAt) {
+    status = "missing"
+  } else if (now.getTime() - lastEventAt.getTime() > HEALTH_STALE_HOURS * 60 * 60 * 1000) {
+    status = "stale"
+  } else if (
+    lastFailureAt &&
+    now.getTime() - lastFailureAt.getTime() < HEALTH_FAILURE_WINDOW_MINUTES * 60 * 1000
+  ) {
+    status = "degraded"
+  }
+
+  return NextResponse.json({
+    ok: status === "ok",
+    status,
+    lastEventAt: lastEventAt ? lastEventAt.toISOString() : null,
+    lastFailureAt: lastFailureAt ? lastFailureAt.toISOString() : null,
+  })
+}

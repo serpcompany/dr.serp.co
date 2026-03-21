@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { Check, Copy } from "lucide-react"
+import { Copy } from "lucide-react"
 import { toast } from "sonner"
 
 export function BadgeEmbed({
@@ -41,16 +41,12 @@ export function BadgeEmbed({
         aria-label="Copy badge embed code"
         type="button"
       >
-        <div className="flex items-center gap-3 rounded-lg border-2 border-emerald-600 bg-background px-4 py-2.5 shadow-sm">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600">
-            <Check className="h-5 w-5 text-white" strokeWidth={3} />
-          </div>
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <span className="text-foreground">VERIFIED DR</span>
-            <span className="text-muted-foreground">|</span>
-            <span className="tabular-nums text-muted-foreground">{label === null ? "—" : label}</span>
-          </div>
-        </div>
+        <img
+          src={badgeUrl}
+          alt={label === null ? `Verified DR for ${domain}` : `Verified DR ${label} for ${domain}`}
+          width={200}
+          height={50}
+        />
         <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
           <Copy className="h-6 w-6 text-white" />
         </div>

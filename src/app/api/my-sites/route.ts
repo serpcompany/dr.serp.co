@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { countClaimsByEmail, listClaimsByEmail } from "@/server/db.mjs"
+import { resolveEntitlement } from "@/server/entitlements.mjs"
 
 export const runtime = "nodejs"
 
@@ -21,6 +22,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 })
   }
 
+  const entitlement = await resolveEntitlement({ email })
+  if (!entitlement?.canAccessPaidFeatures) {
+    return NextResponse.json(
+      { error: "Upgrade required to manage monitored domains.", code: "upgrade_required", entitlement },
+      { status: 402 }
+    )
+  }
+
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(50, Math.floor(limitRaw))) : 12
   const offset = Number.isFinite(offsetRaw) ? Math.max(0, Math.floor(offsetRaw)) : 0
 
@@ -31,4 +40,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true, total, sites })
 }
-

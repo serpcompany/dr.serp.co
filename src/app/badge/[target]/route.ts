@@ -7,19 +7,31 @@ import { getClaim, getDrChecks, recordDrCheck, upsertClaim } from "@/server/db.m
 export const runtime = "nodejs"
 
 const templates = {
-  badge1: path.join(process.cwd(), "svgs", "badges", "verified-dr.svg"),
+  badge1: path.join(process.cwd(), "svgs", "badges", "serp-dr-v3.svg"),
   "serp-dr-v2": path.join(process.cwd(), "svgs", "badges", "serp-dr-v2.svg"),
-  verified: path.join(process.cwd(), "svgs", "badges", "verified-dr.svg"),
-}
+  "serp-dr-v3": path.join(process.cwd(), "svgs", "badges", "serp-dr-v3.svg"),
+  verified: path.join(process.cwd(), "svgs", "badges", "serp-dr-v3.svg"),
+} as const
+
+const DEFAULT_STYLE: keyof typeof templates = "serp-dr-v3"
+const templateCache = new Map<string, string>()
+
+// Refresh DR if data is older than 30 days
+const STALE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000
 
 function resolveTemplatePath(style: string | null) {
   const key = String(style ?? "").trim().toLowerCase()
   if (key && key in templates) return templates[key as keyof typeof templates]
-  return templates.verified
+  return templates[DEFAULT_STYLE]
 }
 
-function readBadgeTemplate(templatePath: string) {
-  return fs.readFileSync(templatePath, "utf8")
+function getBadgeTemplate(templatePath: string) {
+  const cached = templateCache.get(templatePath)
+  if (cached) return cached
+
+  const template = fs.readFileSync(templatePath, "utf8")
+  templateCache.set(templatePath, template)
+  return template
 }
 
 function getFontSizeForValue(value: string) {
@@ -29,13 +41,57 @@ function getFontSizeForValue(value: string) {
   return "60"
 }
 
+// Total path length of the 300° horseshoe arc (r=13): (300/360) * 2π * 13
+const RING_ARC_LENGTH = (300 / 360) * 2 * Math.PI * 13
+
+function computeDasharray(value: string): string {
+  const score = parseInt(value, 10)
+  if (!Number.isFinite(score)) return `0 ${RING_ARC_LENGTH.toFixed(2)}`
+  const clamped = Math.max(0, Math.min(100, score))
+  const filled = (clamped / 100) * RING_ARC_LENGTH
+  const gap = RING_ARC_LENGTH - filled
+  return `${filled.toFixed(2)} ${gap.toFixed(2)}`
+}
+
 function renderBadgeSvg(templatePath: string, value: string) {
-  const badgeTemplate = readBadgeTemplate(templatePath)
+  const template = getBadgeTemplate(templatePath)
   const safeValue = value === "??" ? "??" : value.replace(/[^0-9]/g, "")
-  const fontSize = getFontSizeForValue(safeValue || "??")
-  return badgeTemplate
-    .replaceAll("__DR__", safeValue || "??")
-    .replaceAll("__DR_FONT_SIZE__", fontSize)
+  const normalizedValue = safeValue || "??"
+
+  let svg = template.replaceAll("__DR__", normalizedValue)
+
+  if (svg.includes("__DR_DASHARRAY__")) {
+    svg = svg.replaceAll("__DR_DASHARRAY__", computeDasharray(normalizedValue))
+  }
+
+  if (svg.includes("__DR_FONT_SIZE__")) {
+    svg = svg.replaceAll("__DR_FONT_SIZE__", getFontSizeForValue(normalizedValue))
+  }
+
+  return svg
+}
+
+function isStale(updatedAt: Date | string | null | undefined): boolean {
+  if (!updatedAt) return true
+  const updated = new Date(updatedAt)
+  return Date.now() - updated.getTime() > STALE_THRESHOLD_MS
+}
+
+async function refreshDrInBackground(domain: string) {
+  try {
+    const result = await fetchDomainRating({ target: domain })
+    if ((result as any)?.captchaRequired) return
+    
+    const dr = Math.max(0, Math.min(100, Math.floor(Number((result as any)?.domainRating))))
+    if (Number.isFinite(dr)) {
+      const provider = (result as any)?.provider || null
+      const updated = await upsertClaim({ domain, domainRating: dr, provider })
+      const checkedAt = updated?.updated_at ? new Date(updated.updated_at) : new Date()
+      await recordDrCheck({ domain, domainRating: dr, provider, checkedAt })
+    }
+  } catch {
+    // Silently fail background refresh
+  }
 }
 
 export async function GET(request: Request, context: { params: Promise<{ target: string }> }) {
@@ -64,6 +120,12 @@ export async function GET(request: Request, context: { params: Promise<{ target:
     if (cachedClaim?.domain_rating !== null && cachedClaim?.domain_rating !== undefined) {
       const dr = Math.max(0, Math.min(100, Math.floor(Number(cachedClaim.domain_rating))))
       const svg = renderBadgeSvg(templatePath, Number.isFinite(dr) ? String(dr) : "??")
+      
+      // Trigger background refresh if data is older than 30 days
+      if (isStale(cachedClaim.updated_at)) {
+        refreshDrInBackground(normalizedTarget)
+      }
+      
       return new Response(svg, {
         headers: {
           "Content-Type": "image/svg+xml; charset=utf-8",

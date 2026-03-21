@@ -7,6 +7,8 @@ This folder contains documentation for [dr.serp.co](https://dr.serp.co).
 ### Guides
 
 - [Badges](badges.md) — Badge styles, embedding options, and configuration
+- [Features](features.md) — Paid plan tiers, included features, and Stripe setup notes
+- [SaaS Plan](saas-plan.md) — Delivery phases and billing/entitlement decisions
 
 ### Tutorials
 
@@ -14,7 +16,13 @@ This folder contains documentation for [dr.serp.co](https://dr.serp.co).
 
 ### Knowledge Base
 
-The `knowledge/` folder contains internal reference documentation (currently empty).
+The `knowledge/` folder contains internal reference documentation.
+- [Billing Ops](knowledge/billing-ops.md) — Billing endpoints, audit logs, rate limits, and Sentry notes.
+
+### Runbooks
+
+- [Stripe Event Replay](runbooks/stripe-event-replay.md) — How to resend webhook events safely.
+- [Billing Deployment](runbooks/billing-deployment.md) — Deployment env vars and monitoring checklist.
 
 ## Project Overview
 
@@ -48,5 +56,21 @@ svgs/badges/                # SVG badge templates
 | `USESEND_API_KEY` | UseSend API key for OTP emails |
 | `DR_PUBLIC_BASE_URL` | Public URL (default: `https://dr.serp.co`) |
 | `DR_BADGE_BASE_URL` | Badge base URL (default: `https://embeds.serp.co`) |
+| `STRIPE_SECRET_KEY` | Stripe API secret key |
+| `STRIPE_PRICE_IDS` | JSON map of Stripe price IDs |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
+| `STRIPE_PORTAL_RETURN_URL` | Optional portal return URL |
+| `DR_ADMIN_TOKEN` | Admin token for subscription report endpoint |
+| `SENTRY_DSN` | Sentry DSN for server monitoring |
+| `RATE_LIMIT_REDIS_URL` | Optional Redis URL for shared rate limiting |
+
+## Database
+
+The app is deployed on Vercel and uses Neon Postgres via `@neondatabase/serverless`, configured through environment variables (see `src/server/db.mjs`). Running `vercel link` + `vercel env pull` writes these values into `.env.local` for local dev:
+
+- `POSTGRES_URL` (primary)
+- or `POSTGRES_URL_NON_POOLING`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `STORAGE_URL`, `STORAGE_URL_NON_POOLING`
+
+If no DB env vars are set (common in local/dev), the app falls back to an in-memory store and persists to `.cache/dr-fallback.json`.
 
 See the main [README](../README.md) for the full list.

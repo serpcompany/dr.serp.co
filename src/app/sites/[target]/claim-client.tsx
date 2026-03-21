@@ -1,11 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 
 import { upsertSiteHistory } from "@/lib/site-history"
 
 export function ClaimClient({ domain }: { domain: string }) {
-  const [status, setStatus] = useState<"idle" | "claimed" | "error">("idle")
+  const [status, setStatus] = useState<"idle" | "claimed" | "error" | "upgrade">("idle")
+  const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
     const email = window.localStorage.getItem("dr-auth-email")?.trim().toLowerCase()
@@ -22,7 +24,15 @@ export function ClaimClient({ domain }: { domain: string }) {
           body: JSON.stringify({ email, domain }),
           signal: controller.signal,
         })
-        if (!response.ok) throw new Error("claim failed")
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          if (payload?.code === "upgrade_required") {
+            setMessage(typeof payload?.error === "string" ? payload.error : "Upgrade required to claim domains.")
+            setStatus("upgrade")
+            return
+          }
+          throw new Error(typeof payload?.error === "string" ? payload.error : "Claim failed")
+        }
         setStatus("claimed")
         upsertSiteHistory(email, { domain })
       } catch {
@@ -37,7 +47,18 @@ export function ClaimClient({ domain }: { domain: string }) {
 
   return (
     <p className="text-xs text-muted-foreground">
-      {status === "claimed" ? "Claimed via email" : "Could not claim this domain to your email."}
+      {status === "claimed"
+        ? "Claimed via email"
+        : status === "upgrade"
+          ? (
+              <>
+                {message || "Upgrade required to claim domains."}{" "}
+                <Link href="/pricing" className="underline underline-offset-2">
+                  Upgrade
+                </Link>
+              </>
+            )
+          : "Could not claim this domain to your email."}
     </p>
   )
 }

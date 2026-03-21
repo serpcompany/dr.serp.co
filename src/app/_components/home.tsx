@@ -11,6 +11,7 @@ import { LoginForm } from "@/components/login-form"
 import { OTPForm } from "@/components/otp-form"
 import { MySites } from "./my-sites"
 import { AllSites } from "./all-sites"
+import { BillingStatusCard } from "./billing-status-card"
 import { upsertSiteHistory } from "@/lib/site-history"
 import { Section, SectionDescription, SectionGroup, SectionHeader, SectionTitle } from "@/components/content/section"
 import { ActionCard, ActionCardDescription, ActionCardGroup, ActionCardHeader, ActionCardTitle } from "@/components/content/action-card"
@@ -250,6 +251,12 @@ export function Home() {
             <AllSites />
           </Section>
         )}
+
+        {authStep === "authed" ? (
+          <Section>
+            <BillingStatusCard />
+          </Section>
+        ) : null}
 
         <Section>
           <SectionHeader>
