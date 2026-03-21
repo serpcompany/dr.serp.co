@@ -6,23 +6,69 @@ import { getClaim, getDrChecks, recordDrCheck, upsertClaim } from "@/server/db.m
 
 export const runtime = "nodejs"
 
-const templatePath = path.join(process.cwd(), "svgs", "badges", "serp-dr-v2.svg")
-let cachedTemplate: string | null = null
+const templates = {
+  badge1: path.join(process.cwd(), "svgs", "badges", "serp-dr-v3.svg"),
+  "serp-dr-v2": path.join(process.cwd(), "svgs", "badges", "serp-dr-v2.svg"),
+  "serp-dr-v3": path.join(process.cwd(), "svgs", "badges", "serp-dr-v3.svg"),
+  verified: path.join(process.cwd(), "svgs", "badges", "serp-dr-v3.svg"),
+} as const
+
+const DEFAULT_STYLE: keyof typeof templates = "serp-dr-v3"
+const templateCache = new Map<string, string>()
 
 // Refresh DR if data is older than 30 days
 const STALE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000
 
-function getBadgeTemplate() {
-  if (!cachedTemplate) {
-    cachedTemplate = fs.readFileSync(templatePath, "utf8")
-  }
-  return cachedTemplate
+function resolveTemplatePath(style: string | null) {
+  const key = String(style ?? "").trim().toLowerCase()
+  if (key && key in templates) return templates[key as keyof typeof templates]
+  return templates[DEFAULT_STYLE]
 }
 
-function renderBadgeSvg(value: string) {
-  const template = getBadgeTemplate()
+function getBadgeTemplate(templatePath: string) {
+  const cached = templateCache.get(templatePath)
+  if (cached) return cached
+
+  const template = fs.readFileSync(templatePath, "utf8")
+  templateCache.set(templatePath, template)
+  return template
+}
+
+function getFontSizeForValue(value: string) {
+  if (value === "??") return "76"
+  if (value.length <= 1) return "84"
+  if (value.length === 2) return "72"
+  return "60"
+}
+
+// Total path length of the 300° horseshoe arc (r=13): (300/360) * 2π * 13
+const RING_ARC_LENGTH = (300 / 360) * 2 * Math.PI * 13
+
+function computeDasharray(value: string): string {
+  const score = parseInt(value, 10)
+  if (!Number.isFinite(score)) return `0 ${RING_ARC_LENGTH.toFixed(2)}`
+  const clamped = Math.max(0, Math.min(100, score))
+  const filled = (clamped / 100) * RING_ARC_LENGTH
+  const gap = RING_ARC_LENGTH - filled
+  return `${filled.toFixed(2)} ${gap.toFixed(2)}`
+}
+
+function renderBadgeSvg(templatePath: string, value: string) {
+  const template = getBadgeTemplate(templatePath)
   const safeValue = value === "??" ? "??" : value.replace(/[^0-9]/g, "")
-  return template.replaceAll("__DR__", safeValue || "??")
+  const normalizedValue = safeValue || "??"
+
+  let svg = template.replaceAll("__DR__", normalizedValue)
+
+  if (svg.includes("__DR_DASHARRAY__")) {
+    svg = svg.replaceAll("__DR_DASHARRAY__", computeDasharray(normalizedValue))
+  }
+
+  if (svg.includes("__DR_FONT_SIZE__")) {
+    svg = svg.replaceAll("__DR_FONT_SIZE__", getFontSizeForValue(normalizedValue))
+  }
+
+  return svg
 }
 
 function isStale(updatedAt: Date | string | null | undefined): boolean {
@@ -56,10 +102,11 @@ export async function GET(request: Request, context: { params: Promise<{ target:
   }
 
   const url = new URL(request.url)
+  const templatePath = resolveTemplatePath(url.searchParams.get("style"))
   const override = url.searchParams.get("dr")
   if (override !== null) {
     const dr = Math.max(0, Math.min(100, Math.floor(Number(override))))
-    const svg = renderBadgeSvg(Number.isFinite(dr) ? String(dr) : "??")
+    const svg = renderBadgeSvg(templatePath, Number.isFinite(dr) ? String(dr) : "??")
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",
@@ -72,7 +119,7 @@ export async function GET(request: Request, context: { params: Promise<{ target:
     const cachedClaim = await getClaim(normalizedTarget)
     if (cachedClaim?.domain_rating !== null && cachedClaim?.domain_rating !== undefined) {
       const dr = Math.max(0, Math.min(100, Math.floor(Number(cachedClaim.domain_rating))))
-      const svg = renderBadgeSvg(Number.isFinite(dr) ? String(dr) : "??")
+      const svg = renderBadgeSvg(templatePath, Number.isFinite(dr) ? String(dr) : "??")
       
       // Trigger background refresh if data is older than 30 days
       if (isStale(cachedClaim.updated_at)) {
@@ -93,7 +140,7 @@ export async function GET(request: Request, context: { params: Promise<{ target:
       const dr = Math.max(0, Math.min(100, Math.floor(Number(last?.domain_rating))))
       if (Number.isFinite(dr)) {
         await upsertClaim({ domain: normalizedTarget, domainRating: dr, provider: last?.provider ?? null })
-        const svg = renderBadgeSvg(String(dr))
+        const svg = renderBadgeSvg(templatePath, String(dr))
         return new Response(svg, {
           headers: {
             "Content-Type": "image/svg+xml; charset=utf-8",
@@ -114,7 +161,7 @@ export async function GET(request: Request, context: { params: Promise<{ target:
       await recordDrCheck({ domain: normalizedTarget, domainRating: dr, provider, checkedAt })
     }
 
-    const svg = renderBadgeSvg(Number.isFinite(dr) ? String(dr) : "??")
+    const svg = renderBadgeSvg(templatePath, Number.isFinite(dr) ? String(dr) : "??")
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",
@@ -122,7 +169,7 @@ export async function GET(request: Request, context: { params: Promise<{ target:
       },
     })
   } catch (error) {
-    const svg = renderBadgeSvg("??")
+    const svg = renderBadgeSvg(templatePath, "??")
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",

@@ -54,7 +54,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
 
   const embedBase = process.env.DR_PUBLIC_BASE_URL || "https://dr.serp.co"
   const embedBadgeBase = process.env.DR_BADGE_BASE_URL || embedBase
-  const embedBadgeUrl = `${embedBadgeBase}/badge/${encodeURIComponent(domain)}`
+  const embedBadgeUrl = `${embedBadgeBase}/badge/${encodeURIComponent(domain)}?style=serp-dr-v3`
 
   let domainRating: number | null = null
   let providerForStorage: string | null = null
