@@ -13,7 +13,8 @@
     "lint": "next lint",
     "start": "next start",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "r2:replace-badges": "node scripts/replace-r2-badge-assets.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
