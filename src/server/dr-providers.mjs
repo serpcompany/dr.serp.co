@@ -28,9 +28,9 @@ function isValidDomain(host) {
 export function normalizeTarget(input) {
   const trimmed = String(input ?? '').trim()
   if (!trimmed) return null
-  // Strip protocol, then take only the host portion (drop path/query/hash)
+  // Strip protocol, then take only the host portion (drop path/query/hash), then strip leading www.
   const withoutProtocol = trimmed.replace(/^https?:\/\//, '')
-  const host = withoutProtocol.split('/')[0].split('?')[0].split('#')[0].replace(/\.+$/, '').toLowerCase()
+  const host = withoutProtocol.split('/')[0].split('?')[0].split('#')[0].replace(/\.+$/, '').toLowerCase().replace(/^www\./, '')
   if (!isValidDomain(host)) return null
   return host
 }
