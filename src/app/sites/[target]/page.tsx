@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import {
   Breadcrumb,
@@ -17,7 +17,6 @@ import { ClaimClient } from "./claim-client"
 import { DrLineLabel } from "./dr-line-label"
 import { RecheckButton } from "./recheck-button"
 import { DrRadialShape } from "./dr-radial-shape"
-import { Section, SectionGroup, SectionHeader, SectionHeaderRow, SectionTitle } from "@/components/content/section"
 
 export const runtime = "nodejs"
 
@@ -143,57 +142,54 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
         : []
 
   return (
-    <SectionGroup>
-      <Section>
-        <SectionHeaderRow>
-          <SectionHeader>
-            <div className="flex">
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <Link href="/">Home</Link>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <Link href="/sites">Sites</Link>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>{domain}</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-            </div>
-            <SectionTitle>{domain}</SectionTitle>
-          </SectionHeader>
-          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+    <main className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8">
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link href="/">Home</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link href="/sites">Sites</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{domain}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <h1 className="text-2xl font-semibold tracking-tight">{domain}</h1>
+          </div>
+          <div className="flex items-center gap-2">
             <RecheckButton domain={domain} />
             <ClaimClient domain={domain} />
           </div>
-        </SectionHeaderRow>
-      </Section>
-
-      <Section>
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-1">
-            <DrRadialShape value={domainRating} />
-          </div>
-
-          <Card className="lg:col-span-2">
-            <CardContent className="flex flex-1 flex-col items-center justify-center gap-6">
-              <BadgeEmbed domain={domain} dr={domainRating} linkUrl={embedBase} badgeUrl={embedBadgeUrl} />
-            </CardContent>
-          </Card>
         </div>
-      </Section>
+      </div>
 
-      <Section>
-        <DrLineLabel points={chartPoints} />
-      </Section>
-    </SectionGroup>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-1">
+          <DrRadialShape value={domainRating} />
+        </div>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Embed Badge</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center">
+            <BadgeEmbed domain={domain} dr={domainRating} linkUrl={embedBase} badgeUrl={embedBadgeUrl} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <DrLineLabel points={chartPoints} />
+    </main>
   )
 }
