@@ -6,15 +6,8 @@ import { SiteFooter } from "@/app/_components/site-footer"
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-})
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-})
+const _geistSans = Geist({ subsets: ["latin"] })
+const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Domain Rating Checker",
@@ -26,9 +19,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-svh bg-background text-foreground antialiased font-sans flex flex-col`}
-      >
+      <body className="min-h-svh bg-background text-foreground antialiased font-sans flex flex-col">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
