@@ -68,7 +68,7 @@ export function PricingSelector() {
   }
 
   return (
-    <Card className="border-primary/40 shadow-md">
+    <Card className="border-primary shadow-md">
       <CardHeader className="flex flex-col gap-2">
         <CardTitle className="text-xl">SERP DR Pro Subscription</CardTitle>
         <p className="text-sm text-muted-foreground">
@@ -142,7 +142,7 @@ export function PricingSelector() {
           </ul>
         </div>
 
-        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2">
         <Button onClick={handleCheckout} disabled={isSubmitting} className="w-full">

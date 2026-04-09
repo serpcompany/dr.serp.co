@@ -1,6 +1,6 @@
 export default function LoadingSitesPage() {
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-muted">
       <div className="mx-auto max-w-5xl px-4 py-12">
         <div className="mb-8 text-center">
           <div className="mx-auto h-8 w-48 animate-pulse rounded bg-muted" />
