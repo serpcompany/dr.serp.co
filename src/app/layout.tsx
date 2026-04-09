@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Geist, Geist_Mono, Source_Serif_4 } from "next/font/google"
 import "./globals.css"
 import { SiteHeader } from "@/app/_components/site-header"
 import { SiteFooter } from "@/app/_components/site-footer"
@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 
 const _geistSans = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const _sourceSerif4 = Source_Serif_4({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Domain Rating Checker",

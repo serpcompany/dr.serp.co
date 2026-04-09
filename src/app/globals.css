@@ -5,6 +5,7 @@
 
 @theme inline {
   --font-sans: "Geist", "Geist Fallback";
+  --font-serif: "Source Serif 4", "Source Serif 4 Fallback";
   --font-mono: "Geist Mono", "Geist Mono Fallback";
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
