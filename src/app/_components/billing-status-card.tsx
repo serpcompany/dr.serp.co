@@ -139,9 +139,9 @@ export function BillingStatusCard() {
       <CardContent className="space-y-4">
         {loading ? (
           <div className="grid gap-2 text-sm text-muted-foreground">
-            <div className="h-4 w-40 animate-pulse rounded bg-muted" />
-            <div className="h-4 w-56 animate-pulse rounded bg-muted" />
-            <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-40 animate-pulse rounded-md bg-muted" />
+            <div className="h-4 w-56 animate-pulse rounded-md bg-muted" />
+            <div className="h-4 w-32 animate-pulse rounded-md bg-muted" />
           </div>
         ) : error ? (
           <div className="rounded-lg border bg-muted p-4 text-sm text-muted-foreground">{error}</div>

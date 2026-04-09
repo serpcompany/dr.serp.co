@@ -19,7 +19,7 @@ export function SiteFooter() {
           Pricing
         </Link>
       </div>
-      <ThemeToggle className="w-[180px]" />
+      <ThemeToggle />
     </footer>
   )
 }

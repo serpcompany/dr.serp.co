@@ -37,7 +37,7 @@ export function BadgeEmbed({
     <div className="flex flex-col items-center gap-4">
       <button
         onClick={handleCopy}
-        className="group relative transition-transform hover:scale-[1.02] active:scale-[0.99]"
+        className="group relative transition-transform hover:scale-105 active:scale-95"
         aria-label="Copy badge embed code"
         type="button"
       >

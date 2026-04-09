@@ -142,7 +142,7 @@ export function MySites({ email }: { email: string }) {
         ) : loading && sites.length === 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="h-20 animate-pulse rounded-lg border bg-muted" />
+              <div key={idx} className="h-20 animate-pulse rounded-lg bg-muted" />
             ))}
           </div>
         ) : error && sites.length === 0 ? (
@@ -178,7 +178,7 @@ export function MySites({ email }: { email: string }) {
                 <div key={site.domain} className="relative">
                   <Link
                     href={`/sites/${encodeURIComponent(site.domain)}`}
-                    className="group block rounded-lg border bg-background p-4 transition hover:bg-muted"
+                    className="group block rounded-lg border p-4 transition hover:bg-accent"
                   >
 	                    <div className="flex items-start justify-between gap-3">
 	                      <div className="min-w-0">
@@ -194,7 +194,7 @@ export function MySites({ email }: { email: string }) {
 	                    type="button"
 	                    variant="ghost"
 	                    size="icon"
-                    className="absolute right-2 top-2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                    className="absolute right-2 top-2"
                     aria-label={`Remove ${site.domain}`}
                     disabled={removing === site.domain}
                     onClick={(event) => {

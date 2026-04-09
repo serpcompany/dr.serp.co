@@ -5,7 +5,6 @@ import { Laptop, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
 
 export function ThemeToggle({ className, ...props }: React.ComponentProps<typeof SelectTrigger>) {
   const { setTheme, theme } = useTheme()
@@ -18,7 +17,7 @@ export function ThemeToggle({ className, ...props }: React.ComponentProps<typeof
   if (!mounted) {
     return (
       <Select>
-        <SelectTrigger className={cn("w-[180px]", className)} {...props}>
+        <SelectTrigger className={className} {...props}>
           <SelectValue placeholder="Select theme" />
         </SelectTrigger>
       </Select>
@@ -27,7 +26,7 @@ export function ThemeToggle({ className, ...props }: React.ComponentProps<typeof
 
   return (
     <Select value={theme} onValueChange={setTheme}>
-      <SelectTrigger className={cn("w-[180px]", className)} {...props}>
+      <SelectTrigger className={className} {...props}>
         <SelectValue defaultValue={theme} placeholder="Select theme" />
       </SelectTrigger>
       <SelectContent>

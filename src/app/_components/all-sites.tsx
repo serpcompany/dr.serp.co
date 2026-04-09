@@ -76,7 +76,7 @@ export function AllSites() {
         {loading && sites.length === 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="h-20 animate-pulse rounded-lg border bg-muted" />
+              <div key={idx} className="h-20 animate-pulse rounded-lg bg-muted" />
             ))}
           </div>
         ) : error ? (
