@@ -47,8 +47,8 @@ export function BadgeEmbed({
           width={200}
           height={50}
         />
-        <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
-          <Copy className="h-6 w-6 text-white" />
+        <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-foreground/60 opacity-0 transition-opacity group-hover:opacity-100">
+          <Copy className="h-6 w-6 text-background" />
         </div>
       </button>
       <p className="text-sm text-muted-foreground">Click badge to copy embed code</p>
