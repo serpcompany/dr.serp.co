@@ -21,7 +21,7 @@ export default function PricingPage() {
       <SectionGroup>
         <Section>
           <SectionHeader className="text-center">
-            <SectionTitle className="text-3xl font-semibold tracking-tight">Pricing</SectionTitle>
+            <SectionTitle>Pricing</SectionTitle>
             <SectionDescription>
               Pick a plan based on how many domains you want to monitor. Paid plans update once a week and
               include on-demand refreshes.
@@ -43,7 +43,7 @@ export default function PricingPage() {
                 <ActionCardDescription>Generate shareable pages and badges.</ActionCardDescription>
               </ActionCardHeader>
               <ActionCardContent>
-                <p className="text-3xl font-semibold">$0</p>
+                <p className="text-2xl font-semibold">$0</p>
                 <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
                   {FREE_FEATURES.map((feature) => (
                     <li key={feature}>{feature}</li>

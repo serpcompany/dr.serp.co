@@ -224,10 +224,9 @@ export function Home() {
                   placeholder="example.com"
                   value={domain}
                   onChange={(e) => setDomain(e.target.value)}
-                  className="h-12 text-base"
                   disabled={authStep !== "authed"}
                 />
-                <Button type="submit" disabled={authStep !== "authed" || !domain.trim()} className="h-12 px-6">
+                <Button type="submit" disabled={authStep !== "authed" || !domain.trim()}>
                   Submit
                 </Button>
               </form>

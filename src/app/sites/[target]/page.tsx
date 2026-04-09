@@ -168,7 +168,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
                 </BreadcrumbList>
               </Breadcrumb>
             </div>
-            <SectionTitle className="text-2xl font-semibold tracking-tight">{domain}</SectionTitle>
+            <SectionTitle>{domain}</SectionTitle>
           </SectionHeader>
           <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
             <RecheckButton domain={domain} />
@@ -184,7 +184,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
           </div>
 
           <Card className="lg:col-span-2">
-            <CardContent className="flex flex-1 flex-col items-center justify-center gap-6 py-6">
+            <CardContent className="flex flex-1 flex-col items-center justify-center gap-6">
               <BadgeEmbed domain={domain} dr={domainRating} linkUrl={embedBase} badgeUrl={embedBadgeUrl} />
             </CardContent>
           </Card>

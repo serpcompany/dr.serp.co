@@ -7,7 +7,7 @@ export default function BillingPage() {
       <SectionGroup>
         <Section>
           <SectionHeader className="text-center">
-            <SectionTitle className="text-3xl font-semibold tracking-tight">Billing</SectionTitle>
+            <SectionTitle>Billing</SectionTitle>
             <SectionDescription>Review your plan, renewal date, and payment status.</SectionDescription>
           </SectionHeader>
         </Section>

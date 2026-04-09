@@ -13,10 +13,7 @@ import { cn } from "@/lib/utils"
 export function ActionCard({ children, className, ...props }: ComponentProps<"div">) {
   return (
     <Card
-      className={cn(
-        "group/action-card transition-colors hover:bg-muted/50",
-        className
-      )}
+      className={cn("group/action-card transition-colors hover:bg-accent", className)}
       {...props}
     >
       {children}

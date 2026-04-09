@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 
 export function Section({ children, className, ...props }: ComponentProps<"section">) {
   return (
-    <section className={cn("space-y-4", className)} {...props}>
+    <section className={cn("space-y-6", className)} {...props}>
       {children}
     </section>
   )
@@ -12,7 +12,7 @@ export function Section({ children, className, ...props }: ComponentProps<"secti
 
 export function SectionHeader({ children, className, ...props }: ComponentProps<"div">) {
   return (
-    <div className={cn("flex flex-col gap-1.5", className)} {...props}>
+    <div className={cn("flex flex-col gap-2", className)} {...props}>
       {children}
     </div>
   )

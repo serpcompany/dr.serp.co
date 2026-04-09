@@ -65,11 +65,11 @@ export function FormCardSeparator() {
   return <div className="border-t" />
 }
 
-const formCardFooterVariants = cva("border-t pt-6", {
+const formCardFooterVariants = cva("", {
   variants: {
     variant: {
       default: "",
-      destructive: "border-destructive bg-destructive/5",
+      destructive: "bg-destructive/5",
     },
   },
   defaultVariants: {
