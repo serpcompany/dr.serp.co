@@ -122,7 +122,7 @@ export function BillingStatusCard() {
           <CardDescription>Sign in to see your plan details.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button asChild size="sm">
+          <Button asChild>
             <Link href="/">Log in</Link>
           </Button>
         </CardContent>
@@ -155,7 +155,7 @@ export function BillingStatusCard() {
                   {billingLabel ? ` • ${billingLabel}` : ""}
                 </p>
               </div>
-              <Badge variant={entitlement?.canAccessPaidFeatures ? "secondary" : "outline"}>{statusLabel}</Badge>
+              <Badge>{statusLabel}</Badge>
             </div>
             <div>
               <p className="font-medium text-foreground">Payment status</p>
@@ -178,12 +178,12 @@ export function BillingStatusCard() {
           {entitlement?.subscription?.stripeCustomerId ? (
             <BillingPortalButton email={email} />
           ) : (
-            <Button asChild size="sm">
+            <Button asChild>
               <Link href="/pricing">View plans</Link>
             </Button>
           )}
           {entitlement && !entitlement.canAccessPaidFeatures ? (
-            <Button asChild size="sm" variant="secondary">
+            <Button asChild>
               <Link href="/pricing">Upgrade</Link>
             </Button>
           ) : null}
