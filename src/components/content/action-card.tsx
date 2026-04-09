@@ -12,7 +12,13 @@ import { cn } from "@/lib/utils"
 
 export function ActionCard({ children, className, ...props }: ComponentProps<"div">) {
   return (
-    <Card className={cn("group/action-card gap-4 py-4 shadow-none", className)} {...props}>
+    <Card
+      className={cn(
+        "group/action-card transition-colors hover:bg-muted/50",
+        className
+      )}
+      {...props}
+    >
       {children}
     </Card>
   )
@@ -20,7 +26,7 @@ export function ActionCard({ children, className, ...props }: ComponentProps<"di
 
 export function ActionCardHeader({ children, className, ...props }: ComponentProps<"div">) {
   return (
-    <CardHeader className={cn("px-4 [.border-b]:pb-4", className)} {...props}>
+    <CardHeader className={cn(className)} {...props}>
       {children}
     </CardHeader>
   )
@@ -44,7 +50,7 @@ export function ActionCardDescription({ children, ...props }: ComponentProps<"di
 
 export function ActionCardContent({ children, className, ...props }: ComponentProps<"div">) {
   return (
-    <CardContent className={cn("px-4", className)} {...props}>
+    <CardContent className={cn(className)} {...props}>
       {children}
     </CardContent>
   )
@@ -52,7 +58,7 @@ export function ActionCardContent({ children, className, ...props }: ComponentPr
 
 export function ActionCardFooter({ children, className, ...props }: ComponentProps<"div">) {
   return (
-    <CardFooter className={cn("px-4 [.border-t]:pt-4", className)} {...props}>
+    <CardFooter className={cn(className)} {...props}>
       {children}
     </CardFooter>
   )

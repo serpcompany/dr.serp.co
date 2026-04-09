@@ -2,11 +2,17 @@ import type { ComponentProps, ReactNode } from "react"
 
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
-const formCardVariants = cva("group relative w-full overflow-hidden py-0 shadow-none gap-4", {
+const formCardVariants = cva("group relative w-full overflow-hidden", {
   variants: {
     variant: {
       default: "",
@@ -33,13 +39,7 @@ export function FormCard({
 
 export function FormCardHeader({ children, className, ...props }: ComponentProps<"div">) {
   return (
-    <CardHeader
-      className={cn(
-        "px-4 pt-4 group-has-data-[slot=card-upgrade]:pointer-events-none group-has-data-[slot=card-upgrade]:opacity-50 [.border-b]:pb-4",
-        className
-      )}
-      {...props}
-    >
+    <CardHeader className={cn(className)} {...props}>
       {children}
     </CardHeader>
   )
@@ -55,36 +55,27 @@ export function FormCardDescription({ children }: { children: ReactNode }) {
 
 export function FormCardContent({ children, className, ...props }: ComponentProps<"div">) {
   return (
-    <CardContent
-      className={cn(
-        "px-4 group-has-data-[slot=card-upgrade]:pointer-events-none group-has-data-[slot=card-upgrade]:opacity-50",
-        className
-      )}
-      {...props}
-    >
+    <CardContent className={cn(className)} {...props}>
       {children}
     </CardContent>
   )
 }
 
-export function FormCardSeparator(props: ComponentProps<typeof Separator>) {
-  return <Separator {...props} />
+export function FormCardSeparator() {
+  return <div className="border-t" />
 }
 
-const formCardFooterVariants = cva(
-  "border-t flex items-center gap-2 pb-4 px-4 [&>:last-child]:ml-auto [.border-t]:pt-4",
-  {
-    variants: {
-      variant: {
-        default: "",
-        destructive: "border-destructive bg-destructive/5",
-      },
+const formCardFooterVariants = cva("border-t pt-6", {
+  variants: {
+    variant: {
+      default: "",
+      destructive: "border-destructive bg-destructive/5",
     },
-    defaultVariants: {
-      variant: "default",
-    },
-  }
-)
+  },
+  defaultVariants: {
+    variant: "default",
+  },
+})
 
 export function FormCardFooter({
   children,
@@ -101,7 +92,11 @@ export function FormCardFooter({
 
 export function FormCardFooterInfo({ children, className, ...props }: ComponentProps<"div">) {
   return (
-    <div data-slot="card-footer-info" className={cn("text-muted-foreground text-sm", className)} {...props}>
+    <div
+      data-slot="card-footer-info"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    >
       {children}
     </div>
   )
@@ -109,7 +104,7 @@ export function FormCardFooterInfo({ children, className, ...props }: ComponentP
 
 export function FormCardGroup({ children, className, ...props }: ComponentProps<"div">) {
   return (
-    <div data-slot="card-group" className={cn("flex flex-col gap-4", className)} {...props}>
+    <div data-slot="card-group" className={cn("flex flex-col gap-6", className)} {...props}>
       {children}
     </div>
   )
@@ -127,7 +122,10 @@ export function FormCardEmpty({ children, className, ...props }: ComponentProps<
   return (
     <div
       data-slot="card-empty"
-      className={cn("pointer-events-none absolute inset-0 z-10 bg-background opacity-70 blur", className)}
+      className={cn(
+        "pointer-events-none absolute inset-0 z-10 bg-background/70 backdrop-blur-sm",
+        className
+      )}
       {...props}
     >
       {children}

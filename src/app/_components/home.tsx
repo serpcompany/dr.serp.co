@@ -19,7 +19,6 @@ import {
   FormCard,
   FormCardContent,
   FormCardDescription,
-  FormCardEmpty,
   FormCardFooter,
   FormCardHeader,
   FormCardTitle,
@@ -213,8 +212,7 @@ export function Home() {
               <span className="font-medium text-foreground">2</span>
             </SectionDescription>
           </SectionHeader>
-          <FormCard>
-            {authStep !== "authed" ? <FormCardEmpty /> : null}
+          <FormCard className={authStep !== "authed" ? "pointer-events-none opacity-50" : ""}>
             <FormCardHeader>
               <FormCardTitle>Add a domain</FormCardTitle>
               <FormCardDescription>Look up a domain and generate a verified badge.</FormCardDescription>
