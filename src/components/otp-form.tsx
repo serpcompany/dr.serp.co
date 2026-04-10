@@ -84,7 +84,7 @@ export function OTPForm({
             </Button>
           </Field>
           <Field>
-            <Button type="button" onClick={onEditEmail} disabled={loading}>
+            <Button type="button" variant="outline" onClick={onEditEmail} disabled={loading}>
               Edit email
             </Button>
           </Field>

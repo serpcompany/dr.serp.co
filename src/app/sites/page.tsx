@@ -81,7 +81,7 @@ export default async function SitesPage({
                   <Link href="/">Look up a domain</Link>
                 </Button>
                 {query ? (
-                  <Button asChild>
+                  <Button variant="outline" asChild>
                     <Link href="/sites">Clear search</Link>
                   </Button>
                 ) : null}
@@ -97,21 +97,21 @@ export default async function SitesPage({
                 </span>
                 <div className="flex items-center gap-2">
                   {safePage <= 1 ? (
-                    <Button disabled>
+                    <Button variant="outline" size="sm" disabled>
                       Previous
                     </Button>
                   ) : (
-                    <Button asChild>
+                    <Button variant="outline" size="sm" asChild>
                       <Link href={makeHref(safePage - 1)}>Previous</Link>
                     </Button>
                   )}
 
                   {safePage >= totalPages ? (
-                    <Button disabled>
+                    <Button variant="outline" size="sm" disabled>
                       Next
                     </Button>
                   ) : (
-                    <Button asChild>
+                    <Button variant="outline" size="sm" asChild>
                       <Link href={makeHref(safePage + 1)}>Next</Link>
                     </Button>
                   )}

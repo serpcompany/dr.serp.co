@@ -7,20 +7,22 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-2">
       <div className="flex flex-1 items-center gap-2 px-3">
-        <Link href="/" className="font-semibold">
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/" className="font-semibold">
             SERP DR
           </Link>
-        <nav className="flex items-center gap-1">
-          <Button asChild>
+        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/">Home</Link>
           </Button>
-          <Button asChild>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/sites">Sites</Link>
           </Button>
-          <Button asChild>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/pricing">Pricing</Link>
           </Button>
-        </nav>
+        </div>
       </div>
       <div className="ml-auto px-3">
         <AuthStatus />
