@@ -1,23 +1,16 @@
 import { BillingStatusCard } from "@/app/_components/billing-status-card"
-import { Section, SectionDescription, SectionGroup, SectionHeader, SectionTitle } from "@/components/content/section"
 
 export default function BillingPage() {
   return (
-    <main className="w-full flex-1">
-      <SectionGroup>
-        <Section>
-          <SectionHeader className="text-center">
-            <SectionTitle className="text-3xl font-semibold tracking-tight">Billing</SectionTitle>
-            <SectionDescription>Review your plan, renewal date, and payment status.</SectionDescription>
-          </SectionHeader>
-        </Section>
+    <main className="mx-auto w-full max-w-4xl flex-1 space-y-8 px-4 py-8">
+      <div className="space-y-2 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
+        <p className="text-muted-foreground">Review your plan, renewal date, and payment status.</p>
+      </div>
 
-        <Section>
-          <div className="mx-auto flex w-full max-w-2xl justify-center">
-            <BillingStatusCard />
-          </div>
-        </Section>
-      </SectionGroup>
+      <div className="mx-auto flex w-full max-w-2xl justify-center">
+        <BillingStatusCard />
+      </div>
     </main>
   )
 }

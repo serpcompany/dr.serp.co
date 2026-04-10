@@ -26,10 +26,10 @@ export function DrRadialShape({ value }: { value: number | null }) {
 
   return (
     <Card className="flex flex-col">
-      <CardHeader className="items-center pb-0">
+      <CardHeader className="items-center">
         <CardTitle>Domain Rating</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 pb-0">
+      <CardContent className="flex-1">
         <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[250px]">
           <RadialBarChart data={chartData} startAngle={90} endAngle={-270} innerRadius={80} outerRadius={140}>
             <PolarAngleAxis dataKey="dr" type="number" domain={[0, 100]} tick={false} />

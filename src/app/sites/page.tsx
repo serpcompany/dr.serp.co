@@ -2,14 +2,7 @@ import Link from "next/link"
 
 import { listSites, countSites } from "@/server/db.mjs"
 import { Button } from "@/components/ui/button"
-import {
-  Section,
-  SectionDescription,
-  SectionGroup,
-  SectionHeader,
-  SectionHeaderRow,
-  SectionTitle,
-} from "@/components/content/section"
+import { Card } from "@/components/ui/card"
 
 import { SitesSearch } from "./sites-search"
 import { SitesDataTable } from "./sites-data-table"
@@ -55,34 +48,29 @@ export default async function SitesPage({
   }
 
   return (
-    <SectionGroup>
-      <Section>
-        <SectionHeader>
-          <SectionTitle>Top Sites</SectionTitle>
-          <SectionDescription>Browse sites and their current Domain Rating.</SectionDescription>
-        </SectionHeader>
-      </Section>
+    <main className="mx-auto w-full max-w-4xl flex-1 space-y-8 px-4 py-8">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight">Top Sites</h1>
+        <p className="text-muted-foreground">Browse sites and their current Domain Rating.</p>
+      </div>
 
-      <Section>
-        <SectionHeaderRow>
-          <SectionHeader>
-            <SectionDescription className="tabular-nums">
-              <span className="font-medium text-foreground">
-                {totalCount.toLocaleString()} domain{totalCount === 1 ? "" : "s"}
+      <div className="space-y-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <p className="text-sm text-muted-foreground tabular-nums">
+            <span className="font-medium text-foreground">
+              {totalCount.toLocaleString()} domain{totalCount === 1 ? "" : "s"}
+            </span>
+            {query ? (
+              <span>
+                {" "}
+                · showing {showingFrom.toLocaleString()}–{showingTo.toLocaleString()}
               </span>
-              {query ? (
-                <span className="text-muted-foreground">
-                  {" "}
-                  · showing {showingFrom.toLocaleString()}–{showingTo.toLocaleString()}
-                </span>
-              ) : null}
-            </SectionDescription>
-          </SectionHeader>
+            ) : null}
+          </p>
           <SitesSearch initialQuery={query} />
-        </SectionHeaderRow>
+        </div>
 
-        <div className="rounded-lg border bg-background">
-
+        <Card>
           {rows.length === 0 ? (
             <div className="p-10 text-center">
               <p className="text-sm text-muted-foreground">
@@ -93,7 +81,7 @@ export default async function SitesPage({
                   <Link href="/">Look up a domain</Link>
                 </Button>
                 {query ? (
-                  <Button variant="outline" asChild>
+                  <Button asChild>
                     <Link href="/sites">Clear search</Link>
                   </Button>
                 ) : null}
@@ -109,21 +97,21 @@ export default async function SitesPage({
                 </span>
                 <div className="flex items-center gap-2">
                   {safePage <= 1 ? (
-                    <Button variant="outline" size="sm" disabled>
+                    <Button disabled>
                       Previous
                     </Button>
                   ) : (
-                    <Button variant="outline" size="sm" asChild>
+                    <Button asChild>
                       <Link href={makeHref(safePage - 1)}>Previous</Link>
                     </Button>
                   )}
 
                   {safePage >= totalPages ? (
-                    <Button variant="outline" size="sm" disabled>
+                    <Button disabled>
                       Next
                     </Button>
                   ) : (
-                    <Button variant="outline" size="sm" asChild>
+                    <Button asChild>
                       <Link href={makeHref(safePage + 1)}>Next</Link>
                     </Button>
                   )}
@@ -131,8 +119,8 @@ export default async function SitesPage({
               </div>
             </>
           )}
-        </div>
-      </Section>
-    </SectionGroup>
+        </Card>
+      </div>
+    </main>
   )
 }

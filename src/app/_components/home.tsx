@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
 import { LoginForm } from "@/components/login-form"
 import { OTPForm } from "@/components/otp-form"
@@ -13,17 +14,6 @@ import { MySites } from "./my-sites"
 import { AllSites } from "./all-sites"
 import { BillingStatusCard } from "./billing-status-card"
 import { upsertSiteHistory } from "@/lib/site-history"
-import { Section, SectionDescription, SectionGroup, SectionHeader, SectionTitle } from "@/components/content/section"
-import { ActionCard, ActionCardDescription, ActionCardGroup, ActionCardHeader, ActionCardTitle } from "@/components/content/action-card"
-import {
-  FormCard,
-  FormCardContent,
-  FormCardDescription,
-  FormCardEmpty,
-  FormCardFooter,
-  FormCardHeader,
-  FormCardTitle,
-} from "@/components/forms/form-card"
 
 export function Home() {
   const router = useRouter()
@@ -147,141 +137,117 @@ export function Home() {
   }
 
   return (
-    <main className="w-full flex-1">
-      <SectionGroup>
-        <Section>
-          <SectionHeader>
-            <SectionTitle>Getting Started</SectionTitle>
-            <SectionDescription>Verify your DR and generate an embeddable badge.</SectionDescription>
-          </SectionHeader>
-        </Section>
+    <main className="mx-auto w-full max-w-4xl flex-1 space-y-8 px-4 py-8">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight">Getting Started</h1>
+        <p className="text-muted-foreground">Verify your DR and generate an embeddable badge.</p>
+      </div>
 
-        <Section>
-          <SectionHeader>
-            <SectionDescription className="tabular-nums">
-              Step <span className="font-medium text-foreground">1</span> of{" "}
-              <span className="font-medium text-foreground">2</span>
-            </SectionDescription>
-          </SectionHeader>
-          <FormCard>
-            <FormCardHeader>
-              <FormCardTitle>{authStep === "email" ? "Sign in" : authStep === "otp" ? "Verify code" : "Signed in"}</FormCardTitle>
-              <FormCardDescription>
-                {authStep === "email"
-                  ? "Enter your email and we’ll send you a 6‑digit code."
-                  : authStep === "otp"
-                    ? "Enter the 6‑digit code we sent to your email."
-                    : "You're ready to add a domain."}
-              </FormCardDescription>
-            </FormCardHeader>
-            <FormCardContent>
-              {authStep === "email" ? (
-                <LoginForm
-                  email={authEmail}
-                  loading={authLoading}
-                  error={authError}
-                  onEmailChange={setAuthEmail}
-                  onSubmit={requestOtp}
-                />
-              ) : authStep === "otp" ? (
-                <OTPForm
-                  email={authEmail}
-                  code={otpCode}
-                  loading={authLoading}
-                  error={authError}
-                  onCodeChange={setOtpCode}
-                  onSubmit={verifyOtp}
-                  onEditEmail={() => {
-                    window.sessionStorage.removeItem("dr-otp-email")
-                    window.sessionStorage.removeItem("dr-otp-token")
-                    setOtpToken("")
-                    setOtpCode("")
-                    setAuthStep("email")
-                  }}
-                />
-              ) : (
-                <div className="text-sm text-muted-foreground">Signed in as {authEmail.trim().toLowerCase()}.</div>
-              )}
-            </FormCardContent>
-          </FormCard>
-        </Section>
+      <div className="space-y-6">
+        <p className="text-sm text-muted-foreground tabular-nums">
+          Step <span className="font-medium text-foreground">1</span> of{" "}
+          <span className="font-medium text-foreground">2</span>
+        </p>
+        <Card>
+          <CardHeader>
+            <CardTitle>{authStep === "email" ? "Sign in" : authStep === "otp" ? "Verify code" : "Signed in"}</CardTitle>
+            <CardDescription>
+              {authStep === "email"
+                ? "Enter your email and we'll send you a 6-digit code."
+                : authStep === "otp"
+                  ? "Enter the 6-digit code we sent to your email."
+                  : "You're ready to add a domain."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {authStep === "email" ? (
+              <LoginForm
+                email={authEmail}
+                loading={authLoading}
+                error={authError}
+                onEmailChange={setAuthEmail}
+                onSubmit={requestOtp}
+              />
+            ) : authStep === "otp" ? (
+              <OTPForm
+                email={authEmail}
+                code={otpCode}
+                loading={authLoading}
+                error={authError}
+                onCodeChange={setOtpCode}
+                onSubmit={verifyOtp}
+                onEditEmail={() => {
+                  window.sessionStorage.removeItem("dr-otp-email")
+                  window.sessionStorage.removeItem("dr-otp-token")
+                  setOtpToken("")
+                  setOtpCode("")
+                  setAuthStep("email")
+                }}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Signed in as {authEmail.trim().toLowerCase()}.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-        <Section>
-          <SectionHeader>
-            <SectionDescription className="tabular-nums">
-              Step <span className="font-medium text-foreground">2</span> of{" "}
-              <span className="font-medium text-foreground">2</span>
-            </SectionDescription>
-          </SectionHeader>
-          <FormCard>
-            {authStep !== "authed" ? <FormCardEmpty /> : null}
-            <FormCardHeader>
-              <FormCardTitle>Add a domain</FormCardTitle>
-              <FormCardDescription>Look up a domain and generate a verified badge.</FormCardDescription>
-            </FormCardHeader>
-            <FormCardContent>
-              <form onSubmit={handleDomainSubmit} className="flex gap-3">
-                <Input
-                  type="text"
-                  placeholder="example.com"
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  className="h-12 text-base"
-                  disabled={authStep !== "authed"}
-                />
-                <Button type="submit" disabled={authStep !== "authed" || !domain.trim()} className="h-12 px-6">
-                  Submit
-                </Button>
-              </form>
-            </FormCardContent>
-            {authStep !== "authed" ? (
-              <FormCardFooter>
-                <div className="text-sm text-muted-foreground">Complete step 1 to enable domain lookups.</div>
-              </FormCardFooter>
-            ) : null}
-          </FormCard>
-        </Section>
+      <div className="space-y-6">
+        <p className="text-sm text-muted-foreground tabular-nums">
+          Step <span className="font-medium text-foreground">2</span> of{" "}
+          <span className="font-medium text-foreground">2</span>
+        </p>
+        <Card className={authStep !== "authed" ? "pointer-events-none opacity-50" : ""}>
+          <CardHeader>
+            <CardTitle>Add a domain</CardTitle>
+            <CardDescription>Look up a domain and generate a verified badge.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleDomainSubmit} className="flex gap-3">
+              <Input
+                type="text"
+                placeholder="example.com"
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+                disabled={authStep !== "authed"}
+              />
+              <Button type="submit" disabled={authStep !== "authed" || !domain.trim()}>
+                Submit
+              </Button>
+            </form>
+          </CardContent>
+          {authStep !== "authed" ? (
+            <CardFooter>
+              <p className="text-sm text-muted-foreground">Complete step 1 to enable domain lookups.</p>
+            </CardFooter>
+          ) : null}
+        </Card>
+      </div>
 
-        {authStep === "authed" ? (
-          <Section>
-            <MySites email={authEmail} />
-          </Section>
-        ) : (
-          <Section>
-            <AllSites />
-          </Section>
-        )}
+      {authStep === "authed" ? <MySites email={authEmail} /> : <AllSites />}
 
-        {authStep === "authed" ? (
-          <Section>
-            <BillingStatusCard />
-          </Section>
-        ) : null}
+      {authStep === "authed" ? <BillingStatusCard /> : null}
 
-        <Section>
-          <SectionHeader>
-            <SectionDescription>What&apos;s next?</SectionDescription>
-          </SectionHeader>
-          <ActionCardGroup className="sm:grid-cols-2">
-            <Link href="/sites">
-              <ActionCard className="h-full w-full">
-                <ActionCardHeader>
-                  <ActionCardTitle>Browse top sites</ActionCardTitle>
-                  <ActionCardDescription>See the current leaderboard.</ActionCardDescription>
-                </ActionCardHeader>
-              </ActionCard>
-            </Link>
-            <Link href="/pricing">
-              <ActionCard className="h-full w-full">
-                <ActionCardHeader>
-                  <ActionCardTitle>Pricing</ActionCardTitle>
-                  <ActionCardDescription>Simple pricing while we ship the MVP.</ActionCardDescription>
-                </ActionCardHeader>
-              </ActionCard>
-            </Link>
-          </ActionCardGroup>
-        </Section>
-      </SectionGroup>
+      <div className="space-y-6">
+        <p className="text-sm text-muted-foreground">What&apos;s next?</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Link href="/sites">
+            <Card className="h-full transition-colors hover:bg-accent">
+              <CardHeader>
+                <CardTitle>Browse top sites</CardTitle>
+                <CardDescription>See the current leaderboard.</CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+          <Link href="/pricing">
+            <Card className="h-full transition-colors hover:bg-accent">
+              <CardHeader>
+                <CardTitle>Pricing</CardTitle>
+                <CardDescription>Simple pricing while we ship the MVP.</CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        </div>
+      </div>
     </main>
   )
 }

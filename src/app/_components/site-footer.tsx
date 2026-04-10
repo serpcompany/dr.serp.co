@@ -7,19 +7,19 @@ export function SiteFooter() {
 
   return (
     <footer className="flex items-center justify-center gap-4 border-t border-border p-4">
-      <p className="text-center text-foreground/70 text-sm">© {year} SERP DR</p>
+      <p className="text-center text-muted-foreground text-sm">© {year} SERP DR</p>
       <div className="flex items-center gap-3 text-sm">
-        <Link href="/" className="text-foreground/70 hover:text-foreground">
+        <Link href="/" className="text-muted-foreground hover:text-foreground">
           Home
         </Link>
-        <Link href="/sites" className="text-foreground/70 hover:text-foreground">
+        <Link href="/sites" className="text-muted-foreground hover:text-foreground">
           Sites
         </Link>
-        <Link href="/pricing" className="text-foreground/70 hover:text-foreground">
+        <Link href="/pricing" className="text-muted-foreground hover:text-foreground">
           Pricing
         </Link>
       </div>
-      <ThemeToggle className="w-[180px]" />
+      <ThemeToggle />
     </footer>
   )
 }

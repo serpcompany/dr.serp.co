@@ -68,7 +68,7 @@ export function AllSites() {
           <CardTitle>Top sites</CardTitle>
           <p className="text-xs text-muted-foreground">{total ? `${total.toLocaleString()} domains` : "—"}</p>
         </div>
-        <Button asChild variant="secondary" size="sm">
+        <Button asChild>
           <Link href="/sites">View all</Link>
         </Button>
       </CardHeader>
@@ -76,18 +76,18 @@ export function AllSites() {
         {loading && sites.length === 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="h-20 animate-pulse rounded-lg border bg-muted/20" />
+              <div key={idx} className="h-20 animate-pulse rounded-lg bg-muted" />
             ))}
           </div>
         ) : error ? (
-          <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/20 p-4">
+          <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted p-4">
             <p className="text-sm text-muted-foreground">{error}</p>
-            <Button variant="secondary" size="sm" onClick={() => fetchSites.run()}>
+            <Button onClick={() => fetchSites.run()}>
               Retry
             </Button>
           </div>
         ) : sites.length === 0 ? (
-          <div className="rounded-lg border bg-muted/20 p-6 text-center">
+          <div className="rounded-lg border bg-muted p-6 text-center">
             <p className="text-sm text-muted-foreground">No sites yet.</p>
           </div>
         ) : (
@@ -115,7 +115,7 @@ export function AllSites() {
                       {updated ? <div className="mt-1 text-xs text-muted-foreground">Last checked {updated}</div> : null}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Badge variant="secondary">{dr === null ? "DR —" : `DR ${dr}`}</Badge>
+                      <Badge>{dr === null ? "DR —" : `DR ${dr}`}</Badge>
                     </TableCell>
                   </TableRow>
                 )

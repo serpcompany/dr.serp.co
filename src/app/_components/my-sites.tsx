@@ -128,10 +128,10 @@ export function MySites({ email }: { email: string }) {
       </CardHeader>
       <CardContent>
         {upgrade ? (
-          <div className="rounded-lg border bg-muted/20 p-6 text-center">
+          <div className="rounded-lg border bg-muted p-6 text-center">
             <p className="text-sm text-muted-foreground">{upgrade.message}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <Button asChild size="sm">
+              <Button asChild>
                 <Link href="/pricing">View plans</Link>
               </Button>
               {upgrade.entitlement?.subscription?.stripeCustomerId ? (
@@ -142,24 +142,24 @@ export function MySites({ email }: { email: string }) {
         ) : loading && sites.length === 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="h-20 animate-pulse rounded-lg border bg-muted/20" />
+              <div key={idx} className="h-20 animate-pulse rounded-lg bg-muted" />
             ))}
           </div>
         ) : error && sites.length === 0 ? (
-          <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/20 p-4">
+          <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted p-4">
             <p className="text-sm text-muted-foreground">{error}</p>
-            <Button variant="secondary" size="sm" onClick={() => fetchSites.run(query.trim())}>
+            <Button onClick={() => fetchSites.run(query.trim())}>
               Retry
             </Button>
           </div>
         ) : sites.length === 0 ? (
-          <div className="rounded-lg border bg-muted/20 p-6 text-center">
+          <div className="rounded-lg border bg-muted p-6 text-center">
             <p className="text-sm text-muted-foreground">
               {query.trim() ? "No matching sites yet." : "No sites yet — look up a domain to start."}
             </p>
             {!query.trim() ? (
               <div className="mt-4 flex justify-center">
-                <Button asChild size="sm">
+                <Button asChild>
                   <Link href="/">Look up a domain</Link>
                 </Button>
               </div>
@@ -178,7 +178,7 @@ export function MySites({ email }: { email: string }) {
                 <div key={site.domain} className="relative">
                   <Link
                     href={`/sites/${encodeURIComponent(site.domain)}`}
-                    className="group block rounded-lg border bg-background p-4 transition hover:bg-muted/20"
+                    className="group block rounded-lg border p-4 transition hover:bg-accent"
                   >
 	                    <div className="flex items-start justify-between gap-3">
 	                      <div className="min-w-0">
@@ -187,14 +187,13 @@ export function MySites({ email }: { email: string }) {
 	                          {updated ? `Last checked ${updated}` : "No recent check"}
 	                        </p>
 	                      </div>
-	                      <Badge variant="secondary">{dr === null ? "DR —" : `DR ${dr}`}</Badge>
+	                      <Badge>{dr === null ? "DR —" : `DR ${dr}`}</Badge>
 	                    </div>
 	                  </Link>
 	                  <Button
 	                    type="button"
-	                    variant="ghost"
 	                    size="icon"
-                    className="absolute right-2 top-2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                    className="absolute right-2 top-2"
                     aria-label={`Remove ${site.domain}`}
                     disabled={removing === site.domain}
                     onClick={(event) => {

@@ -36,7 +36,7 @@ export function AuthStatus() {
 
   if (!email) {
     return (
-      <Button variant="ghost" size="sm" asChild>
+      <Button asChild>
         <Link href="/">Log in</Link>
       </Button>
     )
@@ -45,7 +45,7 @@ export function AuthStatus() {
   return (
     <div className="flex items-center gap-2">
       <span className="max-w-[180px] truncate text-xs text-muted-foreground">Signed in as {email}</span>
-      <Button variant="ghost" size="sm" onClick={logout}>
+      <Button onClick={logout}>
         Log out
       </Button>
     </div>

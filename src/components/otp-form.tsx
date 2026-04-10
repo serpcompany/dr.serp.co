@@ -57,15 +57,14 @@ export function OTPForm({
               value={code}
               onChange={onCodeChange}
               disabled={loading}
-              containerClassName="gap-4"
             >
-              <InputOTPGroup className="gap-2.5 *:data-[slot=input-otp-slot]:h-16 *:data-[slot=input-otp-slot]:w-12 *:data-[slot=input-otp-slot]:rounded-md *:data-[slot=input-otp-slot]:border *:data-[slot=input-otp-slot]:text-xl">
+              <InputOTPGroup>
                 <InputOTPSlot index={0} />
                 <InputOTPSlot index={1} />
                 <InputOTPSlot index={2} />
               </InputOTPGroup>
               <InputOTPSeparator />
-              <InputOTPGroup className="gap-2.5 *:data-[slot=input-otp-slot]:h-16 *:data-[slot=input-otp-slot]:w-12 *:data-[slot=input-otp-slot]:rounded-md *:data-[slot=input-otp-slot]:border *:data-[slot=input-otp-slot]:text-xl">
+              <InputOTPGroup>
                 <InputOTPSlot index={3} />
                 <InputOTPSlot index={4} />
                 <InputOTPSlot index={5} />
@@ -85,7 +84,7 @@ export function OTPForm({
             </Button>
           </Field>
           <Field>
-            <Button type="button" variant="outline" onClick={onEditEmail} disabled={loading}>
+            <Button type="button" onClick={onEditEmail} disabled={loading}>
               Edit email
             </Button>
           </Field>
