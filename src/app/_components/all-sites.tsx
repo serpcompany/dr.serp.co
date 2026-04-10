@@ -68,7 +68,7 @@ export function AllSites() {
           <CardTitle>Top sites</CardTitle>
           <p className="text-xs text-muted-foreground">{total ? `${total.toLocaleString()} domains` : "—"}</p>
         </div>
-        <Button asChild>
+        <Button asChild variant="secondary" size="sm">
           <Link href="/sites">View all</Link>
         </Button>
       </CardHeader>
@@ -82,7 +82,7 @@ export function AllSites() {
         ) : error ? (
           <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted p-4">
             <p className="text-sm text-muted-foreground">{error}</p>
-            <Button onClick={() => fetchSites.run()}>
+            <Button variant="secondary" size="sm" onClick={() => fetchSites.run()}>
               Retry
             </Button>
           </div>
@@ -115,7 +115,7 @@ export function AllSites() {
                       {updated ? <div className="mt-1 text-xs text-muted-foreground">Last checked {updated}</div> : null}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Badge>{dr === null ? "DR —" : `DR ${dr}`}</Badge>
+                      <Badge variant="secondary">{dr === null ? "DR —" : `DR ${dr}`}</Badge>
                     </TableCell>
                   </TableRow>
                 )

@@ -131,7 +131,7 @@ export function MySites({ email }: { email: string }) {
           <div className="rounded-lg border bg-muted p-6 text-center">
             <p className="text-sm text-muted-foreground">{upgrade.message}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <Button asChild>
+              <Button asChild size="sm">
                 <Link href="/pricing">View plans</Link>
               </Button>
               {upgrade.entitlement?.subscription?.stripeCustomerId ? (
@@ -148,7 +148,7 @@ export function MySites({ email }: { email: string }) {
         ) : error && sites.length === 0 ? (
           <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted p-4">
             <p className="text-sm text-muted-foreground">{error}</p>
-            <Button onClick={() => fetchSites.run(query.trim())}>
+            <Button variant="secondary" size="sm" onClick={() => fetchSites.run(query.trim())}>
               Retry
             </Button>
           </div>
@@ -159,7 +159,7 @@ export function MySites({ email }: { email: string }) {
             </p>
             {!query.trim() ? (
               <div className="mt-4 flex justify-center">
-                <Button asChild>
+                <Button asChild size="sm">
                   <Link href="/">Look up a domain</Link>
                 </Button>
               </div>
@@ -187,11 +187,12 @@ export function MySites({ email }: { email: string }) {
 	                          {updated ? `Last checked ${updated}` : "No recent check"}
 	                        </p>
 	                      </div>
-	                      <Badge>{dr === null ? "DR —" : `DR ${dr}`}</Badge>
+	                      <Badge variant="secondary">{dr === null ? "DR —" : `DR ${dr}`}</Badge>
 	                    </div>
 	                  </Link>
 	                  <Button
 	                    type="button"
+	                    variant="ghost"
 	                    size="icon"
                     className="absolute right-2 top-2"
                     aria-label={`Remove ${site.domain}`}

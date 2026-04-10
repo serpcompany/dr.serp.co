@@ -33,7 +33,7 @@ export function RecheckButton({ domain }: { domain: string }) {
 
   return (
     <div className="flex items-center gap-3">
-      <Button type="button" disabled={loading} onClick={recheck}>
+      <Button type="button" variant="secondary" size="sm" disabled={loading} onClick={recheck}>
         {loading ? "Rechecking..." : "Recheck DR"}
       </Button>
       {error ? <span className="text-xs text-destructive">{error}</span> : null}

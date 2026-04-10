@@ -8,11 +8,15 @@ import { Button } from "@/components/ui/button"
 type BillingPortalButtonProps = {
   email: string
   label?: string
+  variant?: "default" | "secondary" | "ghost"
+  size?: "default" | "sm" | "lg" | "icon"
 }
 
 export function BillingPortalButton({
   email,
   label = "Manage billing",
+  variant = "secondary",
+  size = "sm",
 }: BillingPortalButtonProps) {
   const [loading, setLoading] = useState(false)
 
@@ -42,7 +46,7 @@ export function BillingPortalButton({
   }
 
   return (
-    <Button type="button" disabled={loading} onClick={openPortal}>
+    <Button type="button" variant={variant} size={size} disabled={loading} onClick={openPortal}>
       {loading ? "Opening..." : label}
     </Button>
   )

@@ -24,7 +24,7 @@ export function BillingEntry() {
 
   if (!email) {
     return (
-      <Button asChild>
+      <Button asChild size="sm" variant="secondary">
         <Link href="/">Log in to manage billing</Link>
       </Button>
     )
@@ -32,7 +32,7 @@ export function BillingEntry() {
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-2">
-      <Button asChild>
+      <Button asChild size="sm" variant="secondary">
         <Link href="/billing">View billing status</Link>
       </Button>
       <BillingPortalButton email={email} />
