@@ -5,7 +5,7 @@ export default function LoadingSitePage() {
         <div className="h-4 w-40 animate-pulse rounded bg-muted" />
         <div className="h-9 w-72 animate-pulse rounded bg-muted" />
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Checking domain rating and loading the badge preview. This can take up to a minute for a fresh lookup.
+          Loading site details and badge preview.
         </p>
       </div>
 

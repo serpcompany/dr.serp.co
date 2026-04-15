@@ -1,8 +1,8 @@
 import fs from "node:fs"
 import path from "node:path"
 
-import { fetchDomainRating, normalizeTarget } from "@/server/dr-providers.mjs"
-import { getClaim, getDrChecks, recordDrCheck, upsertClaim } from "@/server/db.mjs"
+import { normalizeTarget } from "@/server/dr-providers.mjs"
+import { getClaim, getDrChecks, upsertClaim } from "@/server/db.mjs"
 
 export const runtime = "nodejs"
 
@@ -16,9 +16,6 @@ const templates = {
 const DEFAULT_STYLE: keyof typeof templates = "serp-dr-v3"
 const DEFAULT_DR_VALUE = "0"
 const templateCache = new Map<string, string>()
-
-// Refresh DR if data is older than 30 days
-const STALE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000
 
 function resolveTemplatePath(style: string | null) {
   const key = String(style ?? "").trim().toLowerCase()
@@ -71,29 +68,6 @@ function renderBadgeSvg(templatePath: string, value: string) {
   return svg
 }
 
-function isStale(updatedAt: Date | string | null | undefined): boolean {
-  if (!updatedAt) return true
-  const updated = new Date(updatedAt)
-  return Date.now() - updated.getTime() > STALE_THRESHOLD_MS
-}
-
-async function refreshDrInBackground(domain: string) {
-  try {
-    const result = await fetchDomainRating({ target: domain })
-    if ((result as any)?.captchaRequired) return
-    
-    const dr = Math.max(0, Math.min(100, Math.floor(Number((result as any)?.domainRating))))
-    if (Number.isFinite(dr)) {
-      const provider = (result as any)?.provider || null
-      const updated = await upsertClaim({ domain, domainRating: dr, provider })
-      const checkedAt = updated?.updated_at ? new Date(updated.updated_at) : new Date()
-      await recordDrCheck({ domain, domainRating: dr, provider, checkedAt })
-    }
-  } catch {
-    // Silently fail background refresh
-  }
-}
-
 export async function GET(request: Request, context: { params: Promise<{ target: string }> }) {
   const params = await context.params
   const normalizedTarget = normalizeTarget(params?.target)
@@ -120,12 +94,7 @@ export async function GET(request: Request, context: { params: Promise<{ target:
     if (cachedClaim?.domain_rating !== null && cachedClaim?.domain_rating !== undefined) {
       const dr = Math.max(0, Math.min(100, Math.floor(Number(cachedClaim.domain_rating))))
       const svg = renderBadgeSvg(templatePath, Number.isFinite(dr) ? String(dr) : DEFAULT_DR_VALUE)
-      
-      // Trigger background refresh if data is older than 30 days
-      if (isStale(cachedClaim.updated_at)) {
-        refreshDrInBackground(normalizedTarget)
-      }
-      
+
       return new Response(svg, {
         headers: {
           "Content-Type": "image/svg+xml; charset=utf-8",
@@ -150,18 +119,7 @@ export async function GET(request: Request, context: { params: Promise<{ target:
       }
     }
 
-    const result = await fetchDomainRating({ target: normalizedTarget })
-    if ((result as any)?.captchaRequired) throw new Error("DR provider requires CAPTCHA")
-
-    const dr = Math.max(0, Math.min(100, Math.floor(Number((result as any)?.domainRating))))
-    if (Number.isFinite(dr)) {
-      const provider = (result as any)?.provider || null
-      const updated = await upsertClaim({ domain: normalizedTarget, domainRating: dr, provider })
-      const checkedAt = updated?.updated_at ? new Date(updated.updated_at) : new Date()
-      await recordDrCheck({ domain: normalizedTarget, domainRating: dr, provider, checkedAt })
-    }
-
-    const svg = renderBadgeSvg(templatePath, Number.isFinite(dr) ? String(dr) : DEFAULT_DR_VALUE)
+    const svg = renderBadgeSvg(templatePath, DEFAULT_DR_VALUE)
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",

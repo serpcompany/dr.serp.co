@@ -18,6 +18,7 @@ This folder contains documentation for [dr.serp.co](https://dr.serp.co).
 
 The `knowledge/` folder contains internal reference documentation.
 - [Billing Ops](knowledge/billing-ops.md) — Billing endpoints, audit logs, rate limits, and Sentry notes.
+- [Invalid Domain Cleanup](knowledge/invalid-domain-cleanup.md) — Shared domain validation, `/sites` filtering, and the admin cleanup endpoint for legacy junk rows.
 - [Site Lookup Loading And Badge Fallback](knowledge/site-lookup-loading-and-badge-fallback.md) — Why fresh DR checks can feel slow and why missing badge values must render as `0`.
 
 ### Runbooks

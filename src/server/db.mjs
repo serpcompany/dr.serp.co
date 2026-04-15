@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless"
 import fs from "node:fs"
 import path from "node:path"
+import { isValidDomainTarget } from "@/server/domain-target.mjs"
 
 const connectionString =
   process.env.POSTGRES_URL ||
@@ -231,6 +232,10 @@ hydrateFromDisk()
 function clampDr(value) {
   const dr = Math.max(0, Math.min(100, Math.floor(Number(value))))
   return Number.isFinite(dr) ? dr : null
+}
+
+function filterValidSiteRows(rows) {
+  return rows.filter((row) => isValidDomainTarget(row?.domain))
 }
 
 function rowsFrom(result) {
@@ -757,7 +762,7 @@ export async function listSites(opts = {}) {
       }
     })
 
-    const filtered = rows.filter((row) => (q ? row.domain.toLowerCase().includes(q) : true))
+    const filtered = filterValidSiteRows(rows).filter((row) => (q ? row.domain.toLowerCase().includes(q) : true))
     filtered.sort((a, b) => {
       if (sort === "updated") {
         const at = a.updated_at ? Date.parse(a.updated_at) : -Infinity
@@ -784,13 +789,11 @@ export async function listSites(opts = {}) {
 
   await ensureTables()
 
-  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
   const q = String(opts.query ?? "").trim()
   const pattern = q ? `%${q}%` : null
   const sort = opts.sort === "updated" ? "updated" : "dr"
 
-  const result =
+  const rawRows = rowsFrom(
     sort === "updated"
       ? await sql`
           SELECT
@@ -812,8 +815,6 @@ export async function listSites(opts = {}) {
           LEFT JOIN dr_claims cl ON cl.domain = d.domain
           WHERE ${pattern === null} OR d.domain ILIKE ${pattern}
           ORDER BY updated_at DESC NULLS LAST, d.domain ASC
-          LIMIT ${limit}
-          OFFSET ${offset}
         `
       : await sql`
           SELECT
@@ -835,11 +836,12 @@ export async function listSites(opts = {}) {
           LEFT JOIN dr_claims cl ON cl.domain = d.domain
           WHERE ${pattern === null} OR d.domain ILIKE ${pattern}
           ORDER BY domain_rating DESC NULLS LAST, updated_at DESC NULLS LAST, d.domain ASC
-          LIMIT ${limit}
-          OFFSET ${offset}
         `
-
-  return rowsFrom(result)
+  )
+  const rows = filterValidSiteRows(rawRows)
+  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
+  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+  return rows.slice(offset, offset + limit)
 }
 
 /**
@@ -849,9 +851,11 @@ export async function listSites(opts = {}) {
 export async function countSites(opts = {}) {
   if (!hasDb) {
     const q = String(opts.query ?? "").trim().toLowerCase()
-    if (!q) return new Set([...fallbackChecks.keys(), ...fallbackClaims.keys()]).size
+    const domains = Array.from(new Set([...fallbackChecks.keys(), ...fallbackClaims.keys()])).filter((domain) =>
+      isValidDomainTarget(domain)
+    )
+    if (!q) return domains.length
     let count = 0
-    const domains = new Set([...fallbackChecks.keys(), ...fallbackClaims.keys()])
     for (const domain of domains) {
       if (domain.toLowerCase().includes(q)) count += 1
     }
@@ -864,7 +868,7 @@ export async function countSites(opts = {}) {
   const pattern = q ? `%${q}%` : null
 
   const rows = rowsFrom(await sql`
-    SELECT COUNT(*)::int AS count
+    SELECT domain
     FROM (
       SELECT domain FROM dr_claims
       UNION
@@ -872,7 +876,113 @@ export async function countSites(opts = {}) {
     ) d
     WHERE ${pattern === null} OR d.domain ILIKE ${pattern}
   `)
-  return Number(rows?.[0]?.count) || 0
+  return filterValidSiteRows(rows).length
+}
+
+export async function purgeInvalidSiteDomains(opts = {}) {
+  const requested = Array.isArray(opts.domains)
+    ? opts.domains.filter((domain) => String(domain ?? "").trim())
+    : null
+  const dryRun = opts.dryRun !== false
+
+  const invalidDomains = requested
+    ? Array.from(
+        new Set(
+          requested
+            .map((domain) => String(domain ?? "").trim().toLowerCase())
+            .filter((domain) => domain && !isValidDomainTarget(domain))
+        )
+      )
+    : hasDb
+      ? Array.from(
+          new Set(
+            rowsFrom(await sql`
+              SELECT domain FROM dr_claims
+              UNION
+              SELECT domain FROM dr_checks
+            `)
+              .map((row) => String(row?.domain ?? "").trim().toLowerCase())
+              .filter((domain) => domain && !isValidDomainTarget(domain))
+          )
+        )
+      : Array.from(
+          new Set(
+            [...fallbackClaims.keys(), ...fallbackChecks.keys()]
+              .map((domain) => String(domain ?? "").trim().toLowerCase())
+              .filter((domain) => domain && !isValidDomainTarget(domain))
+          )
+        )
+
+  if (!invalidDomains.length) {
+    return {
+      claimCount: 0,
+      checkCount: 0,
+      domains: [],
+      dryRun,
+    }
+  }
+
+  if (dryRun) {
+    if (hasDb) {
+      await ensureTables()
+      let claimCount = 0
+      let checkCount = 0
+      for (const domain of invalidDomains) {
+        const claimRows = rowsFrom(await sql`
+          SELECT domain
+          FROM dr_claims
+          WHERE domain = ${domain}
+        `)
+        const checkRows = rowsFrom(await sql`
+          SELECT id
+          FROM dr_checks
+          WHERE domain = ${domain}
+        `)
+        claimCount += claimRows.length
+        checkCount += checkRows.length
+      }
+      return { claimCount, checkCount, domains: invalidDomains, dryRun }
+    }
+
+    return {
+      claimCount: invalidDomains.filter((domain) => fallbackClaims.has(domain)).length,
+      checkCount: invalidDomains.filter((domain) => fallbackChecks.has(domain)).length,
+      domains: invalidDomains,
+      dryRun,
+    }
+  }
+
+  if (!hasDb) {
+    let claimCount = 0
+    let checkCount = 0
+    for (const domain of invalidDomains) {
+      if (fallbackClaims.delete(domain)) claimCount += 1
+      if (fallbackChecks.delete(domain)) checkCount += 1
+    }
+    schedulePersist()
+    return { claimCount, checkCount, domains: invalidDomains, dryRun }
+  }
+
+  await ensureTables()
+  let claimCount = 0
+  let checkCount = 0
+
+  for (const domain of invalidDomains) {
+    const deletedChecks = rowsFrom(await sql`
+      DELETE FROM dr_checks
+      WHERE domain = ${domain}
+      RETURNING id
+    `)
+    const deletedClaims = rowsFrom(await sql`
+      DELETE FROM dr_claims
+      WHERE domain = ${domain}
+      RETURNING domain
+    `)
+    checkCount += deletedChecks.length
+    claimCount += deletedClaims.length
+  }
+
+  return { claimCount, checkCount, domains: invalidDomains, dryRun }
 }
 
 function normalizeEmail(value) {

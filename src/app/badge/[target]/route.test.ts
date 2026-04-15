@@ -80,11 +80,11 @@ describe("GET /badge/[target]", () => {
   it("falls back to 0 when provider lookup fails", async () => {
     getClaim.mockResolvedValue(null)
     getDrChecks.mockResolvedValue([])
-    fetchDomainRating.mockRejectedValue(new Error("lookup failed"))
 
     const { response, svg } = await requestBadge("http://localhost/badge/example.com")
 
     expect(response.status).toBe(200)
     expect(svg).toContain(">0<")
+    expect(fetchDomainRating).not.toHaveBeenCalled()
   })
 })

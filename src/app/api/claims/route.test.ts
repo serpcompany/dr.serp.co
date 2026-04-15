@@ -40,4 +40,22 @@ describe("POST /api/claims", () => {
     expect(payload.code).toBe("upgrade_required")
     expect(setClaimEmail).not.toHaveBeenCalled()
   })
+
+  it("rejects invalid domains before claiming", async () => {
+    const { POST } = await import("./route")
+    const request = new Request("http://localhost/api/claims", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "user@example.com", domain: "ftp-config.json" }),
+    })
+
+    const response = await POST(request)
+    const payload = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(payload.error).toBe("Valid email and domain required")
+    expect(getClaim).not.toHaveBeenCalled()
+    expect(resolveEntitlement).not.toHaveBeenCalled()
+    expect(setClaimEmail).not.toHaveBeenCalled()
+  })
 })
