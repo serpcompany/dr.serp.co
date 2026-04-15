@@ -74,6 +74,17 @@ describe("GET /badge/[target]", () => {
   it("sanitizes invalid dr overrides to ??", async () => {
     const { svg } = await requestBadge("http://localhost/badge/example.com?dr=not-a-number")
 
-    expect(svg).toContain(">??<")
+    expect(svg).toContain(">0<")
+  })
+
+  it("falls back to 0 when provider lookup fails", async () => {
+    getClaim.mockResolvedValue(null)
+    getDrChecks.mockResolvedValue([])
+    fetchDomainRating.mockRejectedValue(new Error("lookup failed"))
+
+    const { response, svg } = await requestBadge("http://localhost/badge/example.com")
+
+    expect(response.status).toBe(200)
+    expect(svg).toContain(">0<")
   })
 })

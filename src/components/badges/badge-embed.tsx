@@ -15,12 +15,13 @@ export function BadgeEmbed({
   linkUrl: string
   badgeUrl: string
 }) {
+  const label = typeof dr === "number" && Number.isFinite(dr) ? Math.max(0, Math.min(100, Math.floor(dr))) : 0
+
   const badgeEmbedCode = useMemo(() => {
     const safeLinkUrl = linkUrl.endsWith("/") ? linkUrl : `${linkUrl}/`
-    const label = typeof dr === "number" && Number.isFinite(dr) ? Math.max(0, Math.min(100, Math.floor(dr))) : null
-    const alt = label === null ? `Verified DR for ${domain}` : `Verified DR ${label} for ${domain}`
+    const alt = `Verified DR ${label} for ${domain}`
     return `<a href="${safeLinkUrl}" target="_blank" rel="noopener noreferrer"><img src="${badgeUrl}" alt="${alt}" width="200" height="50"></a>`
-  }, [badgeUrl, domain, dr, linkUrl])
+  }, [badgeUrl, domain, label, linkUrl])
 
   const handleCopy = async () => {
     try {
@@ -30,9 +31,6 @@ export function BadgeEmbed({
       toast.error("Failed to copy embed code")
     }
   }
-
-  const label = typeof dr === "number" && Number.isFinite(dr) ? Math.max(0, Math.min(100, Math.floor(dr))) : null
-
   return (
     <div className="flex flex-col items-center gap-4">
       <button
@@ -43,7 +41,7 @@ export function BadgeEmbed({
       >
         <img
           src={badgeUrl}
-          alt={label === null ? `Verified DR for ${domain}` : `Verified DR ${label} for ${domain}`}
+          alt={`Verified DR ${label} for ${domain}`}
           width={200}
           height={50}
         />
