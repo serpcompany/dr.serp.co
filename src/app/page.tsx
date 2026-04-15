@@ -1,5 +1,4 @@
-import { Home } from "@/app/_components/home"
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
-export default function Page() {
-  return <Home />
-}
+export { default } from "./sites/page"
