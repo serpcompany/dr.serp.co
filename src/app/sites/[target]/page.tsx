@@ -53,6 +53,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
   if (!domain) notFound()
 
   const embedBase = process.env.DR_PUBLIC_BASE_URL || "https://dr.serp.co"
+  const embedLinkUrl = `${embedBase}/sites/${encodeURIComponent(domain)}`
   const embedBadgeBase = process.env.DR_BADGE_BASE_URL || embedBase
   const embedBadgeUrl = `${embedBadgeBase}/badge/${encodeURIComponent(domain)}?style=serp-dr-v3`
   const { chartPoints, domainRating, claimEmail, siteTitle, metaDescription, siteUrl, screenshotUrl, lookupError } =
@@ -120,7 +121,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
             <CardTitle>Embed Badge</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center">
-            <BadgeEmbed domain={domain} dr={domainRating} linkUrl={embedBase} badgeUrl={embedBadgeUrl} />
+            <BadgeEmbed domain={domain} dr={domainRating} linkUrl={embedLinkUrl} badgeUrl={embedBadgeUrl} />
           </CardContent>
         </Card>
       </div>

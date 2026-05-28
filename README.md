@@ -50,7 +50,7 @@ See `.env.example`. Key variables:
 | `USESEND_API_KEY` | UseSend API key for email |
 | `USESEND_FROM` | From address (e.g. `DR Checker <no-reply@mail.serp.co>`) |
 | `USESEND_OTP_SECRET` | OTP secret (defaults to API key) |
-| `DR_PUBLIC_BASE_URL` | Public URL (default: `https://dr.serp.co`) |
+| `DR_PUBLIC_BASE_URL` | Public base URL used to build `/sites/:domain` profile links (default: `https://dr.serp.co`) |
 | `DR_BADGE_BASE_URL` | Badge URL (default: `https://embeds.serp.co`) |
 | `AHREFS_API_KEY` | Ahrefs API v3 key for live Domain Rating lookups |
 | `STRIPE_SECRET_KEY` | Stripe API secret key |

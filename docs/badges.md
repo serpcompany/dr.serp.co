@@ -25,7 +25,7 @@ Use the `style` query param on the `/badge/:domain` route. This is the recommend
 HTML example (serp-dr-v2):
 
 ```html
-<a href="https://dr.serp.co" target="_blank" rel="noopener noreferrer">
+<a href="https://dr.serp.co/sites/example.com" target="_blank" rel="noopener noreferrer">
   <img
     src="https://dr.serp.co/badge/example.com?style=serp-dr-v2"
     alt="Verified DR 24 for example.com"
@@ -99,11 +99,11 @@ The script prints rollback commands after each run.
 On `/sites/:domain`, the badge preview is a custom HTML button rendered by [src/components/badges/badge-embed.tsx](../src/components/badges/badge-embed.tsx)
 (not the actual SVG). The embed code uses the `badgeUrl` built in [src/app/sites/[target]/page.tsx](../src/app/sites/[target]/page.tsx):
 
-- `DR_PUBLIC_BASE_URL` sets the link target
+- `DR_PUBLIC_BASE_URL` sets the public base used to build the `/sites/:domain` link target
 - `DR_BADGE_BASE_URL` sets the `<img src>` used by the embed code
 
 If you want the embed code to use dynamic badges, point `DR_BADGE_BASE_URL` at `DR_PUBLIC_BASE_URL`
-and include `?style=serp-dr-v2` in the embed URL.
+and keep the generated `?style=serp-dr-v3` badge URL.
 
 ## Available Styles
 

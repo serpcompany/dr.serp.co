@@ -4,25 +4,34 @@ import { useMemo } from "react"
 import { Copy } from "lucide-react"
 import { toast } from "sonner"
 
+type BadgeEmbedProps = {
+  domain: string
+  dr: number | null
+  linkUrl: string
+  badgeUrl: string
+}
+
+function getBadgeLabel(dr: number | null) {
+  return typeof dr === "number" && Number.isFinite(dr) ? Math.max(0, Math.min(100, Math.floor(dr))) : null
+}
+
+export function getBadgeEmbedCode({ domain, dr, linkUrl, badgeUrl }: BadgeEmbedProps) {
+  const label = getBadgeLabel(dr)
+  const alt = label === null ? `Verified DR unavailable for ${domain}` : `Verified DR ${label} for ${domain}`
+  return `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer"><img src="${badgeUrl}" alt="${alt}" width="200" height="50"></a>`
+}
+
 export function BadgeEmbed({
   domain,
   dr,
   linkUrl,
   badgeUrl,
-}: {
-  domain: string
-  dr: number | null
-  linkUrl: string
-  badgeUrl: string
-}) {
-  const label =
-    typeof dr === "number" && Number.isFinite(dr) ? Math.max(0, Math.min(100, Math.floor(dr))) : null
+}: BadgeEmbedProps) {
+  const label = getBadgeLabel(dr)
 
   const badgeEmbedCode = useMemo(() => {
-    const safeLinkUrl = linkUrl.endsWith("/") ? linkUrl : `${linkUrl}/`
-    const alt = label === null ? `Verified DR unavailable for ${domain}` : `Verified DR ${label} for ${domain}`
-    return `<a href="${safeLinkUrl}" target="_blank" rel="noopener noreferrer"><img src="${badgeUrl}" alt="${alt}" width="200" height="50"></a>`
-  }, [badgeUrl, domain, label, linkUrl])
+    return getBadgeEmbedCode({ domain, dr, linkUrl, badgeUrl })
+  }, [badgeUrl, domain, dr, linkUrl])
 
   const handleCopy = async () => {
     try {

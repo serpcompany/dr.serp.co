@@ -56,7 +56,7 @@ svgs/badges/                # SVG badge templates
 |----------|-------------|
 | `POSTGRES_URL` | Neon/Vercel Postgres connection |
 | `USESEND_API_KEY` | UseSend API key for OTP emails |
-| `DR_PUBLIC_BASE_URL` | Public URL (default: `https://dr.serp.co`) |
+| `DR_PUBLIC_BASE_URL` | Public base URL used to build `/sites/:domain` profile links (default: `https://dr.serp.co`) |
 | `DR_BADGE_BASE_URL` | Badge base URL (default: `https://embeds.serp.co`) |
 | `STRIPE_SECRET_KEY` | Stripe API secret key |
 | `STRIPE_PRICE_IDS` | JSON map of Stripe price IDs |
