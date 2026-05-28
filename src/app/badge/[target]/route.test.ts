@@ -77,14 +77,14 @@ describe("GET /badge/[target]", () => {
     expect(svg).toContain(">0<")
   })
 
-  it("falls back to 0 when provider lookup fails", async () => {
+  it("falls back to unknown when no cached rating exists", async () => {
     getClaim.mockResolvedValue(null)
     getDrChecks.mockResolvedValue([])
 
     const { response, svg } = await requestBadge("http://localhost/badge/example.com")
 
     expect(response.status).toBe(200)
-    expect(svg).toContain(">0<")
+    expect(svg).toContain(">?<")
     expect(fetchDomainRating).not.toHaveBeenCalled()
   })
 })

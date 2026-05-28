@@ -27,6 +27,7 @@ npm run dev
 
 | Route | Description |
 |-------|-------------|
+| `/add` | Add a domain, sign in, and generate an embeddable badge |
 | `/sites/:domain` | Public page (DR + badge + embed snippet) |
 | `/badge/:domain` | Dynamic SVG badge |
 | `/pricing` | Pricing plans |
@@ -51,6 +52,7 @@ See `.env.example`. Key variables:
 | `USESEND_OTP_SECRET` | OTP secret (defaults to API key) |
 | `DR_PUBLIC_BASE_URL` | Public URL (default: `https://dr.serp.co`) |
 | `DR_BADGE_BASE_URL` | Badge URL (default: `https://embeds.serp.co`) |
+| `AHREFS_API_KEY` | Ahrefs API v3 key for live Domain Rating lookups |
 | `STRIPE_SECRET_KEY` | Stripe API secret key |
 | `STRIPE_PRICE_IDS` | JSON map of price IDs for tiers |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |

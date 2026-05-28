@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation"
+import { cache } from "react"
+import type { Metadata } from "next"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
@@ -11,14 +13,39 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { normalizeTarget } from "@/server/dr-providers.mjs"
+import { resolveEntitlement } from "@/server/entitlements.mjs"
 import { BadgeEmbed } from "@/components/badges/badge-embed"
 import { ClaimClient } from "./claim-client"
 import { DrLineLabel } from "./dr-line-label"
 import { RecheckButton } from "./recheck-button"
 import { DrRadialShape } from "./dr-radial-shape"
 import { loadSiteSnapshot } from "./site-snapshot"
+import {
+  buildSitePageMetadata,
+  getOutboundLinkProps,
+  getPageSiteDescription,
+  getPageSiteTitle,
+} from "./site-page-helpers"
 
 export const runtime = "nodejs"
+
+const getSitePageData = cache(async (domain: string) => loadSiteSnapshot(domain))
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ target: string }>
+}): Promise<Metadata> {
+  const { target } = await params
+  const domain = normalizeTarget(target)
+  if (!domain) return {}
+
+  const site = await getSitePageData(domain)
+  const pageSiteTitle = getPageSiteTitle({ siteTitle: site.siteTitle, domain })
+  const description = getPageSiteDescription({ metaDescription: site.metaDescription, domain })
+
+  return buildSitePageMetadata({ pageSiteTitle, description })
+}
 
 export default async function SitePage({ params }: { params: Promise<{ target: string }> }) {
   const { target } = await params
@@ -28,7 +55,14 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
   const embedBase = process.env.DR_PUBLIC_BASE_URL || "https://dr.serp.co"
   const embedBadgeBase = process.env.DR_BADGE_BASE_URL || embedBase
   const embedBadgeUrl = `${embedBadgeBase}/badge/${encodeURIComponent(domain)}?style=serp-dr-v3`
-  const { chartPoints, domainRating } = await loadSiteSnapshot(domain)
+  const { chartPoints, domainRating, claimEmail, siteTitle, metaDescription, siteUrl, screenshotUrl, lookupError } =
+    await getSitePageData(domain)
+  const entitlement = claimEmail ? await resolveEntitlement({ email: claimEmail }) : null
+  const isPaidLink = Boolean(entitlement?.canAccessPaidFeatures)
+  const pageSiteTitle = getPageSiteTitle({ siteTitle, domain })
+  const pageDescription = getPageSiteDescription({ metaDescription, domain })
+  const outboundUrl = siteUrl || `https://${domain}`
+  const outboundLinkProps = getOutboundLinkProps(isPaidLink)
 
   return (
     <main className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8">
@@ -54,11 +88,24 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
-            <h1 className="text-2xl font-semibold tracking-tight">{domain}</h1>
+            <div className="space-y-3">
+              <h1 className="text-3xl font-semibold tracking-tight">{pageSiteTitle}</h1>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                <a
+                  href={outboundUrl}
+                  className="font-medium text-foreground underline underline-offset-4"
+                  {...outboundLinkProps}
+                >
+                  {domain}
+                </a>
+                <span aria-hidden="true">·</span>
+                <span>{isPaidLink ? "Premium dofollow outbound link" : "Standard nofollow outbound link"}</span>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <RecheckButton domain={domain} />
-            <ClaimClient domain={domain} />
+            <ClaimClient domain={domain} claimEmail={claimEmail} />
           </div>
         </div>
       </div>
@@ -78,7 +125,53 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
         </Card>
       </div>
 
+      {screenshotUrl ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Site Preview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <a href={outboundUrl} className="block overflow-hidden rounded-xl border" {...outboundLinkProps}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={screenshotUrl}
+                alt={`${pageSiteTitle} homepage preview`}
+                className="aspect-[16/10] w-full object-cover"
+                loading="lazy"
+              />
+            </a>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <DrLineLabel points={chartPoints} />
+
+      {lookupError ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>DR Lookup Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-6 text-muted-foreground">{lookupError}</p>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Site Metadata</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">Title</p>
+            <p className="text-sm leading-6 text-muted-foreground">{pageSiteTitle}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">Meta Description</p>
+            <p className="text-sm leading-6 text-muted-foreground">{pageDescription}</p>
+          </div>
+        </CardContent>
+      </Card>
     </main>
   )
 }

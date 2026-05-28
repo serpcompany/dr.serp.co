@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
-import { normalizeTarget, fetchDomainRating } from "@/server/dr-providers.mjs"
-import { getClaim, recordDrCheck, upsertClaim } from "@/server/db.mjs"
+import { normalizeTarget, fetchDomainRating, fetchDomainRatingHistory } from "@/server/dr-providers.mjs"
+import { getClaim, recordDrCheck, recordDrHistoryChecks, upsertClaim } from "@/server/db.mjs"
 
 export const runtime = "nodejs"
 
@@ -28,12 +28,33 @@ export async function POST(request: Request) {
     const checkedAt = updated?.updated_at ? new Date(updated.updated_at) : new Date()
     await recordDrCheck({ domain, domainRating, provider, checkedAt })
 
+    let historyPointCount = 0
+    let historyWarning: string | null = null
+    const shouldFetchHistory =
+      provider === "ahrefs" || provider === "ahrefs-api" || Boolean(process.env.AHREFS_API_KEY)
+
+    if (shouldFetchHistory) {
+      try {
+        const history = await fetchDomainRatingHistory({ target: domain })
+        const recorded = await recordDrHistoryChecks({
+          domain,
+          provider: (history as any)?.provider ?? "ahrefs-history",
+          points: Array.isArray((history as any)?.points) ? (history as any).points : [],
+        })
+        historyPointCount = recorded.length
+      } catch (error) {
+        historyWarning = error instanceof Error ? error.message : "History temporarily unavailable"
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       domain,
       domainRating,
       provider,
       checkedAt: checkedAt.toISOString(),
+      historyPointCount,
+      ...(historyWarning ? { historyWarning } : {}),
     })
   } catch {
     // Provider failed — return the last cached rating if available
@@ -54,4 +75,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Rating temporarily unavailable" }, { status: 503 })
   }
 }
-

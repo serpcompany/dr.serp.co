@@ -10,6 +10,7 @@ export async function GET(request: Request) {
   const provider = url.searchParams.get("provider") || undefined
   const captchaAnswer = url.searchParams.get("captcha_answer") || undefined
   const captchaHash = url.searchParams.get("captcha_hash") || undefined
+  const date = url.searchParams.get("date") || undefined
 
   try {
     const result = await fetchDomainRating({
@@ -17,6 +18,7 @@ export async function GET(request: Request) {
       provider,
       captchaAnswer,
       captchaHash,
+      date,
     })
 
     if ((result as any)?.captchaRequired) {

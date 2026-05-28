@@ -1,5 +1,7 @@
 import { URL } from 'node:url'
-export { normalizeTarget } from '@/server/domain-target.mjs'
+import { normalizeTarget } from '@/server/domain-target.mjs'
+
+export { normalizeTarget }
 
 function cookieHeaderFromResponse(response) {
   const getSetCookie = response.headers.getSetCookie
@@ -27,6 +29,13 @@ async function fetchText(url, { cookieHeader = '', headers = {}, method = 'GET',
   return { res, text }
 }
 
+function frogDrSessionLooksAuthenticated(html) {
+  const normalized = String(html ?? '').toLowerCase()
+  if (!normalized) return false
+  if (normalized.includes('href="/sign-in"') || normalized.includes('>sign in<')) return false
+  return normalized.includes('ajxdom') || normalized.includes('sign out') || normalized.includes('dashboard')
+}
+
 function parseJsonInlineVariable(html, variableName) {
   const re = new RegExp(`var\\s+${variableName}\\s*=\\s*(\\{[\\s\\S]*?\\});`)
   const m = html.match(re)
@@ -35,6 +44,192 @@ function parseJsonInlineVariable(html, variableName) {
     return JSON.parse(m[1])
   } catch {
     return null
+  }
+}
+
+function clampDr(value) {
+  const dr = Math.max(0, Math.min(100, Math.floor(Number(value))))
+  return Number.isFinite(dr) ? dr : null
+}
+
+function getAhrefsApiDate() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function formatAhrefsApiDate(value) {
+  if (value instanceof Date) {
+    return Number.isFinite(value.getTime()) ? value.toISOString().slice(0, 10) : getAhrefsApiDate()
+  }
+  const raw = String(value ?? '').trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
+  const parsed = new Date(raw)
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : getAhrefsApiDate()
+}
+
+function getAhrefsApiDateYearsAgo(years, date = getAhrefsApiDate()) {
+  const source = new Date(`${formatAhrefsApiDate(date)}T00:00:00.000Z`)
+  if (!Number.isFinite(source.getTime())) return getAhrefsApiDate()
+  source.setUTCFullYear(source.getUTCFullYear() - years)
+  return source.toISOString().slice(0, 10)
+}
+
+function extractApiError(payload, fallback) {
+  const error = payload?.error
+  if (typeof error === 'string' && error.trim()) return error.trim()
+  if (typeof error?.message === 'string' && error.message.trim()) return error.message.trim()
+  if (Array.isArray(payload?.errors)) {
+    const firstMessage = payload.errors
+      .map((entry) => entry?.message)
+      .find((message) => typeof message === 'string' && message.trim())
+    if (firstMessage) return firstMessage.trim()
+  }
+  if (typeof payload?.message === 'string' && payload.message.trim()) return payload.message.trim()
+  return fallback
+}
+
+export function extractDrFromFrogDrHtml(html) {
+  const source = String(html ?? '')
+
+  const metaMatch = source.match(/currently at DR(\d{1,3})\b/i)
+  const metaDr = clampDr(metaMatch?.[1])
+  if (metaDr !== null && metaDr > 0) return metaDr
+
+  const datasetMatch = source.match(/datasets:\s*\[\s*\{[\s\S]*?data:\s*\[([\d,\s]+)\]/i)
+  if (datasetMatch?.[1]) {
+    const values = datasetMatch[1]
+      .split(',')
+      .map((entry) => clampDr(entry))
+      .filter((entry) => entry !== null)
+    const last = values.at(-1)
+    if (last !== undefined && last !== null && last > 0) return last
+  }
+
+  return null
+}
+
+export async function fetchDrFromAhrefsApi({ target, date = getAhrefsApiDate() } = {}) {
+  const normalizedTarget = normalizeTarget(target)
+  if (!normalizedTarget) throw new Error('Missing "target"')
+
+  const apiKey = String(process.env.AHREFS_API_KEY ?? '').trim()
+  if (!apiKey) throw new Error('AHREFS_API_KEY env var not set')
+
+  const url = new URL('https://api.ahrefs.com/v3/site-explorer/domain-rating')
+  url.searchParams.set('target', normalizedTarget)
+  url.searchParams.set('date', date)
+  url.searchParams.set('protocol', 'both')
+  url.searchParams.set('output', 'json')
+
+  const response = await fetch(String(url), {
+    method: 'GET',
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      accept: 'application/json',
+    },
+    signal: AbortSignal.timeout(10000),
+  })
+
+  const text = await response.text()
+  let payload = null
+  try {
+    payload = text ? JSON.parse(text) : null
+  } catch {
+    payload = null
+  }
+
+  if (!response.ok) {
+    throw new Error(extractApiError(payload, `Ahrefs API request failed (${response.status})`))
+  }
+
+  const domainRating = Number(payload?.domain_rating?.domain_rating)
+  if (!Number.isFinite(domainRating)) {
+    throw new Error('Ahrefs API response missing Domain Rating')
+  }
+
+  const rawAhrefsRank = payload?.domain_rating?.ahrefs_rank
+  const parsedAhrefsRank = rawAhrefsRank === null || rawAhrefsRank === undefined ? null : Number(rawAhrefsRank)
+
+  return {
+    provider: 'ahrefs',
+    target: normalizedTarget,
+    domainRating,
+    extra: {
+      ahrefsRank: Number.isFinite(parsedAhrefsRank) ? parsedAhrefsRank : null,
+      date,
+    },
+  }
+}
+
+/**
+ * @param {{ target?: (string|null), dateFrom?: string, dateTo?: string, historyGrouping?: string }} [input]
+ */
+export async function fetchDomainRatingHistory({
+  target,
+  dateFrom,
+  dateTo = getAhrefsApiDate(),
+  historyGrouping = 'monthly',
+} = {}) {
+  const normalizedTarget = normalizeTarget(target)
+  if (!normalizedTarget) throw new Error('Missing "target"')
+
+  const apiKey = String(process.env.AHREFS_API_KEY ?? '').trim()
+  if (!apiKey) throw new Error('AHREFS_API_KEY env var not set')
+
+  const resolvedDateTo = formatAhrefsApiDate(dateTo || getAhrefsApiDate())
+  const resolvedDateFrom = dateFrom
+    ? formatAhrefsApiDate(dateFrom)
+    : getAhrefsApiDateYearsAgo(2, resolvedDateTo)
+  const resolvedHistoryGrouping = String(historyGrouping || 'monthly')
+
+  const url = new URL('https://api.ahrefs.com/v3/site-explorer/domain-rating-history')
+  url.searchParams.set('target', normalizedTarget)
+  url.searchParams.set('date_from', resolvedDateFrom)
+  url.searchParams.set('date_to', resolvedDateTo)
+  url.searchParams.set('history_grouping', resolvedHistoryGrouping)
+  url.searchParams.set('protocol', 'both')
+  url.searchParams.set('output', 'json')
+
+  const response = await fetch(String(url), {
+    method: 'GET',
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      accept: 'application/json',
+    },
+    signal: AbortSignal.timeout(10000),
+  })
+
+  const text = await response.text()
+  let payload = null
+  try {
+    payload = text ? JSON.parse(text) : null
+  } catch {
+    payload = null
+  }
+
+  if (!response.ok) {
+    throw new Error(extractApiError(payload, `Ahrefs API request failed (${response.status})`))
+  }
+
+  if (!Array.isArray(payload?.domain_ratings)) {
+    throw new Error('Ahrefs API response missing Domain Rating history')
+  }
+
+  const points = payload.domain_ratings
+    .map((row) => {
+      const checkedAt = typeof row?.date === 'string' ? row.date : null
+      const domainRating = Number(row?.domain_rating)
+      if (!checkedAt || !Number.isFinite(domainRating)) return null
+      return { checkedAt, domainRating }
+    })
+    .filter((row) => row !== null)
+
+  return {
+    provider: 'ahrefs-history',
+    target: normalizedTarget,
+    dateFrom: resolvedDateFrom,
+    dateTo: resolvedDateTo,
+    historyGrouping: resolvedHistoryGrouping,
+    points,
   }
 }
 
@@ -203,6 +398,15 @@ export async function fetchDrFromFrogDR({ target } = {}) {
     'referer': 'https://frogdr.com/',
   }
 
+  const dashboardRes = await fetch('https://frogdr.com/', {
+    headers: authHeaders,
+    redirect: 'follow',
+  })
+  const dashboardHtml = await dashboardRes.text()
+  if (!frogDrSessionLooksAuthenticated(dashboardHtml)) {
+    throw new Error('FROGDR_SESSION is invalid or expired')
+  }
+
   // Step 1: add domain to dashboard (may already be tracked — that's fine)
   const addRes = await fetch(`https://frogdr.com/ajxDom?add=${encodeURIComponent(normalizedTarget)}`, {
     headers: authHeaders,
@@ -228,10 +432,9 @@ export async function fetchDrFromFrogDR({ target } = {}) {
     })
     if (!pageRes.ok) continue
     const html = await pageRes.text()
-    // DR appears as: <h3 style="font-size:20px;font-weight:bold;color:#000">91</h3>
-    const m = html.match(/<h3[^>]*font-size:20px[^>]*>\s*(\d+)\s*<\/h3>/)
-    if (m) {
-      dr = Number(m[1])
+    const extracted = extractDrFromFrogDrHtml(html)
+    if (extracted !== null) {
+      dr = extracted
       break
     }
   }
@@ -258,10 +461,13 @@ export async function fetchDrFromFrogDR({ target } = {}) {
   }
 }
 
-export async function fetchDomainRating({ target, provider, captchaAnswer, captchaHash } = {}) {
+export async function fetchDomainRating({ target, provider, captchaAnswer, captchaHash, date } = {}) {
   const normalizedTarget = normalizeTarget(target)
   if (!normalizedTarget) throw new Error('Missing "target"')
 
+  if (provider === 'ahrefs' || provider === 'ahrefs-api') {
+    return fetchDrFromAhrefsApi({ target: normalizedTarget, date })
+  }
   if (provider === 'rhinorank') {
     return fetchDrFromRhinoRank({ target: normalizedTarget, captchaAnswer, captchaHash })
   }
@@ -272,6 +478,14 @@ export async function fetchDomainRating({ target, provider, captchaAnswer, captc
     return fetchDrFromFrogDR({ target: normalizedTarget })
   }
 
+  if (process.env.AHREFS_API_KEY) {
+    try {
+      return await fetchDrFromAhrefsApi({ target: normalizedTarget, date })
+    } catch (error) {
+      if (!process.env.FROGDR_SESSION) throw error
+    }
+  }
+
   // Try FrogDR if a session is configured
   if (process.env.FROGDR_SESSION) {
     return fetchDrFromFrogDR({ target: normalizedTarget })
@@ -279,6 +493,6 @@ export async function fetchDomainRating({ target, provider, captchaAnswer, captc
 
   // No working provider available
   throw new Error(
-    'All providers unavailable: RhinoRank requires Cloudflare Turnstile | Editorial.Link checker removed | Set FROGDR_SESSION to enable FrogDR'
+    'All providers unavailable: Set AHREFS_API_KEY to enable Ahrefs API | Set FROGDR_SESSION to enable FrogDR'
   )
 }

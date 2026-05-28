@@ -5,7 +5,11 @@ import Link from "next/link"
 
 import { upsertSiteHistory } from "@/lib/site-history"
 
-export function ClaimClient({ domain }: { domain: string }) {
+type Entitlement = {
+  canClaim?: boolean
+}
+
+export function ClaimClient({ domain, claimEmail = null }: { domain: string; claimEmail?: string | null }) {
   const [status, setStatus] = useState<"idle" | "claimed" | "error" | "upgrade">("idle")
   const [message, setMessage] = useState<string | null>(null)
 
@@ -14,10 +18,36 @@ export function ClaimClient({ domain }: { domain: string }) {
     if (!email) return
 
     upsertSiteHistory(email, { domain })
+    if (claimEmail?.trim().toLowerCase() === email) {
+      setStatus("claimed")
+      return
+    }
 
     const controller = new AbortController()
     ;(async () => {
       try {
+        const entitlementResponse = await fetch("/api/billing/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+          signal: controller.signal,
+        })
+        const entitlementPayload = await entitlementResponse.json().catch(() => ({}))
+        if (!entitlementResponse.ok) {
+          throw new Error(
+            typeof entitlementPayload?.error === "string"
+              ? entitlementPayload.error
+              : "Unable to verify billing status."
+          )
+        }
+
+        const entitlement = entitlementPayload?.entitlement as Entitlement | null
+        if (!entitlement?.canClaim) {
+          setMessage("Upgrade required to claim domains.")
+          setStatus("upgrade")
+          return
+        }
+
         const response = await fetch("/api/claims", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -35,13 +65,14 @@ export function ClaimClient({ domain }: { domain: string }) {
         }
         setStatus("claimed")
         upsertSiteHistory(email, { domain })
-      } catch {
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return
         setStatus("error")
       }
     })()
 
     return () => controller.abort()
-  }, [domain])
+  }, [claimEmail, domain])
 
   if (status === "idle") return null
 

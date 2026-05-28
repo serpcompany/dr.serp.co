@@ -31,13 +31,13 @@ export function AuthStatus() {
     window.sessionStorage.removeItem("dr-otp-token")
     setEmail("")
     router.refresh()
-    if (pathname !== "/") router.push("/")
+    if (pathname !== "/add") router.push("/add")
   }
 
   if (!email) {
     return (
       <Button variant="ghost" size="sm" asChild>
-        <Link href="/">Log in</Link>
+        <Link href="/add">Log in</Link>
       </Button>
     )
   }

@@ -37,7 +37,7 @@ export default function PricingPage() {
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full">
-              <Link href="/">Get started</Link>
+              <Link href="/add">Get started</Link>
             </Button>
           </CardFooter>
         </Card>

@@ -50,7 +50,7 @@ export function MySites({ email }: { email: string }) {
           signal: controller.signal,
         })
         const payload = await response.json().catch(() => ({}))
-        if (response.status === 402 && payload?.code === "upgrade_required") {
+        if (payload?.code === "upgrade_required") {
           setUpgrade({
             message: typeof payload?.error === "string" ? payload.error : "Upgrade required to manage domains.",
             entitlement: payload?.entitlement ?? null,
@@ -160,7 +160,7 @@ export function MySites({ email }: { email: string }) {
             {!query.trim() ? (
               <div className="mt-4 flex justify-center">
                 <Button asChild size="sm">
-                  <Link href="/">Look up a domain</Link>
+                  <Link href="/add">Look up a domain</Link>
                 </Button>
               </div>
             ) : null}

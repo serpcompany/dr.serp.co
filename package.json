@@ -14,7 +14,9 @@
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
-    "r2:replace-badges": "node scripts/replace-r2-badge-assets.mjs"
+    "r2:replace-badges": "node scripts/replace-r2-badge-assets.mjs",
+    "sites:purge-invalid": "node scripts/purge-invalid-site-domains.mjs",
+    "sites:backfill-metadata": "node scripts/backfill-site-metadata.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

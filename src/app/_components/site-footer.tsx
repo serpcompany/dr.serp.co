@@ -15,6 +15,9 @@ export function SiteFooter() {
         <Link href="/sites" className="text-muted-foreground hover:text-foreground">
           Sites
         </Link>
+        <Link href="/add" className="text-muted-foreground hover:text-foreground">
+          Add site
+        </Link>
         <Link href="/pricing" className="text-muted-foreground hover:text-foreground">
           Pricing
         </Link>

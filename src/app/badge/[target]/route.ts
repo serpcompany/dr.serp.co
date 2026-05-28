@@ -15,6 +15,7 @@ const templates = {
 
 const DEFAULT_STYLE: keyof typeof templates = "serp-dr-v3"
 const DEFAULT_DR_VALUE = "0"
+const UNKNOWN_DR_VALUE = "?"
 const templateCache = new Map<string, string>()
 
 function resolveTemplatePath(style: string | null) {
@@ -52,7 +53,7 @@ function computeDasharray(value: string): string {
 
 function renderBadgeSvg(templatePath: string, value: string) {
   const template = getBadgeTemplate(templatePath)
-  const safeValue = value.replace(/[^0-9]/g, "")
+  const safeValue = value.trim() === "?" ? "?" : value.replace(/[^0-9]/g, "")
   const normalizedValue = safeValue || DEFAULT_DR_VALUE
 
   let svg = template.replaceAll("__DR__", normalizedValue)
@@ -119,7 +120,7 @@ export async function GET(request: Request, context: { params: Promise<{ target:
       }
     }
 
-    const svg = renderBadgeSvg(templatePath, DEFAULT_DR_VALUE)
+    const svg = renderBadgeSvg(templatePath, UNKNOWN_DR_VALUE)
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",
@@ -127,7 +128,7 @@ export async function GET(request: Request, context: { params: Promise<{ target:
       },
     })
   } catch (error) {
-    const svg = renderBadgeSvg(templatePath, DEFAULT_DR_VALUE)
+    const svg = renderBadgeSvg(templatePath, UNKNOWN_DR_VALUE)
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",

@@ -26,8 +26,18 @@ Notes:
 - Set goals and track progress
 - Leaderboard listing
 - Domain directory listing
-- Do-follow backlinks (2 per domain)
+- Do-follow homepage link on `/sites/{page}`
 - No ads
+
+## Public site pages
+
+- Every public `/sites/{page}` profile attempts to resolve and store the site title and meta description.
+- The first unresolved `/sites/{page}` visit uses Microlink to fetch normalized metadata and a screenshot.
+- Direct fetch parsing is used only as a fallback when Microlink fails.
+- Resolved metadata is stored in the DB to avoid repeated third-party requests.
+- A best-effort homepage screenshot is stored and displayed when Microlink returns one.
+- Free listings open the homepage link in a new tab with `rel="nofollow noopener noreferrer"`.
+- Paid claimed listings open the homepage link in a new tab without `nofollow`, making it a dofollow outbound link.
 
 ## Billing access
 

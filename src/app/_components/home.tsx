@@ -127,11 +127,6 @@ export function Home() {
     const email = authEmail.trim().toLowerCase()
     if (authStep === "authed" && email) {
       upsertSiteHistory(email, { domain: cleanDomain })
-      fetch("/api/claims", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, domain: cleanDomain }),
-      }).catch(() => {})
     }
     router.push(`/sites/${encodeURIComponent(cleanDomain)}`)
   }

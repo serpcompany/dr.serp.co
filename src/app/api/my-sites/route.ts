@@ -24,10 +24,12 @@ export async function POST(request: Request) {
 
   const entitlement = await resolveEntitlement({ email })
   if (!entitlement?.canAccessPaidFeatures) {
-    return NextResponse.json(
-      { error: "Upgrade required to manage monitored domains.", code: "upgrade_required", entitlement },
-      { status: 402 }
-    )
+    return NextResponse.json({
+      ok: false,
+      error: "Upgrade required to manage monitored domains.",
+      code: "upgrade_required",
+      entitlement,
+    })
   }
 
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(50, Math.floor(limitRaw))) : 12

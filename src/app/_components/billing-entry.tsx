@@ -25,7 +25,7 @@ export function BillingEntry() {
   if (!email) {
     return (
       <Button asChild size="sm" variant="secondary">
-        <Link href="/">Log in to manage billing</Link>
+        <Link href="/add">Log in to manage billing</Link>
       </Button>
     )
   }

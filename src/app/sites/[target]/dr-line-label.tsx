@@ -34,7 +34,7 @@ export function DrLineLabel({ points }: { points: Point[] }) {
     })
     .filter((p) => p !== null)
     .sort((a, b) => a.ts - b.ts)
-    .slice(-12)
+    .slice(-24)
 
   return (
     <Card>

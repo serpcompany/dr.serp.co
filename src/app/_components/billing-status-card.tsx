@@ -123,7 +123,7 @@ export function BillingStatusCard() {
         </CardHeader>
         <CardContent>
           <Button asChild size="sm">
-            <Link href="/">Log in</Link>
+            <Link href="/add">Log in</Link>
           </Button>
         </CardContent>
       </Card>

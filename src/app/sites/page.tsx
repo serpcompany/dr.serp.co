@@ -78,7 +78,7 @@ export default async function SitesPage({
               </p>
               <div className="mt-4 flex items-center justify-center gap-3">
                 <Button asChild>
-                  <Link href="/">Look up a domain</Link>
+                  <Link href="/add">Look up a domain</Link>
                 </Button>
                 {query ? (
                   <Button variant="outline" asChild>

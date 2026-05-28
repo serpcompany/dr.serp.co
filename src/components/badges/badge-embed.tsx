@@ -15,11 +15,12 @@ export function BadgeEmbed({
   linkUrl: string
   badgeUrl: string
 }) {
-  const label = typeof dr === "number" && Number.isFinite(dr) ? Math.max(0, Math.min(100, Math.floor(dr))) : 0
+  const label =
+    typeof dr === "number" && Number.isFinite(dr) ? Math.max(0, Math.min(100, Math.floor(dr))) : null
 
   const badgeEmbedCode = useMemo(() => {
     const safeLinkUrl = linkUrl.endsWith("/") ? linkUrl : `${linkUrl}/`
-    const alt = `Verified DR ${label} for ${domain}`
+    const alt = label === null ? `Verified DR unavailable for ${domain}` : `Verified DR ${label} for ${domain}`
     return `<a href="${safeLinkUrl}" target="_blank" rel="noopener noreferrer"><img src="${badgeUrl}" alt="${alt}" width="200" height="50"></a>`
   }, [badgeUrl, domain, label, linkUrl])
 
@@ -41,7 +42,7 @@ export function BadgeEmbed({
       >
         <img
           src={badgeUrl}
-          alt={`Verified DR ${label} for ${domain}`}
+          alt={label === null ? `Verified DR unavailable for ${domain}` : `Verified DR ${label} for ${domain}`}
           width={200}
           height={50}
         />

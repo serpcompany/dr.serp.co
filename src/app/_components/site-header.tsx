@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { AuthStatus } from "./auth-status"
@@ -12,7 +13,7 @@ export function SiteHeader() {
             SERP DR
           </Link>
         </Button>
-        <div className="flex items-center gap-1">
+        <div className="hidden items-center gap-1 sm:flex">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/">Home</Link>
           </Button>
@@ -23,6 +24,12 @@ export function SiteHeader() {
             <Link href="/pricing">Pricing</Link>
           </Button>
         </div>
+        <Button variant="secondary" size="sm" asChild>
+          <Link href="/add">
+            <Plus className="h-4 w-4" />
+            Add site
+          </Link>
+        </Button>
       </div>
       <div className="ml-auto px-3">
         <AuthStatus />

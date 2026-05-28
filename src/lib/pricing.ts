@@ -25,12 +25,15 @@ export const PAID_FEATURES = [
   "Set goals and track progress",
   "Leaderboard listing",
   "Domain directory listing",
-  "Do-follow backlinks (2 per domain)",
+  "Do-follow homepage link on /sites/{page}",
   "No ads",
 ]
 
 export const FREE_FEATURES = [
   "Public DR page per domain",
+  "Public site title and meta description on /sites/{page}",
+  "Best-effort site preview screenshot",
+  "Nofollow homepage link on /sites/{page}",
   "Embeddable verified badge",
   "Recheck button (best-effort)",
 ]

@@ -35,7 +35,7 @@ const fallbackStore =
     billingAudit: [],
   }))
 
-/** @type {Map<string, {domain: string, email: (string|null), domain_rating: (number|null), provider: (string|null), claimed_at: Date, updated_at: Date}>} */
+/** @type {Map<string, {domain: string, email: (string|null), domain_rating: (number|null), provider: (string|null), site_title: (string|null), meta_description: (string|null), site_url: (string|null), screenshot_url: (string|null), claimed_at: Date, updated_at: Date}>} */
 const fallbackClaims = fallbackStore.claims
 /** @type {Map<string, Array<{domain_rating: number, provider: (string|null), checked_at: Date}>>} */
 const fallbackChecks = fallbackStore.checks
@@ -67,6 +67,10 @@ function hydrateFromDisk() {
         email: row?.email ?? null,
         domain_rating: typeof row?.domain_rating === "number" ? row.domain_rating : null,
         provider: row?.provider ?? null,
+        site_title: row?.site_title ?? null,
+        meta_description: row?.meta_description ?? null,
+        site_url: row?.site_url ?? null,
+        screenshot_url: row?.screenshot_url ?? null,
         claimed_at: Number.isFinite(claimedAt.getTime()) ? claimedAt : new Date(),
         updated_at: Number.isFinite(updatedAt.getTime()) ? updatedAt : new Date(),
       })
@@ -163,6 +167,10 @@ function schedulePersist() {
         email: row.email ?? null,
         domain_rating: typeof row.domain_rating === "number" ? row.domain_rating : null,
         provider: row.provider ?? null,
+        site_title: row.site_title ?? null,
+        meta_description: row.meta_description ?? null,
+        site_url: row.site_url ?? null,
+        screenshot_url: row.screenshot_url ?? null,
         claimed_at: row.claimed_at instanceof Date ? row.claimed_at.toISOString() : null,
         updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : null,
       }))
@@ -234,6 +242,17 @@ function clampDr(value) {
   return Number.isFinite(dr) ? dr : null
 }
 
+function coerceDate(value) {
+  if (value instanceof Date) {
+    return Number.isFinite(value.getTime()) ? value : null
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const date = new Date(value)
+    return Number.isFinite(date.getTime()) ? date : null
+  }
+  return null
+}
+
 function filterValidSiteRows(rows) {
   return rows.filter((row) => isValidDomainTarget(row?.domain))
 }
@@ -253,10 +272,18 @@ async function ensureTables() {
       email TEXT,
       domain_rating INT,
       provider TEXT,
+      site_title TEXT,
+      meta_description TEXT,
+      site_url TEXT,
+      screenshot_url TEXT,
       claimed_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `
+  await sql`ALTER TABLE dr_claims ADD COLUMN IF NOT EXISTS site_title TEXT`
+  await sql`ALTER TABLE dr_claims ADD COLUMN IF NOT EXISTS meta_description TEXT`
+  await sql`ALTER TABLE dr_claims ADD COLUMN IF NOT EXISTS site_url TEXT`
+  await sql`ALTER TABLE dr_claims ADD COLUMN IF NOT EXISTS screenshot_url TEXT`
   await sql`
     CREATE TABLE IF NOT EXISTS dr_checks (
       id BIGSERIAL PRIMARY KEY,
@@ -320,7 +347,7 @@ export async function getClaim(domain) {
   }
   await ensureTables()
   const rows = rowsFrom(await sql`
-    SELECT domain, email, domain_rating, provider, claimed_at, updated_at
+    SELECT domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
     FROM dr_claims
     WHERE domain = ${domain}
     LIMIT 1
@@ -341,6 +368,10 @@ export async function upsertClaim({ domain, email = null, domainRating, provider
       email: email ?? previous?.email ?? null,
       domain_rating: clampDr(domainRating),
       provider: provider ?? null,
+      site_title: previous?.site_title ?? null,
+      meta_description: previous?.meta_description ?? null,
+      site_url: previous?.site_url ?? null,
+      screenshot_url: previous?.screenshot_url ?? null,
       claimed_at: claimedAt,
       updated_at: now,
     }
@@ -358,7 +389,7 @@ export async function upsertClaim({ domain, email = null, domainRating, provider
       domain_rating = EXCLUDED.domain_rating,
       provider = EXCLUDED.provider,
       updated_at = NOW()
-    RETURNING domain, email, domain_rating, provider, claimed_at, updated_at
+    RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
   `)
   return rows[0] || null
 }
@@ -377,6 +408,10 @@ export async function setClaimEmail({ domain, email }) {
       email,
       domain_rating: previous?.domain_rating ?? null,
       provider: previous?.provider ?? null,
+      site_title: previous?.site_title ?? null,
+      meta_description: previous?.meta_description ?? null,
+      site_url: previous?.site_url ?? null,
+      screenshot_url: previous?.screenshot_url ?? null,
       claimed_at: claimedAt,
       updated_at: now,
     }
@@ -392,7 +427,7 @@ export async function setClaimEmail({ domain, email }) {
     DO UPDATE SET
       email = EXCLUDED.email,
       updated_at = NOW()
-    RETURNING domain, email, domain_rating, provider, claimed_at, updated_at
+    RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
   `)
   return rows[0] || null
 }
@@ -427,7 +462,7 @@ export async function clearClaimEmail({ domain, email }) {
     UPDATE dr_claims
     SET email = NULL, updated_at = NOW()
     WHERE domain = ${normalizedDomain} AND email = ${normalizedEmail}
-    RETURNING domain, email, domain_rating, provider, claimed_at, updated_at
+    RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
   `)
   return rows[0] || null
 }
@@ -450,6 +485,10 @@ export async function touchDomain(domain) {
       email: previous?.email ?? null,
       domain_rating: previous?.domain_rating ?? null,
       provider: previous?.provider ?? null,
+      site_title: previous?.site_title ?? null,
+      meta_description: previous?.meta_description ?? null,
+      site_url: previous?.site_url ?? null,
+      screenshot_url: previous?.screenshot_url ?? null,
       claimed_at: claimedAt,
       updated_at: now,
     }
@@ -465,7 +504,64 @@ export async function touchDomain(domain) {
     ON CONFLICT (domain)
     DO UPDATE SET
       updated_at = NOW()
-    RETURNING domain, email, domain_rating, provider, claimed_at, updated_at
+    RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
+  `)
+  return rows[0] || null
+}
+
+/**
+ * Persist site presentation metadata for a domain.
+ * @param {{
+ *  domain: string,
+ *  siteTitle?: (string|null),
+ *  metaDescription?: (string|null),
+ *  siteUrl?: (string|null),
+ *  screenshotUrl?: (string|null)
+ * }} input
+ */
+export async function setClaimSiteMetadata({
+  domain,
+  siteTitle = null,
+  metaDescription = null,
+  siteUrl = null,
+  screenshotUrl = null,
+}) {
+  const normalizedDomain = String(domain ?? "").trim()
+  if (!normalizedDomain) return null
+
+  if (!hasDb) {
+    const now = new Date()
+    const previous = fallbackClaims.get(normalizedDomain)
+    const claimedAt = previous?.claimed_at || now
+    const next = {
+      domain: normalizedDomain,
+      email: previous?.email ?? null,
+      domain_rating: previous?.domain_rating ?? null,
+      provider: previous?.provider ?? null,
+      site_title: siteTitle ?? previous?.site_title ?? null,
+      meta_description: metaDescription ?? previous?.meta_description ?? null,
+      site_url: siteUrl ?? previous?.site_url ?? null,
+      screenshot_url: screenshotUrl ?? previous?.screenshot_url ?? null,
+      claimed_at: claimedAt,
+      updated_at: now,
+    }
+    fallbackClaims.set(normalizedDomain, next)
+    schedulePersist()
+    return next
+  }
+
+  await ensureTables()
+  const rows = rowsFrom(await sql`
+    INSERT INTO dr_claims (domain, site_title, meta_description, site_url, screenshot_url)
+    VALUES (${normalizedDomain}, ${siteTitle}, ${metaDescription}, ${siteUrl}, ${screenshotUrl})
+    ON CONFLICT (domain)
+    DO UPDATE SET
+      site_title = COALESCE(EXCLUDED.site_title, dr_claims.site_title),
+      meta_description = COALESCE(EXCLUDED.meta_description, dr_claims.meta_description),
+      site_url = COALESCE(EXCLUDED.site_url, dr_claims.site_url),
+      screenshot_url = COALESCE(EXCLUDED.screenshot_url, dr_claims.screenshot_url),
+      updated_at = NOW()
+    RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
   `)
   return rows[0] || null
 }
@@ -485,6 +581,7 @@ export async function recordDrCheck({ domain, domainRating, provider = null, che
       checked_at: checkedAt instanceof Date ? checkedAt : new Date(),
     }
     list.push(next)
+    list.sort((a, b) => a.checked_at.getTime() - b.checked_at.getTime())
     // Keep memory bounded similar to SQL limit cap.
     if (list.length > 365) list.splice(0, list.length - 365)
     fallbackChecks.set(domain, list)
@@ -501,6 +598,81 @@ export async function recordDrCheck({ domain, domainRating, provider = null, che
 }
 
 /**
+ * Record historical DR check points for charting.
+ * Replaces exact duplicate (domain, provider, checked_at) rows instead of appending forever.
+ * @param {{ domain: string, points: Array<{ domainRating?: number, domain_rating?: number, checkedAt?: (Date|string|null), checked_at?: (Date|string|null), provider?: (string|null) }>, provider?: (string|null) }} input
+ */
+export async function recordDrHistoryChecks({ domain, points, provider = "ahrefs-history" }) {
+  const normalizedDomain = String(domain ?? "").trim()
+  if (!normalizedDomain || !Array.isArray(points) || points.length === 0) return []
+
+  const normalizedPoints = points
+    .map((point) => {
+      const safeRating = clampDr(point?.domainRating ?? point?.domain_rating)
+      const checkedAt = coerceDate(point?.checkedAt ?? point?.checked_at)
+      if (safeRating === null || !checkedAt) return null
+      return {
+        domain_rating: safeRating,
+        provider: point?.provider ?? provider ?? null,
+        checked_at: checkedAt,
+      }
+    })
+    .filter((point) => point !== null)
+
+  if (normalizedPoints.length === 0) return []
+
+  if (!hasDb) {
+    const list = fallbackChecks.get(normalizedDomain) || []
+    for (const point of normalizedPoints) {
+      const checkedAtMs = point.checked_at.getTime()
+      const existingIndex = list.findIndex(
+        (item) =>
+          (item.provider ?? null) === (point.provider ?? null) &&
+          item.checked_at instanceof Date &&
+          item.checked_at.getTime() === checkedAtMs
+      )
+      const next = {
+        domain_rating: point.domain_rating,
+        provider: point.provider ?? null,
+        checked_at: point.checked_at,
+      }
+      if (existingIndex >= 0) {
+        list[existingIndex] = next
+      } else {
+        list.push(next)
+      }
+    }
+    list.sort((a, b) => a.checked_at.getTime() - b.checked_at.getTime())
+    if (list.length > 365) list.splice(0, list.length - 365)
+    fallbackChecks.set(normalizedDomain, list)
+    schedulePersist()
+    return normalizedPoints.map((point) => ({
+      id: null,
+      domain: normalizedDomain,
+      ...point,
+    }))
+  }
+
+  await ensureTables()
+  const recorded = []
+  for (const point of normalizedPoints) {
+    await sql`
+      DELETE FROM dr_checks
+      WHERE domain = ${normalizedDomain}
+        AND provider IS NOT DISTINCT FROM ${point.provider}
+        AND checked_at = ${point.checked_at}
+    `
+    const rows = rowsFrom(await sql`
+      INSERT INTO dr_checks (domain, domain_rating, provider, checked_at)
+      VALUES (${normalizedDomain}, ${point.domain_rating}, ${point.provider}, ${point.checked_at})
+      RETURNING id, domain, domain_rating, provider, checked_at
+    `)
+    if (rows[0]) recorded.push(rows[0])
+  }
+  return recorded
+}
+
+/**
  * Fetch recent DR checks for a domain.
  * @param {string} domain
  * @param {{ limit?: number }} [opts]
@@ -509,7 +681,8 @@ export async function getDrChecks(domain, opts = {}) {
   if (!hasDb) {
     const list = fallbackChecks.get(domain) || []
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
-    return list.slice(Math.max(0, list.length - limit))
+    const sorted = list.slice().sort((a, b) => a.checked_at.getTime() - b.checked_at.getTime())
+    return sorted.slice(Math.max(0, sorted.length - limit))
   }
   await ensureTables()
   const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
@@ -560,6 +733,10 @@ export async function listClaims(opts = {}) {
     return rows.slice(offset, offset + limit).map((row) => ({
       domain: row.domain,
       domain_rating: row.domain_rating,
+      site_title: row.site_title ?? null,
+      meta_description: row.meta_description ?? null,
+      site_url: row.site_url ?? null,
+      screenshot_url: row.screenshot_url ?? null,
       updated_at: row.updated_at.toISOString(),
     }))
   }
@@ -575,6 +752,7 @@ export async function listClaims(opts = {}) {
     sort === "updated"
       ? await sql`
           SELECT domain, domain_rating, updated_at
+               , site_title, meta_description, site_url, screenshot_url
           FROM dr_claims
           WHERE ${pattern === null} OR domain ILIKE ${pattern}
           ORDER BY updated_at DESC NULLS LAST, domain ASC
@@ -583,6 +761,7 @@ export async function listClaims(opts = {}) {
         `
       : await sql`
           SELECT domain, domain_rating, updated_at
+               , site_title, meta_description, site_url, screenshot_url
           FROM dr_claims
           WHERE ${pattern === null} OR domain ILIKE ${pattern}
           ORDER BY domain_rating DESC NULLS LAST, updated_at DESC NULLS LAST, domain ASC
@@ -660,6 +839,10 @@ export async function listClaimsByEmail(opts) {
     return filtered.slice(offset, offset + limit).map((row) => ({
       domain: row.domain,
       domain_rating: row.domain_rating,
+      site_title: row.site_title ?? null,
+      meta_description: row.meta_description ?? null,
+      site_url: row.site_url ?? null,
+      screenshot_url: row.screenshot_url ?? null,
       updated_at: row.updated_at.toISOString(),
     }))
   }
@@ -676,6 +859,7 @@ export async function listClaimsByEmail(opts) {
     sort === "updated"
       ? await sql`
           SELECT domain, domain_rating, updated_at
+               , site_title, meta_description, site_url, screenshot_url
           FROM dr_claims
           WHERE email = ${email} AND (${pattern === null} OR domain ILIKE ${pattern})
           ORDER BY updated_at DESC NULLS LAST, domain ASC
@@ -684,6 +868,7 @@ export async function listClaimsByEmail(opts) {
         `
       : await sql`
           SELECT domain, domain_rating, updated_at
+               , site_title, meta_description, site_url, screenshot_url
           FROM dr_claims
           WHERE email = ${email} AND (${pattern === null} OR domain ILIKE ${pattern})
           ORDER BY domain_rating DESC NULLS LAST, updated_at DESC NULLS LAST, domain ASC
@@ -758,6 +943,10 @@ export async function listSites(opts = {}) {
       return {
         domain,
         domain_rating: domainRating,
+        site_title: claim?.site_title ?? null,
+        meta_description: claim?.meta_description ?? null,
+        site_url: claim?.site_url ?? null,
+        screenshot_url: claim?.screenshot_url ?? null,
         updated_at: updatedAt ? updatedAt.toISOString() : null,
       }
     })
@@ -799,6 +988,10 @@ export async function listSites(opts = {}) {
           SELECT
             d.domain,
             COALESCE(c.domain_rating, cl.domain_rating) AS domain_rating,
+            cl.site_title,
+            cl.meta_description,
+            cl.site_url,
+            cl.screenshot_url,
             GREATEST(c.updated_at, cl.updated_at) AS updated_at
           FROM (
             SELECT domain FROM dr_claims
@@ -820,6 +1013,10 @@ export async function listSites(opts = {}) {
           SELECT
             d.domain,
             COALESCE(c.domain_rating, cl.domain_rating) AS domain_rating,
+            cl.site_title,
+            cl.meta_description,
+            cl.site_url,
+            cl.screenshot_url,
             GREATEST(c.updated_at, cl.updated_at) AS updated_at
           FROM (
             SELECT domain FROM dr_claims
