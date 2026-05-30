@@ -1,8 +1,14 @@
 import { getTierForPriceId } from "@/lib/stripe-pricing"
 import { countClaimsByEmail, getLatestSubscriptionByEmail } from "@/server/db.mjs"
 
+const INTERNAL_PRO_EMAILS = new Set(["devin@serp.co", "otp@2faslingshot.com"])
+
 function normalizeEmail(value) {
   return String(value ?? "").trim().toLowerCase()
+}
+
+function isInternalProEmail(email) {
+  return INTERNAL_PRO_EMAILS.has(email)
 }
 
 function toDate(value) {
@@ -43,6 +49,21 @@ export async function resolveEntitlement({ email, now = new Date() }) {
   const normalizedEmail = normalizeEmail(email)
   if (!normalizedEmail) return null
 
+  if (isInternalProEmail(normalizedEmail)) {
+    const domainsUsed = await countClaimsByEmail({ email: normalizedEmail })
+    return {
+      email: normalizedEmail,
+      status: "active",
+      canAccessPaidFeatures: true,
+      canClaim: true,
+      domainsLimit: null,
+      domainsUsed,
+      remaining: null,
+      isUnlimited: true,
+      subscription: null,
+    }
+  }
+
   const [subscription, domainsUsed] = await Promise.all([
     getLatestSubscriptionByEmail(normalizedEmail),
     countClaimsByEmail({ email: normalizedEmail }),
@@ -71,6 +92,7 @@ export async function resolveEntitlement({ email, now = new Date() }) {
     domainsLimit,
     domainsUsed,
     remaining,
+    isUnlimited: false,
     subscription: subscription
       ? {
           stripeCustomerId: subscription.stripe_customer_id ?? null,

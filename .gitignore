@@ -15,6 +15,7 @@ dist-ssr
 .vercel
 .turbo
 out
+.playwright-mcp/
 *.local
 
 # Editor directories and files

@@ -12,14 +12,15 @@ type Entitlement = {
   status: string
   canAccessPaidFeatures: boolean
   canClaim: boolean
-  domainsLimit: number
+  domainsLimit: number | null
   domainsUsed: number
-  remaining: number
+  remaining: number | null
+  isUnlimited?: boolean
   subscription: {
     stripeCustomerId: string | null
     stripeSubscriptionId: string | null
     billingInterval: string | null
-    domainsLimit: number
+    domainsLimit: number | null
     status: string | null
     currentPeriodEnd: string | null
     cancelAtPeriodEnd: boolean | null
@@ -102,6 +103,7 @@ export function BillingStatusCard() {
 
   const planLabel = useMemo(() => {
     if (!entitlement) return "Free"
+    if (entitlement.isUnlimited) return "Unlimited domains"
     if (!entitlement.domainsLimit) return "Free"
     return `${entitlement.domainsLimit} domains`
   }, [entitlement])
@@ -168,7 +170,8 @@ export function BillingStatusCard() {
             <div>
               <p className="font-medium text-foreground">Domains used</p>
               <p className="text-muted-foreground">
-                {entitlement?.domainsUsed ?? 0}/{entitlement?.domainsLimit ?? 0}
+                {entitlement?.domainsUsed ?? 0}/
+                {entitlement?.isUnlimited ? "Unlimited" : entitlement?.domainsLimit ?? 0}
               </p>
             </div>
           </div>
@@ -177,7 +180,7 @@ export function BillingStatusCard() {
         <div className="flex flex-wrap gap-2">
           {entitlement?.subscription?.stripeCustomerId ? (
             <BillingPortalButton email={email} />
-          ) : (
+          ) : entitlement?.isUnlimited ? null : (
             <Button asChild size="sm">
               <Link href="/pricing">View plans</Link>
             </Button>

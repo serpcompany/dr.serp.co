@@ -25,6 +25,37 @@ beforeEach(() => {
 })
 
 describe("resolveEntitlement", () => {
+  it.each(["devin@serp.co", "OTP@2FASlingshot.com"])(
+    "grants unlimited paid access to owner account %s",
+    async (email) => {
+      mocks.getLatestSubscriptionByEmail.mockResolvedValue({
+        stripe_subscription_id: "sub_canceled",
+        status: "canceled",
+        domains_limit: 0,
+        billing_interval: "monthly",
+        current_period_end: new Date("2025-12-15T00:00:00Z"),
+        cancel_at_period_end: true,
+      })
+      mocks.countClaimsByEmail.mockResolvedValue(137)
+
+      const result = await resolveEntitlement({ email, now: baseNow })
+
+      expect(result).toMatchObject({
+        email: email.toLowerCase(),
+        status: "active",
+        canAccessPaidFeatures: true,
+        canClaim: true,
+        domainsLimit: null,
+        domainsUsed: 137,
+        remaining: null,
+        isUnlimited: true,
+        subscription: null,
+      })
+      expect(mocks.getLatestSubscriptionByEmail).not.toHaveBeenCalled()
+      expect(mocks.countClaimsByEmail).toHaveBeenCalledWith({ email: email.toLowerCase() })
+    }
+  )
+
   it("marks active subscriptions as paid access", async () => {
     mocks.getLatestSubscriptionByEmail.mockResolvedValue({
       stripe_subscription_id: "sub_active",
