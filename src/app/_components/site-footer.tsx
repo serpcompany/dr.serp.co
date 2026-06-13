@@ -22,6 +22,9 @@ export function SiteFooter() {
           Pricing
         </Link>
       </div>
+      <a href="https://serp.co/products/dr.serp.co/reviews/" target="_blank" rel="noopener noreferrer" title="Featured on SERP">
+        <img src="https://serp.co/badge/featured-on-serp.co-light.svg" alt="Featured on SERP" width="200" height="50" />
+      </a>
       <ThemeToggle />
     </footer>
   )
