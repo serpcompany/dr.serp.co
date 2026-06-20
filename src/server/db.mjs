@@ -1,7 +1,6 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { neon } from "@neondatabase/serverless"
-import fs from "node:fs"
-import path from "node:path"
-import { isValidDomainTarget } from "@/server/domain-target.mjs"
+import { isValidDomainTarget } from "./domain-target.mjs"
 
 const connectionString =
   process.env.POSTGRES_URL ||
@@ -20,7 +19,32 @@ try {
   sql = null
 }
 
+if (!sql && process.env.NODE_ENV === "production") {
+  sql = async () => {
+    throw new Error("Persistent database is not configured. Bind SERP_DR_DB or configure Postgres before serving production traffic.")
+  }
+}
+
 const hasDb = Boolean(sql)
+const D1_BINDING_NAME = "SERP_DR_DB"
+
+function getD1Database() {
+  try {
+    const context = getCloudflareContext()
+    if (!context?.env) return null
+    const binding = context.env[D1_BINDING_NAME]
+    if (!binding) {
+      throw new Error(`Cloudflare binding ${D1_BINDING_NAME} is not configured.`)
+    }
+    if (typeof binding.prepare !== "function") {
+      throw new Error(`Cloudflare binding ${D1_BINDING_NAME} is not a D1 database.`)
+    }
+    return binding
+  } catch (error) {
+    if (error instanceof Error && error.message.includes(D1_BINDING_NAME)) throw error
+    return null
+  }
+}
 
 // In dev/local runs, a database is often not configured. Keep a global in-memory fallback so
 // checked domains still appear on /sites during the session (even across webpack bundles).
@@ -45,14 +69,18 @@ const fallbackSubscriptions = fallbackStore.subscriptions
 const fallbackBillingAudit = fallbackStore.billingAudit
 
 const persistEnabled = !hasDb && process.env.NODE_ENV !== "production"
-const persistPath = path.join(process.cwd(), ".cache", "dr-fallback.json")
+const persistDir = `${process.cwd()}/.cache`
+const persistPath = `${persistDir}/dr-fallback.json`
 const persistTimerKey = "__dr_serp_fallback_persist_timer__"
 
-function hydrateFromDisk() {
+async function hydrateFromDisk() {
   if (!persistEnabled) return
   try {
-    if (!fs.existsSync(persistPath)) return
-    const raw = fs.readFileSync(persistPath, "utf8")
+    const fs = await import("node:fs/promises")
+    const raw = await fs.readFile(persistPath, "utf8").catch((error) => {
+      if (error?.code === "ENOENT") return ""
+      throw error
+    })
     if (!raw) return
     const parsed = JSON.parse(raw)
 
@@ -157,10 +185,11 @@ function schedulePersist() {
   const existing = /** @type {any} */ (globalThis)[persistTimerKey]
   if (existing) return
 
-  /** @type {any} */ (globalThis)[persistTimerKey] = setTimeout(() => {
+  /** @type {any} */ (globalThis)[persistTimerKey] = setTimeout(async () => {
     /** @type {any} */ (globalThis)[persistTimerKey] = null
     try {
-      fs.mkdirSync(path.dirname(persistPath), { recursive: true })
+      const fs = await import("node:fs/promises")
+      await fs.mkdir(persistDir, { recursive: true })
 
       const claims = Array.from(fallbackClaims.values()).map((row) => ({
         domain: row.domain,
@@ -225,7 +254,7 @@ function schedulePersist() {
         created_at: row.created_at instanceof Date ? row.created_at.toISOString() : null,
       }))
 
-      fs.writeFileSync(
+      await fs.writeFile(
         persistPath,
         JSON.stringify({ claims, checks, subscriptions, billingAudit }, null, 2)
       )
@@ -235,7 +264,7 @@ function schedulePersist() {
   }, 250)
 }
 
-hydrateFromDisk()
+await hydrateFromDisk()
 
 function clampDr(value) {
   const dr = Math.max(0, Math.min(100, Math.floor(Number(value))))
@@ -253,6 +282,44 @@ function coerceDate(value) {
   return null
 }
 
+function isoText(value, fallback = null) {
+  const date = coerceDate(value)
+  return date ? date.toISOString() : fallback
+}
+
+function nowIsoText() {
+  return new Date().toISOString()
+}
+
+function toD1Boolean(value) {
+  return typeof value === "boolean" ? (value ? 1 : 0) : null
+}
+
+function fromD1Boolean(value) {
+  if (value === null || value === undefined) return null
+  if (typeof value === "boolean") return value
+  if (typeof value === "number") return value !== 0
+  if (typeof value === "string") return value !== "0" && value.toLowerCase() !== "false"
+  return Boolean(value)
+}
+
+function normalizeD1SubscriptionRow(row) {
+  if (!row) return null
+  return {
+    ...row,
+    cancel_at_period_end: fromD1Boolean(row.cancel_at_period_end),
+  }
+}
+
+function normalizeD1BillingAuditRow(row) {
+  if (!row) return null
+  return {
+    ...row,
+    cancel_at_period_end: fromD1Boolean(row.cancel_at_period_end),
+    success: fromD1Boolean(row.success),
+  }
+}
+
 function filterValidSiteRows(rows) {
   return rows.filter((row) => isValidDomainTarget(row?.domain))
 }
@@ -261,7 +328,34 @@ function rowsFrom(result) {
   if (!result) return []
   if (Array.isArray(result)) return result
   if (Array.isArray(result.rows)) return result.rows
+  if (Array.isArray(result.results)) return result.results
   return []
+}
+
+function d1Statement(db, sqlText, params = []) {
+  const statement = db.prepare(sqlText)
+  return params.length ? statement.bind(...params) : statement
+}
+
+async function d1Run(db, sqlText, params = []) {
+  return d1Statement(db, sqlText, params).run()
+}
+
+async function d1Rows(db, sqlText, params = []) {
+  return rowsFrom(await d1Run(db, sqlText, params))
+}
+
+async function d1First(db, sqlText, params = []) {
+  return d1Statement(db, sqlText, params).first()
+}
+
+async function d1Batch(db, statements) {
+  if (typeof db.batch === "function") return db.batch(statements)
+  const results = []
+  for (const statement of statements) {
+    results.push(await statement.run())
+  }
+  return results
 }
 
 async function ensureTables() {
@@ -341,6 +435,22 @@ async function ensureTables() {
  * @param {string} domain
  */
 export async function getClaim(domain) {
+  const d1 = getD1Database()
+  if (d1) {
+    return (
+      (await d1First(
+        d1,
+        `
+          SELECT domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
+          FROM dr_claims
+          WHERE domain = ?
+          LIMIT 1
+        `,
+        [domain]
+      )) || null
+    )
+  }
+
   if (!hasDb) {
     const row = fallbackClaims.get(domain)
     return row || null
@@ -359,6 +469,28 @@ export async function getClaim(domain) {
  * @param {{ domain: string, email?: (string|null), domainRating: number, provider?: (string|null) }} input
  */
 export async function upsertClaim({ domain, email = null, domainRating, provider = null }) {
+  const d1 = getD1Database()
+  if (d1) {
+    const now = nowIsoText()
+    return (
+      (await d1First(
+        d1,
+        `
+          INSERT INTO dr_claims (domain, email, domain_rating, provider, updated_at)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT (domain)
+          DO UPDATE SET
+            email = COALESCE(excluded.email, dr_claims.email),
+            domain_rating = excluded.domain_rating,
+            provider = excluded.provider,
+            updated_at = excluded.updated_at
+          RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
+        `,
+        [domain, email, clampDr(domainRating), provider, now]
+      )) || null
+    )
+  }
+
   if (!hasDb) {
     const now = new Date()
     const previous = fallbackClaims.get(domain)
@@ -399,6 +531,26 @@ export async function upsertClaim({ domain, email = null, domainRating, provider
  * @param {{ domain: string, email: string }} input
  */
 export async function setClaimEmail({ domain, email }) {
+  const d1 = getD1Database()
+  if (d1) {
+    const now = nowIsoText()
+    return (
+      (await d1First(
+        d1,
+        `
+          INSERT INTO dr_claims (domain, email, updated_at)
+          VALUES (?, ?, ?)
+          ON CONFLICT (domain)
+          DO UPDATE SET
+            email = excluded.email,
+            updated_at = excluded.updated_at
+          RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
+        `,
+        [domain, email, now]
+      )) || null
+    )
+  }
+
   if (!hasDb) {
     const now = new Date()
     const previous = fallbackClaims.get(domain)
@@ -442,6 +594,22 @@ export async function clearClaimEmail({ domain, email }) {
   const normalizedEmail = String(email ?? "").trim().toLowerCase()
   if (!normalizedDomain || !normalizedEmail) return null
 
+  const d1 = getD1Database()
+  if (d1) {
+    return (
+      (await d1First(
+        d1,
+        `
+          UPDATE dr_claims
+          SET email = NULL, updated_at = ?
+          WHERE domain = ? AND lower(email) = ?
+          RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
+        `,
+        [nowIsoText(), normalizedDomain, normalizedEmail]
+      )) || null
+    )
+  }
+
   if (!hasDb) {
     const previous = fallbackClaims.get(normalizedDomain)
     if (!previous) return null
@@ -475,6 +643,25 @@ export async function clearClaimEmail({ domain, email }) {
 export async function touchDomain(domain) {
   const normalized = String(domain ?? "").trim()
   if (!normalized) return null
+
+  const d1 = getD1Database()
+  if (d1) {
+    const now = nowIsoText()
+    return (
+      (await d1First(
+        d1,
+        `
+          INSERT INTO dr_claims (domain, updated_at)
+          VALUES (?, ?)
+          ON CONFLICT (domain)
+          DO UPDATE SET
+            updated_at = excluded.updated_at
+          RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
+        `,
+        [normalized, now]
+      )) || null
+    )
+  }
 
   if (!hasDb) {
     const now = new Date()
@@ -529,6 +716,29 @@ export async function setClaimSiteMetadata({
   const normalizedDomain = String(domain ?? "").trim()
   if (!normalizedDomain) return null
 
+  const d1 = getD1Database()
+  if (d1) {
+    const now = nowIsoText()
+    return (
+      (await d1First(
+        d1,
+        `
+          INSERT INTO dr_claims (domain, site_title, meta_description, site_url, screenshot_url, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT (domain)
+          DO UPDATE SET
+            site_title = COALESCE(excluded.site_title, dr_claims.site_title),
+            meta_description = COALESCE(excluded.meta_description, dr_claims.meta_description),
+            site_url = COALESCE(excluded.site_url, dr_claims.site_url),
+            screenshot_url = COALESCE(excluded.screenshot_url, dr_claims.screenshot_url),
+            updated_at = excluded.updated_at
+          RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
+        `,
+        [normalizedDomain, siteTitle, metaDescription, siteUrl, screenshotUrl, now]
+      )) || null
+    )
+  }
+
   if (!hasDb) {
     const now = new Date()
     const previous = fallbackClaims.get(normalizedDomain)
@@ -571,6 +781,23 @@ export async function setClaimSiteMetadata({
  * @param {{ domain: string, domainRating: number, provider?: (string|null), checkedAt?: (Date|null) }} input
  */
 export async function recordDrCheck({ domain, domainRating, provider = null, checkedAt = null }) {
+  const d1 = getD1Database()
+  if (d1) {
+    const safeRating = clampDr(domainRating)
+    if (safeRating === null) return null
+    return (
+      (await d1First(
+        d1,
+        `
+          INSERT INTO dr_checks (domain, domain_rating, provider, checked_at)
+          VALUES (?, ?, ?, ?)
+          RETURNING id, domain, domain_rating, provider, checked_at
+        `,
+        [domain, safeRating, provider, isoText(checkedAt, nowIsoText())]
+      )) || null
+    )
+  }
+
   if (!hasDb) {
     const safeRating = clampDr(domainRating)
     if (safeRating === null) return null
@@ -620,6 +847,38 @@ export async function recordDrHistoryChecks({ domain, points, provider = "ahrefs
     .filter((point) => point !== null)
 
   if (normalizedPoints.length === 0) return []
+
+  const d1 = getD1Database()
+  if (d1) {
+    const recorded = []
+    for (const point of normalizedPoints) {
+      const checkedAt = point.checked_at.toISOString()
+      const results = await d1Batch(d1, [
+        d1Statement(
+          d1,
+          `
+            DELETE FROM dr_checks
+            WHERE domain = ?
+              AND ((provider IS NULL AND ? IS NULL) OR provider = ?)
+              AND checked_at = ?
+          `,
+          [normalizedDomain, point.provider, point.provider, checkedAt]
+        ),
+        d1Statement(
+          d1,
+          `
+            INSERT INTO dr_checks (domain, domain_rating, provider, checked_at)
+            VALUES (?, ?, ?, ?)
+            RETURNING id, domain, domain_rating, provider, checked_at
+          `,
+          [normalizedDomain, point.domain_rating, point.provider, checkedAt]
+        ),
+      ])
+      const row = rowsFrom(results?.[1])[0] || null
+      if (row) recorded.push(row)
+    }
+    return recorded
+  }
 
   if (!hasDb) {
     const list = fallbackChecks.get(normalizedDomain) || []
@@ -678,6 +937,23 @@ export async function recordDrHistoryChecks({ domain, points, provider = "ahrefs
  * @param {{ limit?: number }} [opts]
  */
 export async function getDrChecks(domain, opts = {}) {
+  const d1 = getD1Database()
+  if (d1) {
+    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
+    const rows = await d1Rows(
+      d1,
+      `
+        SELECT domain_rating, provider, checked_at
+        FROM dr_checks
+        WHERE domain = ?
+        ORDER BY checked_at DESC
+        LIMIT ?
+      `,
+      [domain, limit]
+    )
+    return rows.reverse()
+  }
+
   if (!hasDb) {
     const list = fallbackChecks.get(domain) || []
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
@@ -697,10 +973,99 @@ export async function getDrChecks(domain, opts = {}) {
 }
 
 /**
+ * List DR check rows for migration/export tooling.
+ * @param {{ domain?: string, limit?: number, offset?: number }} [opts]
+ */
+export async function listDrChecks(opts = {}) {
+  const domain = String(opts?.domain ?? "").trim() || null
+  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(1000, opts.limit)) : 500
+  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+
+  const d1 = getD1Database()
+  if (d1) {
+    return d1Rows(
+      d1,
+      `
+        SELECT domain, domain_rating, provider, checked_at
+        FROM dr_checks
+        WHERE (? IS NULL OR domain = ?)
+        ORDER BY checked_at ASC, id ASC
+        LIMIT ?
+        OFFSET ?
+      `,
+      [domain, domain, limit, offset]
+    )
+  }
+
+  if (!hasDb) {
+    const rows = []
+    for (const [checkDomain, list] of fallbackChecks.entries()) {
+      if (domain && checkDomain !== domain) continue
+      for (const row of list) {
+        rows.push({
+          domain: checkDomain,
+          domain_rating: row.domain_rating,
+          provider: row.provider ?? null,
+          checked_at: row.checked_at instanceof Date ? row.checked_at.toISOString() : row.checked_at,
+        })
+      }
+    }
+    rows.sort((a, b) => {
+      const dateCompare = String(a.checked_at ?? "").localeCompare(String(b.checked_at ?? ""))
+      if (dateCompare) return dateCompare
+      return String(a.domain).localeCompare(String(b.domain))
+    })
+    return rows.slice(offset, offset + limit)
+  }
+
+  await ensureTables()
+  const rows = rowsFrom(await sql`
+    SELECT domain, domain_rating, provider, checked_at
+    FROM dr_checks
+    WHERE ${domain === null} OR domain = ${domain}
+    ORDER BY checked_at ASC, id ASC
+    LIMIT ${limit}
+    OFFSET ${offset}
+  `)
+  return rows
+}
+
+/**
  * List claimed domains for /sites.
  * @param {{ query?: string, limit?: number, offset?: number, sort?: ("dr"|"updated") }} [opts]
  */
 export async function listClaims(opts = {}) {
+  const d1 = getD1Database()
+  if (d1) {
+    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
+    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+    const q = String(opts.query ?? "").trim()
+    const pattern = q ? `%${q}%` : null
+    const sort = opts.sort === "updated" ? "updated" : "dr"
+
+    return d1Rows(
+      d1,
+      sort === "updated"
+        ? `
+            SELECT domain, domain_rating, updated_at, site_title, meta_description, site_url, screenshot_url
+            FROM dr_claims
+            WHERE (? IS NULL OR lower(domain) LIKE lower(?))
+            ORDER BY updated_at IS NULL ASC, updated_at DESC, domain ASC
+            LIMIT ?
+            OFFSET ?
+          `
+        : `
+            SELECT domain, domain_rating, updated_at, site_title, meta_description, site_url, screenshot_url
+            FROM dr_claims
+            WHERE (? IS NULL OR lower(domain) LIKE lower(?))
+            ORDER BY domain_rating IS NULL ASC, domain_rating DESC, updated_at IS NULL ASC, updated_at DESC, domain ASC
+            LIMIT ?
+            OFFSET ?
+          `,
+      [pattern, pattern, limit, offset]
+    )
+  }
+
   if (!hasDb) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
@@ -776,6 +1141,22 @@ export async function listClaims(opts = {}) {
  * @param {{ query?: string }} [opts]
  */
 export async function countClaims(opts = {}) {
+  const d1 = getD1Database()
+  if (d1) {
+    const q = String(opts.query ?? "").trim()
+    const pattern = q ? `%${q}%` : null
+    const row = await d1First(
+      d1,
+      `
+        SELECT COUNT(*) AS count
+        FROM dr_claims
+        WHERE (? IS NULL OR lower(domain) LIKE lower(?))
+      `,
+      [pattern, pattern]
+    )
+    return Number(row?.count) || 0
+  }
+
   if (!hasDb) {
     const q = String(opts.query ?? "").trim().toLowerCase()
     if (!q) return fallbackClaims.size
@@ -799,12 +1180,116 @@ export async function countClaims(opts = {}) {
 }
 
 /**
+ * List raw claim rows for migration/export tooling.
+ * @param {{ limit?: number, offset?: number }} [opts]
+ */
+export async function listClaimRows(opts = {}) {
+  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(1000, opts.limit)) : 500
+  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+
+  const d1 = getD1Database()
+  if (d1) {
+    return d1Rows(
+      d1,
+      `
+        SELECT
+          domain,
+          email,
+          domain_rating,
+          provider,
+          site_title,
+          meta_description,
+          site_url,
+          screenshot_url,
+          claimed_at,
+          updated_at
+        FROM dr_claims
+        ORDER BY domain ASC
+        LIMIT ?
+        OFFSET ?
+      `,
+      [limit, offset]
+    )
+  }
+
+  if (!hasDb) {
+    return Array.from(fallbackClaims.values())
+      .slice()
+      .sort((a, b) => String(a.domain).localeCompare(String(b.domain)))
+      .slice(offset, offset + limit)
+      .map((row) => ({
+        domain: row.domain,
+        email: row.email ?? null,
+        domain_rating: row.domain_rating ?? null,
+        provider: row.provider ?? null,
+        site_title: row.site_title ?? null,
+        meta_description: row.meta_description ?? null,
+        site_url: row.site_url ?? null,
+        screenshot_url: row.screenshot_url ?? null,
+        claimed_at: row.claimed_at instanceof Date ? row.claimed_at.toISOString() : row.claimed_at,
+        updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
+      }))
+  }
+
+  await ensureTables()
+  const rows = rowsFrom(await sql`
+    SELECT
+      domain,
+      email,
+      domain_rating,
+      provider,
+      site_title,
+      meta_description,
+      site_url,
+      screenshot_url,
+      claimed_at,
+      updated_at
+    FROM dr_claims
+    ORDER BY domain ASC
+    LIMIT ${limit}
+    OFFSET ${offset}
+  `)
+  return rows
+}
+
+/**
  * List claimed domains for a specific email.
  * @param {{ email: string, query?: string, limit?: number, offset?: number, sort?: ("dr"|"updated") }} opts
  */
 export async function listClaimsByEmail(opts) {
   const email = String(opts?.email ?? "").trim().toLowerCase()
   if (!email) return []
+
+  const d1 = getD1Database()
+  if (d1) {
+    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
+    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+    const q = String(opts.query ?? "").trim()
+    const pattern = q ? `%${q}%` : null
+    const sort = opts.sort === "updated" ? "updated" : "dr"
+
+    return d1Rows(
+      d1,
+      sort === "updated"
+        ? `
+            SELECT domain, domain_rating, updated_at, site_title, meta_description, site_url, screenshot_url
+            FROM dr_claims
+            WHERE email = ? AND (? IS NULL OR lower(domain) LIKE lower(?))
+            ORDER BY updated_at IS NULL ASC, updated_at DESC, domain ASC
+            LIMIT ?
+            OFFSET ?
+          `
+        : `
+            SELECT domain, domain_rating, updated_at, site_title, meta_description, site_url, screenshot_url
+            FROM dr_claims
+            WHERE email = ? AND (? IS NULL OR lower(domain) LIKE lower(?))
+            ORDER BY domain_rating IS NULL ASC, domain_rating DESC, updated_at IS NULL ASC, updated_at DESC, domain ASC
+            LIMIT ?
+            OFFSET ?
+          `,
+      [email, pattern, pattern, limit, offset]
+    )
+  }
 
   if (!hasDb) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
@@ -887,6 +1372,22 @@ export async function countClaimsByEmail(opts) {
   const email = String(opts?.email ?? "").trim().toLowerCase()
   if (!email) return 0
 
+  const d1 = getD1Database()
+  if (d1) {
+    const q = String(opts.query ?? "").trim()
+    const pattern = q ? `%${q}%` : null
+    const row = await d1First(
+      d1,
+      `
+        SELECT COUNT(*) AS count
+        FROM dr_claims
+        WHERE email = ? AND (? IS NULL OR lower(domain) LIKE lower(?))
+      `,
+      [email, pattern, pattern]
+    )
+    return Number(row?.count) || 0
+  }
+
   if (!hasDb) {
     const q = String(opts.query ?? "").trim().toLowerCase()
     let count = 0
@@ -916,6 +1417,106 @@ export async function countClaimsByEmail(opts) {
  * @param {{ query?: string, limit?: number, offset?: number, sort?: ("dr"|"updated") }} [opts]
  */
 export async function listSites(opts = {}) {
+  const d1 = getD1Database()
+  if (d1) {
+    const q = String(opts.query ?? "").trim()
+    const pattern = q ? `%${q}%` : null
+    const sort = opts.sort === "updated" ? "updated" : "dr"
+    const rawRows = await d1Rows(
+      d1,
+      sort === "updated"
+        ? `
+            WITH domains AS (
+              SELECT domain FROM dr_claims
+              UNION
+              SELECT domain FROM dr_checks
+            ),
+            latest_checks AS (
+              SELECT domain, domain_rating, checked_at AS updated_at
+              FROM (
+                SELECT
+                  domain,
+                  domain_rating,
+                  checked_at,
+                  id,
+                  ROW_NUMBER() OVER (PARTITION BY domain ORDER BY checked_at DESC, id DESC) AS rn
+                FROM dr_checks
+              )
+              WHERE rn = 1
+            ),
+            site_rows AS (
+              SELECT
+                d.domain,
+                COALESCE(c.domain_rating, cl.domain_rating) AS domain_rating,
+                cl.site_title,
+                cl.meta_description,
+                cl.site_url,
+                cl.screenshot_url,
+                CASE
+                  WHEN c.updated_at IS NULL THEN cl.updated_at
+                  WHEN cl.updated_at IS NULL THEN c.updated_at
+                  WHEN c.updated_at > cl.updated_at THEN c.updated_at
+                  ELSE cl.updated_at
+                END AS updated_at
+              FROM domains d
+              LEFT JOIN latest_checks c ON c.domain = d.domain
+              LEFT JOIN dr_claims cl ON cl.domain = d.domain
+              WHERE (? IS NULL OR lower(d.domain) LIKE lower(?))
+            )
+            SELECT domain, domain_rating, site_title, meta_description, site_url, screenshot_url, updated_at
+            FROM site_rows
+            ORDER BY updated_at IS NULL ASC, updated_at DESC, domain ASC
+          `
+        : `
+            WITH domains AS (
+              SELECT domain FROM dr_claims
+              UNION
+              SELECT domain FROM dr_checks
+            ),
+            latest_checks AS (
+              SELECT domain, domain_rating, checked_at AS updated_at
+              FROM (
+                SELECT
+                  domain,
+                  domain_rating,
+                  checked_at,
+                  id,
+                  ROW_NUMBER() OVER (PARTITION BY domain ORDER BY checked_at DESC, id DESC) AS rn
+                FROM dr_checks
+              )
+              WHERE rn = 1
+            ),
+            site_rows AS (
+              SELECT
+                d.domain,
+                COALESCE(c.domain_rating, cl.domain_rating) AS domain_rating,
+                cl.site_title,
+                cl.meta_description,
+                cl.site_url,
+                cl.screenshot_url,
+                CASE
+                  WHEN c.updated_at IS NULL THEN cl.updated_at
+                  WHEN cl.updated_at IS NULL THEN c.updated_at
+                  WHEN c.updated_at > cl.updated_at THEN c.updated_at
+                  ELSE cl.updated_at
+                END AS updated_at
+              FROM domains d
+              LEFT JOIN latest_checks c ON c.domain = d.domain
+              LEFT JOIN dr_claims cl ON cl.domain = d.domain
+              WHERE (? IS NULL OR lower(d.domain) LIKE lower(?))
+            )
+            SELECT domain, domain_rating, site_title, meta_description, site_url, screenshot_url, updated_at
+            FROM site_rows
+            ORDER BY domain_rating IS NULL ASC, domain_rating DESC, updated_at IS NULL ASC, updated_at DESC, domain ASC
+          `,
+      [pattern, pattern]
+    )
+    const rows = filterValidSiteRows(rawRows)
+    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
+    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+    return rows.slice(offset, offset + limit)
+  }
+
   if (!hasDb) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
@@ -1046,6 +1647,26 @@ export async function listSites(opts = {}) {
  * @param {{ query?: string }} [opts]
  */
 export async function countSites(opts = {}) {
+  const d1 = getD1Database()
+  if (d1) {
+    const q = String(opts.query ?? "").trim()
+    const pattern = q ? `%${q}%` : null
+    const rows = await d1Rows(
+      d1,
+      `
+        SELECT domain
+        FROM (
+          SELECT domain FROM dr_claims
+          UNION
+          SELECT domain FROM dr_checks
+        ) d
+        WHERE (? IS NULL OR lower(d.domain) LIKE lower(?))
+      `,
+      [pattern, pattern]
+    )
+    return filterValidSiteRows(rows).length
+  }
+
   if (!hasDb) {
     const q = String(opts.query ?? "").trim().toLowerCase()
     const domains = Array.from(new Set([...fallbackChecks.keys(), ...fallbackClaims.keys()])).filter((domain) =>
@@ -1081,6 +1702,91 @@ export async function purgeInvalidSiteDomains(opts = {}) {
     ? opts.domains.filter((domain) => String(domain ?? "").trim())
     : null
   const dryRun = opts.dryRun !== false
+
+  const d1 = getD1Database()
+  if (d1) {
+    const invalidDomains = requested
+      ? Array.from(
+          new Set(
+            requested
+              .map((domain) => String(domain ?? "").trim().toLowerCase())
+              .filter((domain) => domain && !isValidDomainTarget(domain))
+          )
+        )
+      : Array.from(
+          new Set(
+            (await d1Rows(
+              d1,
+              `
+                SELECT domain FROM dr_claims
+                UNION
+                SELECT domain FROM dr_checks
+              `
+            ))
+              .map((row) => String(row?.domain ?? "").trim().toLowerCase())
+              .filter((domain) => domain && !isValidDomainTarget(domain))
+          )
+        )
+
+    if (!invalidDomains.length) {
+      return {
+        claimCount: 0,
+        checkCount: 0,
+        domains: [],
+        dryRun,
+      }
+    }
+
+    let claimCount = 0
+    let checkCount = 0
+    for (const domain of invalidDomains) {
+      const claimRow = await d1First(
+        d1,
+        `
+          SELECT COUNT(*) AS count
+          FROM dr_claims
+          WHERE domain = ?
+        `,
+        [domain]
+      )
+      const checkRow = await d1First(
+        d1,
+        `
+          SELECT COUNT(*) AS count
+          FROM dr_checks
+          WHERE domain = ?
+        `,
+        [domain]
+      )
+      claimCount += Number(claimRow?.count) || 0
+      checkCount += Number(checkRow?.count) || 0
+    }
+
+    if (dryRun) return { claimCount, checkCount, domains: invalidDomains, dryRun }
+
+    for (const domain of invalidDomains) {
+      await d1Batch(d1, [
+        d1Statement(
+          d1,
+          `
+            DELETE FROM dr_checks
+            WHERE domain = ?
+          `,
+          [domain]
+        ),
+        d1Statement(
+          d1,
+          `
+            DELETE FROM dr_claims
+            WHERE domain = ?
+          `,
+          [domain]
+        ),
+      ])
+    }
+
+    return { claimCount, checkCount, domains: invalidDomains, dryRun }
+  }
 
   const invalidDomains = requested
     ? Array.from(
@@ -1215,6 +1921,66 @@ export async function upsertSubscription({
   const subscriptionId = String(stripeSubscriptionId ?? "").trim()
   if (!normalizedEmail || !subscriptionId) return null
 
+  const d1 = getD1Database()
+  if (d1) {
+    const now = nowIsoText()
+    return normalizeD1SubscriptionRow(
+      await d1First(
+        d1,
+        `
+          INSERT INTO dr_subscriptions (
+            email,
+            stripe_customer_id,
+            stripe_subscription_id,
+            stripe_price_id,
+            billing_interval,
+            domains_limit,
+            status,
+            current_period_end,
+            cancel_at_period_end,
+            updated_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT (stripe_subscription_id)
+          DO UPDATE SET
+            email = COALESCE(excluded.email, dr_subscriptions.email),
+            stripe_customer_id = COALESCE(excluded.stripe_customer_id, dr_subscriptions.stripe_customer_id),
+            stripe_price_id = COALESCE(excluded.stripe_price_id, dr_subscriptions.stripe_price_id),
+            billing_interval = COALESCE(excluded.billing_interval, dr_subscriptions.billing_interval),
+            domains_limit = COALESCE(excluded.domains_limit, dr_subscriptions.domains_limit),
+            status = COALESCE(excluded.status, dr_subscriptions.status),
+            current_period_end = COALESCE(excluded.current_period_end, dr_subscriptions.current_period_end),
+            cancel_at_period_end = COALESCE(excluded.cancel_at_period_end, dr_subscriptions.cancel_at_period_end),
+            updated_at = excluded.updated_at
+          RETURNING
+            email,
+            stripe_customer_id,
+            stripe_subscription_id,
+            stripe_price_id,
+            billing_interval,
+            domains_limit,
+            status,
+            current_period_end,
+            cancel_at_period_end,
+            created_at,
+            updated_at
+        `,
+        [
+          normalizedEmail,
+          stripeCustomerId,
+          subscriptionId,
+          stripePriceId,
+          billingInterval,
+          domainsLimit,
+          status,
+          isoText(currentPeriodEnd),
+          toD1Boolean(cancelAtPeriodEnd),
+          now,
+        ]
+      )
+    )
+  }
+
   if (!hasDb) {
     const now = new Date()
     const previous = fallbackSubscriptions.get(subscriptionId)
@@ -1296,6 +2062,36 @@ export async function getActiveSubscriptionByEmail(email) {
   const normalizedEmail = normalizeEmail(email)
   if (!normalizedEmail) return null
 
+  const d1 = getD1Database()
+  if (d1) {
+    return normalizeD1SubscriptionRow(
+      await d1First(
+        d1,
+        `
+          SELECT
+            email,
+            stripe_customer_id,
+            stripe_subscription_id,
+            stripe_price_id,
+            billing_interval,
+            domains_limit,
+            status,
+            current_period_end,
+            cancel_at_period_end,
+            created_at,
+            updated_at
+          FROM dr_subscriptions
+          WHERE email = ?
+            AND status IN ('active', 'trialing')
+            AND (current_period_end IS NULL OR current_period_end > ?)
+          ORDER BY updated_at DESC
+          LIMIT 1
+        `,
+        [normalizedEmail, nowIsoText()]
+      )
+    )
+  }
+
   if (!hasDb) {
     const matches = Array.from(fallbackSubscriptions.values()).filter(
       (row) => row.email === normalizedEmail && ["active", "trialing"].includes(row.status)
@@ -1337,6 +2133,34 @@ export async function getLatestSubscriptionByEmail(email) {
   const normalizedEmail = normalizeEmail(email)
   if (!normalizedEmail) return null
 
+  const d1 = getD1Database()
+  if (d1) {
+    return normalizeD1SubscriptionRow(
+      await d1First(
+        d1,
+        `
+          SELECT
+            email,
+            stripe_customer_id,
+            stripe_subscription_id,
+            stripe_price_id,
+            billing_interval,
+            domains_limit,
+            status,
+            current_period_end,
+            cancel_at_period_end,
+            created_at,
+            updated_at
+          FROM dr_subscriptions
+          WHERE email = ?
+          ORDER BY updated_at DESC
+          LIMIT 1
+        `,
+        [normalizedEmail]
+      )
+    )
+  }
+
   if (!hasDb) {
     const matches = Array.from(fallbackSubscriptions.values()).filter((row) => row.email === normalizedEmail)
     if (!matches.length) return null
@@ -1374,6 +2198,34 @@ export async function listSubscriptions(opts = {}) {
   const email = opts?.email ? normalizeEmail(opts.email) : null
   const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(200, opts.limit)) : 100
   const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+
+  const d1 = getD1Database()
+  if (d1) {
+    const rows = await d1Rows(
+      d1,
+      `
+        SELECT
+          email,
+          stripe_customer_id,
+          stripe_subscription_id,
+          stripe_price_id,
+          billing_interval,
+          domains_limit,
+          status,
+          current_period_end,
+          cancel_at_period_end,
+          created_at,
+          updated_at
+        FROM dr_subscriptions
+        WHERE (? IS NULL OR email = ?)
+        ORDER BY updated_at DESC
+        LIMIT ?
+        OFFSET ?
+      `,
+      [email, email, limit, offset]
+    )
+    return rows.map(normalizeD1SubscriptionRow)
+  }
 
   if (!hasDb) {
     let rows = Array.from(fallbackSubscriptions.values())
@@ -1441,6 +2293,84 @@ export async function insertBillingAudit({
   error = null,
 }) {
   if (!stripeEventType) return null
+
+  const d1 = getD1Database()
+  if (d1) {
+    return normalizeD1BillingAuditRow(
+      await d1First(
+        d1,
+        `
+          INSERT INTO dr_billing_audit (
+            stripe_event_id,
+            stripe_event_type,
+            stripe_customer_id,
+            stripe_subscription_id,
+            stripe_price_id,
+            email,
+            billing_interval,
+            domains_limit,
+            status,
+            current_period_end,
+            cancel_at_period_end,
+            event_created_at,
+            success,
+            error,
+            created_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT (stripe_event_id) WHERE stripe_event_id IS NOT NULL
+          DO UPDATE SET
+            stripe_event_type = excluded.stripe_event_type,
+            stripe_customer_id = COALESCE(excluded.stripe_customer_id, dr_billing_audit.stripe_customer_id),
+            stripe_subscription_id = COALESCE(excluded.stripe_subscription_id, dr_billing_audit.stripe_subscription_id),
+            stripe_price_id = COALESCE(excluded.stripe_price_id, dr_billing_audit.stripe_price_id),
+            email = COALESCE(excluded.email, dr_billing_audit.email),
+            billing_interval = COALESCE(excluded.billing_interval, dr_billing_audit.billing_interval),
+            domains_limit = COALESCE(excluded.domains_limit, dr_billing_audit.domains_limit),
+            status = COALESCE(excluded.status, dr_billing_audit.status),
+            current_period_end = COALESCE(excluded.current_period_end, dr_billing_audit.current_period_end),
+            cancel_at_period_end = COALESCE(excluded.cancel_at_period_end, dr_billing_audit.cancel_at_period_end),
+            event_created_at = COALESCE(excluded.event_created_at, dr_billing_audit.event_created_at),
+            success = COALESCE(excluded.success, dr_billing_audit.success),
+            error = COALESCE(excluded.error, dr_billing_audit.error),
+            created_at = excluded.created_at
+          RETURNING
+            stripe_event_id,
+            stripe_event_type,
+            stripe_customer_id,
+            stripe_subscription_id,
+            stripe_price_id,
+            email,
+            billing_interval,
+            domains_limit,
+            status,
+            current_period_end,
+            cancel_at_period_end,
+            event_created_at,
+            success,
+            error,
+            created_at
+        `,
+        [
+          stripeEventId,
+          stripeEventType,
+          stripeCustomerId,
+          stripeSubscriptionId,
+          stripePriceId,
+          email ? normalizeEmail(email) : null,
+          billingInterval,
+          domainsLimit,
+          status,
+          isoText(currentPeriodEnd),
+          toD1Boolean(cancelAtPeriodEnd),
+          isoText(eventCreatedAt),
+          typeof success === "boolean" ? toD1Boolean(success) : 1,
+          error,
+          nowIsoText(),
+        ]
+      )
+    )
+  }
 
   if (!hasDb) {
     const createdAt = new Date()
@@ -1545,6 +2475,38 @@ export async function insertBillingAudit({
 export async function getLatestBillingAuditEvent(opts = {}) {
   const success = typeof opts?.success === "boolean" ? opts.success : null
 
+  const d1 = getD1Database()
+  if (d1) {
+    return normalizeD1BillingAuditRow(
+      await d1First(
+        d1,
+        `
+          SELECT
+            stripe_event_id,
+            stripe_event_type,
+            stripe_customer_id,
+            stripe_subscription_id,
+            stripe_price_id,
+            email,
+            billing_interval,
+            domains_limit,
+            status,
+            current_period_end,
+            cancel_at_period_end,
+            event_created_at,
+            success,
+            error,
+            created_at
+          FROM dr_billing_audit
+          WHERE (? IS NULL OR success = ?)
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+        [success === null ? null : toD1Boolean(success), success === null ? null : toD1Boolean(success)]
+      )
+    )
+  }
+
   if (!hasDb) {
     const rows =
       success === null ? [...fallbackBillingAudit] : fallbackBillingAudit.filter((row) => row.success === success)
@@ -1584,12 +2546,152 @@ export async function getLatestBillingAuditFailure() {
 }
 
 /**
+ * List billing audit rows for migration/export tooling.
+ * @param {{ success?: (boolean|null), limit?: number, offset?: number }} [opts]
+ */
+export async function listBillingAudit(opts = {}) {
+  const success = typeof opts?.success === "boolean" ? opts.success : null
+  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(1000, opts.limit)) : 500
+  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+
+  const d1 = getD1Database()
+  if (d1) {
+    const rows = await d1Rows(
+      d1,
+      `
+        SELECT
+          stripe_event_id,
+          stripe_event_type,
+          stripe_customer_id,
+          stripe_subscription_id,
+          stripe_price_id,
+          email,
+          billing_interval,
+          domains_limit,
+          status,
+          current_period_end,
+          cancel_at_period_end,
+          event_created_at,
+          success,
+          error,
+          created_at
+        FROM dr_billing_audit
+        WHERE (? IS NULL OR success = ?)
+        ORDER BY created_at ASC, id ASC
+        LIMIT ?
+        OFFSET ?
+      `,
+      [success === null ? null : toD1Boolean(success), success === null ? null : toD1Boolean(success), limit, offset]
+    )
+    return rows.map(normalizeD1BillingAuditRow)
+  }
+
+  if (!hasDb) {
+    const rows = (success === null
+      ? [...fallbackBillingAudit]
+      : fallbackBillingAudit.filter((row) => row.success === success)
+    )
+      .slice()
+      .sort((a, b) => {
+        const dateCompare = String(a.created_at ?? "").localeCompare(String(b.created_at ?? ""))
+        if (dateCompare) return dateCompare
+        return String(a.stripe_event_id ?? "").localeCompare(String(b.stripe_event_id ?? ""))
+      })
+      .slice(offset, offset + limit)
+    return rows
+  }
+
+  await ensureTables()
+  const rows = rowsFrom(await sql`
+    SELECT
+      stripe_event_id,
+      stripe_event_type,
+      stripe_customer_id,
+      stripe_subscription_id,
+      stripe_price_id,
+      email,
+      billing_interval,
+      domains_limit,
+      status,
+      current_period_end,
+      cancel_at_period_end,
+      event_created_at,
+      success,
+      error,
+      created_at
+    FROM dr_billing_audit
+    WHERE ${success === null} OR success = ${success}
+    ORDER BY created_at ASC, id ASC
+    LIMIT ${limit}
+    OFFSET ${offset}
+  `)
+  return rows
+}
+
+/**
  * Remove billing audit entries older than the provided number of days.
  * @param {{ olderThanDays?: number }} [opts]
  */
-export async function pruneBillingAudit(opts = {}) {
+function billingAuditCutoff(opts = {}) {
   const days = Number.isFinite(opts?.olderThanDays) ? Math.max(1, Math.floor(opts.olderThanDays)) : 180
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+  return { days, cutoff }
+}
+
+/**
+ * Count billing audit entries older than the provided number of days without deleting them.
+ * @param {{ olderThanDays?: number }} [opts]
+ */
+export async function countPrunableBillingAudit(opts = {}) {
+  const { cutoff } = billingAuditCutoff(opts)
+
+  const d1 = getD1Database()
+  if (d1) {
+    const row = await d1First(
+      d1,
+      `
+        SELECT COUNT(*) AS count
+        FROM dr_billing_audit
+        WHERE created_at < ?
+      `,
+      [cutoff.toISOString()]
+    )
+    return { count: Number(row?.count) || 0, cutoff }
+  }
+
+  if (!hasDb) {
+    const count = fallbackBillingAudit.filter((row) => {
+      const createdAt = row.created_at instanceof Date ? row.created_at : new Date(row.created_at)
+      return Number.isFinite(createdAt.getTime()) && createdAt < cutoff
+    }).length
+    return { count, cutoff }
+  }
+
+  await ensureTables()
+  const rows = rowsFrom(await sql`
+    SELECT COUNT(*)::int AS count
+    FROM dr_billing_audit
+    WHERE created_at < ${cutoff}
+  `)
+  return { count: Number(rows?.[0]?.count) || 0, cutoff }
+}
+
+export async function pruneBillingAudit(opts = {}) {
+  const { cutoff } = billingAuditCutoff(opts)
+
+  const d1 = getD1Database()
+  if (d1) {
+    const result = await d1Run(
+      d1,
+      `
+        DELETE FROM dr_billing_audit
+        WHERE created_at < ?
+      `,
+      [cutoff.toISOString()]
+    )
+    const removed = Number(result?.meta?.changes ?? result?.changes ?? result?.rowCount ?? result?.count ?? 0)
+    return { removed, cutoff }
+  }
 
   if (!hasDb) {
     const before = fallbackBillingAudit.length

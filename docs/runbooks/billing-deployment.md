@@ -1,7 +1,7 @@
 # Billing deployment checklist
 
-## Environment variables (deployment platform)
-Set these in your hosting provider (Vercel, Render, etc.). Do not commit secrets.
+## Environment variables
+Set these in Cloudflare Worker secrets or approved non-secret vars. Do not commit secrets.
 
 - `STRIPE_SECRET_KEY`
 - `STRIPE_PRICE_IDS` (JSON map of monthly + annual price IDs)
@@ -9,8 +9,13 @@ Set these in your hosting provider (Vercel, Render, etc.). Do not commit secrets
 - `STRIPE_PORTAL_RETURN_URL` (optional, defaults to `/billing`)
 - `DR_ADMIN_TOKEN` (for `/api/admin/subscriptions`)
 - `SENTRY_DSN` and/or `NEXT_PUBLIC_SENTRY_DSN`
-- Rate limit knobs: `CHECKOUT_RATE_LIMIT_POINTS`, `CHECKOUT_RATE_LIMIT_DURATION`, `STRIPE_WEBHOOK_RATE_LIMIT_POINTS`, `STRIPE_WEBHOOK_RATE_LIMIT_DURATION`, `BILLING_PORTAL_RATE_LIMIT_POINTS`, `BILLING_PORTAL_RATE_LIMIT_DURATION`
-- Optional Redis store: `RATE_LIMIT_REDIS_URL`
+- Rate limit knobs: `CHECKOUT_RATE_LIMIT_POINTS`, `CHECKOUT_RATE_LIMIT_DURATION`, `STRIPE_WEBHOOK_RATE_LIMIT_POINTS`, `STRIPE_WEBHOOK_RATE_LIMIT_DURATION`, `BILLING_PORTAL_RATE_LIMIT_POINTS`, `BILLING_PORTAL_RATE_LIMIT_DURATION`, `AHREFS_RATE_LIMIT_POINTS`, `AHREFS_RATE_LIMIT_DURATION`, `RECHECK_RATE_LIMIT_POINTS`, `RECHECK_RATE_LIMIT_DURATION`
+- `RATE_LIMITER` Durable Object binding, configured in `wrangler.jsonc`
+
+## Maintenance
+- `npm run billing:reconcile` compares Stripe to app subscription records. Set `DR_ADMIN_BASE_URL` or `DR_PUBLIC_BASE_URL` plus `DR_ADMIN_TOKEN` to target a deployed Worker.
+- `npm run billing:prune-audit -- --days 180` dry-runs billing audit cleanup.
+- `npm run billing:prune-audit -- --days 180 --apply` deletes old audit rows after approval.
 
 ## Monitoring
 - Add an uptime monitor to `GET /api/stripe/webhook/health`.
@@ -18,4 +23,4 @@ Set these in your hosting provider (Vercel, Render, etc.). Do not commit secrets
   - HTTP status is not 200
   - response `ok` is `false`
   - `status` is `stale` or `degraded`
-- Optional: run `node scripts/check-webhook-health.mjs` from a cron runner.
+- Optional: run `npm run webhook:health` from a cron runner.

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { readRequestJsonRecord } from "@/lib/read-json"
 import { countClaimsByEmail, listClaimsByEmail } from "@/server/db.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
 
@@ -10,13 +11,13 @@ function isValidEmail(email: string) {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}))
-  const email = String((body as any)?.email || "")
+  const body = await readRequestJsonRecord(request)
+  const email = String(body?.email || "")
     .trim()
     .toLowerCase()
-  const query = String((body as any)?.query || "").trim()
-  const limitRaw = Number((body as any)?.limit)
-  const offsetRaw = Number((body as any)?.offset)
+  const query = String(body?.query || "").trim()
+  const limitRaw = Number(body?.limit)
+  const offsetRaw = Number(body?.offset)
 
   if (!isValidEmail(email)) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 })

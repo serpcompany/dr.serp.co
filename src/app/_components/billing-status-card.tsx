@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { BillingPortalButton } from "@/app/_components/billing-portal-button"
+import { readJsonRecord } from "@/lib/read-json"
 
 type Entitlement = {
   status: string
@@ -81,7 +82,7 @@ export function BillingStatusCard() {
           body: JSON.stringify({ email }),
           signal: controller.signal,
         })
-        const payload = await response.json().catch(() => ({}))
+        const payload = await readJsonRecord(response)
         if (!response.ok) {
           throw new Error(typeof payload?.error === "string" ? payload.error : "Unable to load billing status.")
         }

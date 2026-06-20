@@ -1,61 +1,38 @@
-import { neon } from "@neondatabase/serverless"
+import { callAdminApi, hasAdminApi, loadAdminEnv, parseFlagArgs } from "./_admin-api.mjs"
+import { loadProjectEnv } from "./_load-env.mjs"
 
-import { loadProjectEnv, getDatabaseConnectionString } from "./_load-env.mjs"
-import { isValidDomainTarget } from "../src/server/domain-target.mjs"
+function printHelp() {
+  console.log(`Usage: node scripts/purge-invalid-site-domains.mjs [options]
 
-loadProjectEnv()
+Counts or purges invalid site domains through the Worker admin API when
+DR_ADMIN_BASE_URL/DR_PUBLIC_BASE_URL and DR_ADMIN_TOKEN are configured.
+Falls back to the project DB API for local development.
 
-const connectionString = getDatabaseConnectionString()
-if (!connectionString) {
-  throw new Error("No database connection string configured.")
+Options:
+  --apply                Delete invalid rows. Default is dry run.
+  -h, --help             Show this help
+`)
 }
 
-const sql = neon(connectionString)
-
-const rows = await sql`
-  SELECT domain
-  FROM (
-    SELECT domain FROM dr_claims
-    UNION
-    SELECT domain FROM dr_checks
-  ) d
-`
-
-const invalidDomains = Array.from(
-  new Set(
-    rows
-      .map((row) => String(row.domain ?? "").trim())
-      .filter((domain) => domain && !isValidDomainTarget(domain))
-  )
-).sort()
-
-let deletedClaims = 0
-let deletedChecks = 0
-
-for (const domain of invalidDomains) {
-  const claimRows = await sql`
-    DELETE FROM dr_claims
-    WHERE domain = ${domain}
-    RETURNING domain
-  `
-  const checkRows = await sql`
-    DELETE FROM dr_checks
-    WHERE domain = ${domain}
-    RETURNING id
-  `
-
-  deletedClaims += claimRows.length
-  deletedChecks += checkRows.length
+const { flags, values } = parseFlagArgs()
+if (flags.has("help") || flags.has("h")) {
+  printHelp()
+  process.exit(0)
 }
 
-console.log(
-  JSON.stringify(
-    {
-      invalidDomains,
-      deletedClaims,
-      deletedChecks,
-    },
-    null,
-    2
-  )
-)
+const dryRun = !(flags.has("apply") || values.has("apply"))
+const scanAll = true
+const adminEnv = loadAdminEnv()
+
+if (hasAdminApi(adminEnv)) {
+  const payload = await callAdminApi("/api/admin/sites/cleanup-invalid", {
+    env: adminEnv,
+    body: { dryRun, scanAll },
+  })
+  console.log(JSON.stringify(payload, null, 2))
+} else {
+  loadProjectEnv()
+  const { purgeInvalidSiteDomains } = await import("../src/server/db.mjs")
+  const result = await purgeInvalidSiteDomains({ dryRun })
+  console.log(JSON.stringify({ ok: true, ...result }, null, 2))
+}

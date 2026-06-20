@@ -8,6 +8,7 @@ import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { PAID_FEATURES, PRICING_TIERS } from "@/lib/pricing"
+import { readJsonRecord } from "@/lib/read-json"
 
 const BILLING_LABELS = {
   monthly: "Monthly",
@@ -49,11 +50,11 @@ export function PricingSelector() {
       })
 
       if (!response.ok) {
-        const payload = await response.json().catch(() => null)
+        const payload = await readJsonRecord(response)
         throw new Error(payload?.error ?? "Unable to start checkout.")
       }
 
-      const payload = await response.json()
+      const payload = await readJsonRecord(response)
       if (!payload?.url) {
         throw new Error("Stripe checkout URL not returned.")
       }

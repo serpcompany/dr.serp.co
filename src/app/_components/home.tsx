@@ -14,6 +14,7 @@ import { MySites } from "./my-sites"
 import { AllSites } from "./all-sites"
 import { BillingStatusCard } from "./billing-status-card"
 import { upsertSiteHistory } from "@/lib/site-history"
+import { readJsonRecord } from "@/lib/read-json"
 
 export function Home() {
   const router = useRouter()
@@ -61,7 +62,7 @@ export function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       })
-      const payload = await response.json().catch(() => ({}))
+      const payload = await readJsonRecord(response)
 
       if (!response.ok) {
         const message = typeof payload?.error === "string" ? payload.error : "Failed to send code."
@@ -100,7 +101,7 @@ export function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code: otpCode.trim(), token: otpToken }),
       })
-      const payload = await response.json().catch(() => ({}))
+      const payload = await readJsonRecord(response)
 
       if (!response.ok) {
         const message = typeof payload?.error === "string" ? payload.error : "Invalid code."

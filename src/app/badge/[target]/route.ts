@@ -1,36 +1,25 @@
-import fs from "node:fs"
-import path from "node:path"
-
 import { normalizeTarget } from "@/server/dr-providers.mjs"
 import { getClaim, getDrChecks, upsertClaim } from "@/server/db.mjs"
+import { badgeTemplates, type BadgeTemplateKey } from "./badge-templates"
 
 export const runtime = "nodejs"
 
 const templates = {
-  badge1: path.join(process.cwd(), "svgs", "badges", "serp-dr-v3.svg"),
-  "serp-dr-v2": path.join(process.cwd(), "svgs", "badges", "serp-dr-v2.svg"),
-  "serp-dr-v3": path.join(process.cwd(), "svgs", "badges", "serp-dr-v3.svg"),
-  verified: path.join(process.cwd(), "svgs", "badges", "serp-dr-v3.svg"),
+  badge1: "serp-dr-v3",
+  "serp-dr-v2": "serp-dr-v2",
+  "serp-dr-v3": "serp-dr-v3",
+  verified: "serp-dr-v3",
 } as const
 
 const DEFAULT_STYLE: keyof typeof templates = "serp-dr-v3"
 const DEFAULT_DR_VALUE = "0"
 const UNKNOWN_DR_VALUE = "?"
-const templateCache = new Map<string, string>()
+const BADGE_CACHE_CONTROL = "public"
 
-function resolveTemplatePath(style: string | null) {
+function resolveTemplateKey(style: string | null): BadgeTemplateKey {
   const key = String(style ?? "").trim().toLowerCase()
   if (key && key in templates) return templates[key as keyof typeof templates]
   return templates[DEFAULT_STYLE]
-}
-
-function getBadgeTemplate(templatePath: string) {
-  const cached = templateCache.get(templatePath)
-  if (cached) return cached
-
-  const template = fs.readFileSync(templatePath, "utf8")
-  templateCache.set(templatePath, template)
-  return template
 }
 
 function getFontSizeForValue(value: string) {
@@ -51,8 +40,8 @@ function computeDasharray(value: string): string {
   return `${filled.toFixed(2)} ${gap.toFixed(2)}`
 }
 
-function renderBadgeSvg(templatePath: string, value: string) {
-  const template = getBadgeTemplate(templatePath)
+function renderBadgeSvg(templateKey: BadgeTemplateKey, value: string) {
+  const template = badgeTemplates[templateKey]
   const safeValue = value.trim() === "?" ? "?" : value.replace(/[^0-9]/g, "")
   const normalizedValue = safeValue || DEFAULT_DR_VALUE
 
@@ -77,11 +66,11 @@ export async function GET(request: Request, context: { params: Promise<{ target:
   }
 
   const url = new URL(request.url)
-  const templatePath = resolveTemplatePath(url.searchParams.get("style"))
+  const templateKey = resolveTemplateKey(url.searchParams.get("style"))
   const override = url.searchParams.get("dr")
   if (override !== null) {
     const dr = Math.max(0, Math.min(100, Math.floor(Number(override))))
-    const svg = renderBadgeSvg(templatePath, Number.isFinite(dr) ? String(dr) : DEFAULT_DR_VALUE)
+    const svg = renderBadgeSvg(templateKey, Number.isFinite(dr) ? String(dr) : DEFAULT_DR_VALUE)
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",
@@ -94,12 +83,12 @@ export async function GET(request: Request, context: { params: Promise<{ target:
     const cachedClaim = await getClaim(normalizedTarget)
     if (cachedClaim?.domain_rating !== null && cachedClaim?.domain_rating !== undefined) {
       const dr = Math.max(0, Math.min(100, Math.floor(Number(cachedClaim.domain_rating))))
-      const svg = renderBadgeSvg(templatePath, Number.isFinite(dr) ? String(dr) : DEFAULT_DR_VALUE)
+      const svg = renderBadgeSvg(templateKey, Number.isFinite(dr) ? String(dr) : DEFAULT_DR_VALUE)
 
       return new Response(svg, {
         headers: {
           "Content-Type": "image/svg+xml; charset=utf-8",
-          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+          "Cache-Control": BADGE_CACHE_CONTROL,
         },
       })
     }
@@ -110,25 +99,25 @@ export async function GET(request: Request, context: { params: Promise<{ target:
       const dr = Math.max(0, Math.min(100, Math.floor(Number(last?.domain_rating))))
       if (Number.isFinite(dr)) {
         await upsertClaim({ domain: normalizedTarget, domainRating: dr, provider: last?.provider ?? null })
-        const svg = renderBadgeSvg(templatePath, String(dr))
+        const svg = renderBadgeSvg(templateKey, String(dr))
         return new Response(svg, {
           headers: {
             "Content-Type": "image/svg+xml; charset=utf-8",
-            "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+            "Cache-Control": BADGE_CACHE_CONTROL,
           },
         })
       }
     }
 
-    const svg = renderBadgeSvg(templatePath, UNKNOWN_DR_VALUE)
+    const svg = renderBadgeSvg(templateKey, UNKNOWN_DR_VALUE)
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+        "Cache-Control": BADGE_CACHE_CONTROL,
       },
     })
   } catch (error) {
-    const svg = renderBadgeSvg(templatePath, UNKNOWN_DR_VALUE)
+    const svg = renderBadgeSvg(templateKey, UNKNOWN_DR_VALUE)
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",

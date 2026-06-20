@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { readJsonRecord } from "@/lib/read-json"
 
 type SiteRow = {
   domain: string
@@ -37,7 +38,7 @@ export function AllSites() {
       setError(null)
       try {
         const response = await fetch("/api/sites?limit=12", { signal: controller.signal })
-        const payload = await response.json().catch(() => ({}))
+        const payload = await readJsonRecord(response)
         if (!response.ok) {
           throw new Error(typeof payload?.error === "string" ? payload.error : "Failed to load sites.")
         }

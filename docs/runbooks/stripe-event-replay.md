@@ -18,3 +18,4 @@ stripe events resend evt_123 --webhook-endpoint we_123
 ## Verify
 - Check `dr_billing_audit` for a new entry.
 - Confirm subscription state in `dr_subscriptions` was updated.
+- On Cloudflare, verify through `GET /api/stripe/webhook/health` and `npm run billing:reconcile` with `DR_ADMIN_BASE_URL` and `DR_ADMIN_TOKEN` set.

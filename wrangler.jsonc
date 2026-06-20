@@ -1,0 +1,157 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "main": "./cloudflare-worker.js",
+  "name": "serp-dr",
+  "compatibility_date": "2026-06-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "workers_dev": false,
+  "preview_urls": true,
+  "observability": {
+    "enabled": true
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "serp-dr"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "SERP_DR_DB",
+      "database_name": "serp-dr-prod",
+      "database_id": "0a6e5e69-60e4-4145-a84a-3f8c9177ad0c",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RATE_LIMITER",
+        "class_name": "RateLimitDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1_rate_limit_durable_object",
+      "new_sqlite_classes": ["RateLimitDurableObject"]
+    }
+  ],
+  "vars": {
+    "NEXTJS_ENV": "production",
+    "DR_PUBLIC_BASE_URL": "https://dr.serp.co",
+    "DR_BADGE_BASE_URL": "https://dr.serp.co"
+  },
+  "secrets": {
+    "required": [
+      "AHREFS_API_KEY",
+      "DR_ADMIN_TOKEN",
+      "STRIPE_PRICE_IDS",
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "USESEND_API_KEY",
+      "USESEND_FROM",
+      "USESEND_OTP_SECRET"
+    ]
+  },
+  "env": {
+    "preview": {
+      "name": "serp-dr-preview",
+      "workers_dev": true,
+      "preview_urls": true,
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "serp-dr-preview"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "SERP_DR_DB",
+          "database_name": "serp-dr-preview",
+          "database_id": "e461f27e-6d8f-4bd3-9216-537e9642bad5",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "RATE_LIMITER",
+            "class_name": "RateLimitDurableObject"
+          }
+        ]
+      },
+      "vars": {
+        "NEXTJS_ENV": "production",
+        "DR_PUBLIC_BASE_URL": "https://serp-dr-preview.serpcompany.workers.dev",
+        "DR_BADGE_BASE_URL": "https://serp-dr-preview.serpcompany.workers.dev"
+      },
+      "secrets": {
+        "required": [
+          "AHREFS_API_KEY",
+          "DR_ADMIN_TOKEN",
+          "STRIPE_PRICE_IDS",
+          "STRIPE_SECRET_KEY",
+          "STRIPE_WEBHOOK_SECRET",
+          "USESEND_API_KEY",
+          "USESEND_FROM",
+          "USESEND_OTP_SECRET"
+        ]
+      }
+    },
+    "production": {
+      "name": "serp-dr",
+      "workers_dev": false,
+      "preview_urls": true,
+      "routes": [
+        {
+          "pattern": "dr.serp.co/*",
+          "zone_name": "serp.co"
+        }
+      ],
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "serp-dr"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "SERP_DR_DB",
+          "database_name": "serp-dr-prod",
+          "database_id": "0a6e5e69-60e4-4145-a84a-3f8c9177ad0c",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "RATE_LIMITER",
+            "class_name": "RateLimitDurableObject"
+          }
+        ]
+      },
+      "vars": {
+        "NEXTJS_ENV": "production",
+        "DR_PUBLIC_BASE_URL": "https://dr.serp.co",
+        "DR_BADGE_BASE_URL": "https://dr.serp.co"
+      },
+      "secrets": {
+        "required": [
+          "AHREFS_API_KEY",
+          "DR_ADMIN_TOKEN",
+          "STRIPE_PRICE_IDS",
+          "STRIPE_SECRET_KEY",
+          "STRIPE_WEBHOOK_SECRET",
+          "USESEND_API_KEY",
+          "USESEND_FROM",
+          "USESEND_OTP_SECRET"
+        ]
+      }
+    }
+  }
+}
