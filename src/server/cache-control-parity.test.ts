@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { applyCacheControlParity } from "./cache-control-parity.mjs"
 
 describe("applyCacheControlParity", () => {
-  it("adds Vercel-compatible cache-control to GET responses without one", () => {
+  it("adds parity cache-control to GET responses without one", () => {
     const response = applyCacheControlParity(
       new Request("https://dr.serp.co/api/sites"),
       new Response("{}", { headers: { "Content-Type": "application/json" } })

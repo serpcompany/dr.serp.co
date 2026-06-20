@@ -1,14 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-const DB_ENV_KEYS = [
-  "POSTGRES_URL",
-  "POSTGRES_URL_NON_POOLING",
-  "DATABASE_URL",
-  "DATABASE_URL_UNPOOLED",
-  "STORAGE_URL",
-  "STORAGE_URL_NON_POOLING",
-]
-
 const cloudflareMocks = vi.hoisted(() => {
   const state = { db: null }
   return {
@@ -20,19 +11,6 @@ const cloudflareMocks = vi.hoisted(() => {
 vi.mock("@opennextjs/cloudflare", () => ({
   getCloudflareContext: cloudflareMocks.getCloudflareContext,
 }))
-
-const envBackup = { ...process.env }
-
-function clearDbEnv() {
-  for (const key of DB_ENV_KEYS) {
-    delete process.env[key]
-  }
-}
-
-function restoreEnv() {
-  for (const key of Object.keys(process.env)) delete process.env[key]
-  Object.assign(process.env, envBackup)
-}
 
 function normalizeSql(sql) {
   return String(sql).replace(/\s+/g, " ").trim()
@@ -524,7 +502,6 @@ function createMockD1() {
 
 async function importDbWithD1() {
   vi.resetModules()
-  clearDbEnv()
   const d1 = createMockD1()
   cloudflareMocks.state.db = d1
   const db = await import("./db.mjs")
@@ -533,14 +510,12 @@ async function importDbWithD1() {
 
 describe("D1 database boundary", () => {
   beforeEach(() => {
-    clearDbEnv()
     cloudflareMocks.getCloudflareContext.mockClear()
     cloudflareMocks.state.db = null
   })
 
   afterEach(() => {
     cloudflareMocks.state.db = null
-    restoreEnv()
     vi.resetModules()
   })
 

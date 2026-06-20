@@ -1,35 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-const DB_ENV_KEYS = [
-  "POSTGRES_URL",
-  "POSTGRES_URL_NON_POOLING",
-  "DATABASE_URL",
-  "DATABASE_URL_UNPOOLED",
-  "STORAGE_URL",
-  "STORAGE_URL_NON_POOLING",
-]
-
-const envBackup = { ...process.env }
-
-function clearDbEnv() {
-  for (const key of DB_ENV_KEYS) {
-    delete process.env[key]
-  }
-}
-
-function restoreEnv() {
-  for (const key of Object.keys(process.env)) delete process.env[key]
-  Object.assign(process.env, envBackup)
-}
-
 describe("site listing filters invalid domains", () => {
   beforeEach(() => {
     vi.resetModules()
-    clearDbEnv()
   })
 
   afterEach(() => {
-    restoreEnv()
+    vi.resetModules()
   })
 
   it("keeps junk rows out of listSites and countSites", async () => {

@@ -46,7 +46,6 @@ See `.env.example`. Key variables:
 
 | Variable | Description |
 |----------|-------------|
-| `POSTGRES_URL` | Neon/Vercel Postgres connection string |
 | `USESEND_API_KEY` | UseSend API key for email |
 | `USESEND_FROM` | From address (e.g. `DR Checker <no-reply@mail.serp.co>`) |
 | `USESEND_OTP_SECRET` | OTP secret (defaults to API key) |
@@ -59,14 +58,12 @@ See `.env.example`. Key variables:
 | `STRIPE_PORTAL_RETURN_URL` | Optional return URL for billing portal |
 | `DR_ADMIN_TOKEN` | Token for admin subscription report endpoint |
 | `SENTRY_DSN` | Sentry DSN for server-side error monitoring |
-| `RATE_LIMIT_REDIS_URL` | Optional Redis URL for shared rate limiting |
+| `SERP_DR_DB` | Cloudflare D1 binding for app data |
+| `RATE_LIMITER` | Cloudflare Durable Object binding for rate limiting |
 
 ## Database
 
-The app runs on Vercel and uses Neon Postgres via `@neondatabase/serverless`, configured through environment variables (see `src/server/db.mjs`). When you run `vercel link` + `vercel env pull`, Vercel writes these values to `.env.local` for local development:
-
-- `POSTGRES_URL` (primary)
-- or `POSTGRES_URL_NON_POOLING`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `STORAGE_URL`, `STORAGE_URL_NON_POOLING`
+Production runs on Cloudflare Workers/OpenNext and uses D1 through the `SERP_DR_DB` binding. Rate limits use the `RATE_LIMITER` Durable Object binding.
 
 If none are set (common in local/dev), the app falls back to an in-memory store and persists to `.cache/dr-fallback.json`.
 

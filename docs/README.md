@@ -54,7 +54,6 @@ svgs/badges/                # SVG badge templates
 
 | Variable | Description |
 |----------|-------------|
-| `POSTGRES_URL` | Neon/Vercel Postgres connection |
 | `USESEND_API_KEY` | UseSend API key for OTP emails |
 | `DR_PUBLIC_BASE_URL` | Public base URL used to build `/sites/:domain` profile links (default: `https://dr.serp.co`) |
 | `DR_BADGE_BASE_URL` | Badge base URL (default: `https://embeds.serp.co`) |
@@ -70,11 +69,6 @@ svgs/badges/                # SVG badge templates
 ## Database
 
 Production traffic is served by Cloudflare Workers/OpenNext and uses D1 through the `SERP_DR_DB` binding. Rate limits use the `RATE_LIMITER` Durable Object binding.
-
-Vercel, Neon/Postgres, and Redis remain available only for rollback during the Cloudflare observation window. Local development can still use existing Postgres env vars when present:
-
-- `POSTGRES_URL` (primary)
-- or `POSTGRES_URL_NON_POOLING`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `STORAGE_URL`, `STORAGE_URL_NON_POOLING`
 
 If no DB env vars are set (common in local/dev), the app falls back to an in-memory store and persists to `.cache/dr-fallback.json`.
 

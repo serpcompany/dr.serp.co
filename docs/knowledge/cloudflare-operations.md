@@ -1,6 +1,6 @@
 # Cloudflare operations
 
-Status: production traffic for `dr.serp.co` is live on Cloudflare Workers/OpenNext with D1. Vercel, Neon/Postgres, and Redis remain the rollback path through the observation window.
+Status: production traffic for `dr.serp.co` is live on Cloudflare Workers/OpenNext with D1. The repository no longer carries Vercel, Neon/Postgres, or Redis runtime dependencies.
 
 ## Current authority
 
@@ -8,7 +8,7 @@ Status: production traffic for `dr.serp.co` is live on Cloudflare Workers/OpenNe
 - Production Worker name: `serp-dr`
 - Preview Worker name: `serp-dr-preview`
 - Production Worker custom domain: `dr.serp.co` on zone `serp.co`.
-- Public DNS now resolves `dr.serp.co` through Cloudflare and normal requests return `server: cloudflare` with `x-opennext: 1`. Worker hostname ownership is managed by the Wrangler custom domain entry, not a legacy `dr.serp.co/*` route. Do not remove Vercel/Neon/Redis until after Cloudflare traffic is stable.
+- Public DNS now resolves `dr.serp.co` through Cloudflare and normal requests return `server: cloudflare` with `x-opennext: 1`. Worker hostname ownership is managed by the Wrangler custom domain entry, not a legacy `dr.serp.co/*` route.
 - Deployment authority: GitHub Actions or Wrangler may deploy only after the release owner approves the target environment. Local commands in this checkpoint are dry-run or local preview only.
 - Wrangler config: `wrangler.jsonc`
 - OpenNext config: `open-next.config.ts`
@@ -31,7 +31,7 @@ Cloudflare resources currently configured in `wrangler.jsonc`:
 - Preview Worker host: `https://serp-dr-preview.serpcompany.workers.dev`
 - Production D1 name: `serp-dr-prod`
 - Production D1 ID: `0a6e5e69-60e4-4145-a84a-3f8c9177ad0c`
-- Current production Worker version validated after custom domain deploy: `db2a76fb-1be5-4f8a-bacb-376d4457da80`
+- Current production Worker version validated after legacy dependency cleanup: `4537d431-d96b-4bf4-ac46-c3f0096f9111`
 
 Target D1 database names:
 
@@ -64,7 +64,7 @@ Operator scripts can target a deployed Worker by setting:
 - `DR_ADMIN_BASE_URL`: preview or production Worker origin for admin maintenance scripts.
 - `DR_ADMIN_TOKEN`: admin API token, sent as `x-admin-token`.
 
-Later checkpoints should confirm whether these existing Vercel/Node env vars remain needed on Cloudflare:
+Optional Worker/operator env vars:
 
 - `FROGDR_SESSION`
 - `NEXT_PUBLIC_BASE_URL`
@@ -101,10 +101,9 @@ npm run cf:preview:dry-run
 npm run cf:deploy:dry-run
 npm run cf:audit
 npm run routes:manifest
-npm run d1:export
 ```
 
-Do not run remote D1 apply/import/export commands without explicit approval in the current conversation. Do not run direct database shell commands against Neon, D1 preview, or D1 production.
+Do not run remote D1 apply/import/export commands without explicit approval in the current conversation. Do not run direct database shell commands against D1 preview or D1 production.
 
 Use strict audit mode only after replacing environment placeholders:
 
@@ -161,19 +160,13 @@ Production apply requires explicit approval first and must happen only after pre
 npx wrangler d1 migrations apply SERP_DR_DB --env production --remote
 ```
 
-Data import flow for a later checkpoint:
+Historical data import flow:
 
-- Export source data through project-owned scripts or ORM-safe code, not ad-hoc direct database shell commands:
-
-```sh
-npm run d1:export
-```
-
-- The export writes `./tmp/d1-migration/<prefix>.json` and `./tmp/d1-migration/<prefix>.sql`.
-- Validate row counts and representative records before import.
+- Source export/import completed during cutover.
+- Validate row counts and representative records before any future import.
 - Get explicit approval before any D1 remote import.
 - Import preview first, validate app reads/writes and Stripe idempotency, then request approval for production.
-- Clean `./tmp/` artifacts before ending the import task.
+- Clean `./tmp/` artifacts before ending any import task.
 
 Preview import requires explicit approval first:
 
@@ -194,11 +187,11 @@ Latest import artifact:
 - Imported rows: 77 claims, 537 DR checks, 0 subscriptions, 0 billing audit rows.
 - Preview import completed against `serp-dr-preview`.
 - Production import completed against `serp-dr-prod`.
-- Repo-local `./tmp/d1-migration/` artifacts were cleaned after successful cutover validation; rerun `npm run d1:export` if a fresh import artifact is needed.
+- Repo-local `./tmp/d1-migration/` artifacts were cleaned after successful cutover validation.
 
 ## Operator maintenance
 
-These scripts prefer the Worker admin API when `DR_ADMIN_BASE_URL` or `DR_PUBLIC_BASE_URL` and `DR_ADMIN_TOKEN` are set. Without those vars they use the project DB API for local development only.
+These scripts prefer the Worker admin API when `DR_ADMIN_BASE_URL` or `DR_PUBLIC_BASE_URL` and `DR_ADMIN_TOKEN` are set. Without those vars they use the local project DB API only.
 
 - `npm run billing:reconcile`: compare Stripe subscriptions to app subscription records.
 - `npm run billing:prune-audit -- --days 180`: dry-run billing audit retention.
@@ -227,10 +220,8 @@ BASE_A_URL=https://dr.serp.co BASE_B_URL=https://<preview-host> npm run routes:p
 
 ## Rollback
 
-- Keep Vercel production, Neon/Postgres, and Redis available through the Cloudflare observation window.
-- If Cloudflare preview or production fails before DNS cutover, stop Cloudflare deploys and leave Vercel serving traffic.
-- If failure occurs after DNS cutover, detach the Worker custom domain, route traffic back to the existing Vercel target, and pause additional Stripe webhook changes.
-- Do not delete Neon, Redis, Vercel env vars, or Vercel project config until production Cloudflare traffic is stable and rollback is no longer required.
+- Roll back application code with `wrangler rollback` to a known-good Worker version.
+- If a deploy breaks hostname routing, detach or replace the Worker custom domain only after confirming the intended fallback target.
 - D1 migrations are forward-only operationally; restore from D1 backup/export only after approval and incident notes identify the restore target.
 
 ## Cutover checklist
@@ -240,10 +231,10 @@ BASE_A_URL=https://dr.serp.co BASE_B_URL=https://<preview-host> npm run routes:p
 - Done: install required Cloudflare secrets for preview and production.
 - Done: run `npm run test`, `npm run build` via OpenNext, `npm run cf:types`, `npm run cf:audit -- --strict --pretty`, and dry-run deploy checks.
 - Done: apply D1 migrations to preview and production.
-- Done: export source data with `npm run d1:export`.
+- Done: export source data and remove the old source export script after cutover.
 - Done: import preview and production data.
 - Done: deploy preview and production Workers.
 - Done: validate production Worker through Cloudflare edge using forced resolution before DNS cutover.
-- Done: update Cloudflare DNS for `dr.serp.co` so traffic reaches the Worker custom domain instead of Vercel.
+- Done: update Cloudflare DNS for `dr.serp.co` so traffic reaches the Worker custom domain.
 - Done: confirm Stripe has an enabled webhook endpoint at `https://dr.serp.co/api/stripe/webhook` with the required event set.
-- Pending: monitor live Cloudflare traffic and keep rollback systems online through the observation window.
+- Pending: monitor live Cloudflare traffic, Stripe webhook delivery, and D1 audit rows after real billing events.

@@ -13,7 +13,6 @@ const requiredFiles = [
   "scripts/generate-route-manifest.mjs",
   "scripts/compare-route-parity.mjs",
   "scripts/d1-migration-data.mjs",
-  "scripts/export-d1-migration-data.mjs",
 ]
 
 const requiredPackageScripts = [
@@ -24,7 +23,6 @@ const requiredPackageScripts = [
   "cf:types",
   "routes:manifest",
   "routes:parity",
-  "d1:export",
   "billing:prune-audit",
   "billing:reconcile",
   "webhook:health",

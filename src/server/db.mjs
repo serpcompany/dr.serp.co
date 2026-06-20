@@ -1,32 +1,18 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare"
-import { neon } from "@neondatabase/serverless"
 import { isValidDomainTarget } from "./domain-target.mjs"
 
-const connectionString =
-  process.env.POSTGRES_URL ||
-  process.env.POSTGRES_URL_NON_POOLING ||
-  process.env.DATABASE_URL ||
-  process.env.DATABASE_URL_UNPOOLED ||
-  process.env.STORAGE_URL ||
-  process.env.STORAGE_URL_NON_POOLING
-
-let sql = null
-try {
-  if (typeof connectionString === "string" && connectionString.trim()) {
-    sql = neon(connectionString)
-  }
-} catch {
-  sql = null
-}
-
-if (!sql && process.env.NODE_ENV === "production") {
-  sql = async () => {
-    throw new Error("Persistent database is not configured. Bind SERP_DR_DB or configure Postgres before serving production traffic.")
-  }
-}
-
-const hasDb = Boolean(sql)
 const D1_BINDING_NAME = "SERP_DR_DB"
+
+function canUseFallbackStore() {
+  return process.env.NODE_ENV !== "production"
+}
+
+/**
+ * @returns {never}
+ */
+function persistentDatabaseUnavailable() {
+  throw new Error(`Persistent database is not configured. Bind ${D1_BINDING_NAME} before serving production traffic.`)
+}
 
 function getD1Database() {
   try {
@@ -68,7 +54,7 @@ const fallbackSubscriptions = fallbackStore.subscriptions
 /** @type {Array<any>} */
 const fallbackBillingAudit = fallbackStore.billingAudit
 
-const persistEnabled = !hasDb && process.env.NODE_ENV !== "production"
+const persistEnabled = canUseFallbackStore()
 const persistDir = `${process.cwd()}/.cache`
 const persistPath = `${persistDir}/dr-fallback.json`
 const persistTimerKey = "__dr_serp_fallback_persist_timer__"
@@ -358,79 +344,6 @@ async function d1Batch(db, statements) {
   return results
 }
 
-async function ensureTables() {
-  if (!hasDb) return
-  await sql`
-    CREATE TABLE IF NOT EXISTS dr_claims (
-      domain TEXT PRIMARY KEY,
-      email TEXT,
-      domain_rating INT,
-      provider TEXT,
-      site_title TEXT,
-      meta_description TEXT,
-      site_url TEXT,
-      screenshot_url TEXT,
-      claimed_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `
-  await sql`ALTER TABLE dr_claims ADD COLUMN IF NOT EXISTS site_title TEXT`
-  await sql`ALTER TABLE dr_claims ADD COLUMN IF NOT EXISTS meta_description TEXT`
-  await sql`ALTER TABLE dr_claims ADD COLUMN IF NOT EXISTS site_url TEXT`
-  await sql`ALTER TABLE dr_claims ADD COLUMN IF NOT EXISTS screenshot_url TEXT`
-  await sql`
-    CREATE TABLE IF NOT EXISTS dr_checks (
-      id BIGSERIAL PRIMARY KEY,
-      domain TEXT NOT NULL,
-      domain_rating INT NOT NULL,
-      provider TEXT,
-      checked_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `
-  await sql`CREATE INDEX IF NOT EXISTS dr_checks_domain_checked_at_idx ON dr_checks (domain, checked_at DESC)`
-  await sql`
-    CREATE TABLE IF NOT EXISTS dr_subscriptions (
-      id BIGSERIAL PRIMARY KEY,
-      email TEXT NOT NULL,
-      stripe_customer_id TEXT,
-      stripe_subscription_id TEXT UNIQUE,
-      stripe_price_id TEXT,
-      billing_interval TEXT,
-      domains_limit INT,
-      status TEXT,
-      current_period_end TIMESTAMPTZ,
-      cancel_at_period_end BOOLEAN DEFAULT FALSE,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `
-  await sql`CREATE INDEX IF NOT EXISTS dr_subscriptions_email_idx ON dr_subscriptions (email)`
-  await sql`CREATE INDEX IF NOT EXISTS dr_subscriptions_customer_idx ON dr_subscriptions (stripe_customer_id)`
-  await sql`
-    CREATE TABLE IF NOT EXISTS dr_billing_audit (
-      id BIGSERIAL PRIMARY KEY,
-      stripe_event_id TEXT UNIQUE,
-      stripe_event_type TEXT NOT NULL,
-      stripe_customer_id TEXT,
-      stripe_subscription_id TEXT,
-      stripe_price_id TEXT,
-      email TEXT,
-      billing_interval TEXT,
-      domains_limit INT,
-      status TEXT,
-      current_period_end TIMESTAMPTZ,
-      cancel_at_period_end BOOLEAN DEFAULT FALSE,
-      event_created_at TIMESTAMPTZ,
-      success BOOLEAN DEFAULT TRUE,
-      error TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `
-  await sql`CREATE INDEX IF NOT EXISTS dr_billing_audit_email_idx ON dr_billing_audit (email)`
-  await sql`CREATE INDEX IF NOT EXISTS dr_billing_audit_subscription_idx ON dr_billing_audit (stripe_subscription_id)`
-  await sql`CREATE INDEX IF NOT EXISTS dr_billing_audit_created_idx ON dr_billing_audit (created_at DESC)`
-}
-
 /**
  * @param {string} domain
  */
@@ -451,18 +364,12 @@ export async function getClaim(domain) {
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const row = fallbackClaims.get(domain)
     return row || null
   }
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    SELECT domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
-    FROM dr_claims
-    WHERE domain = ${domain}
-    LIMIT 1
-  `)
-  return rows[0] || null
+
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -491,7 +398,7 @@ export async function upsertClaim({ domain, email = null, domainRating, provider
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const now = new Date()
     const previous = fallbackClaims.get(domain)
     const claimedAt = previous?.claimed_at || now
@@ -511,19 +418,8 @@ export async function upsertClaim({ domain, email = null, domainRating, provider
     schedulePersist()
     return next
   }
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    INSERT INTO dr_claims (domain, email, domain_rating, provider)
-    VALUES (${domain}, ${email}, ${domainRating}, ${provider})
-    ON CONFLICT (domain)
-    DO UPDATE SET
-      email = COALESCE(EXCLUDED.email, dr_claims.email),
-      domain_rating = EXCLUDED.domain_rating,
-      provider = EXCLUDED.provider,
-      updated_at = NOW()
-    RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
-  `)
-  return rows[0] || null
+
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -551,7 +447,7 @@ export async function setClaimEmail({ domain, email }) {
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const now = new Date()
     const previous = fallbackClaims.get(domain)
     const claimedAt = previous?.claimed_at || now
@@ -571,17 +467,8 @@ export async function setClaimEmail({ domain, email }) {
     schedulePersist()
     return next
   }
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    INSERT INTO dr_claims (domain, email)
-    VALUES (${domain}, ${email})
-    ON CONFLICT (domain)
-    DO UPDATE SET
-      email = EXCLUDED.email,
-      updated_at = NOW()
-    RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
-  `)
-  return rows[0] || null
+
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -610,7 +497,7 @@ export async function clearClaimEmail({ domain, email }) {
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const previous = fallbackClaims.get(normalizedDomain)
     if (!previous) return null
     if (String(previous.email ?? "").trim().toLowerCase() !== normalizedEmail) return previous
@@ -625,14 +512,7 @@ export async function clearClaimEmail({ domain, email }) {
     return next
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    UPDATE dr_claims
-    SET email = NULL, updated_at = NOW()
-    WHERE domain = ${normalizedDomain} AND email = ${normalizedEmail}
-    RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
-  `)
-  return rows[0] || null
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -663,7 +543,7 @@ export async function touchDomain(domain) {
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const now = new Date()
     const previous = fallbackClaims.get(normalized)
     const claimedAt = previous?.claimed_at || now
@@ -684,16 +564,7 @@ export async function touchDomain(domain) {
     return next
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    INSERT INTO dr_claims (domain)
-    VALUES (${normalized})
-    ON CONFLICT (domain)
-    DO UPDATE SET
-      updated_at = NOW()
-    RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
-  `)
-  return rows[0] || null
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -739,7 +610,7 @@ export async function setClaimSiteMetadata({
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const now = new Date()
     const previous = fallbackClaims.get(normalizedDomain)
     const claimedAt = previous?.claimed_at || now
@@ -760,20 +631,7 @@ export async function setClaimSiteMetadata({
     return next
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    INSERT INTO dr_claims (domain, site_title, meta_description, site_url, screenshot_url)
-    VALUES (${normalizedDomain}, ${siteTitle}, ${metaDescription}, ${siteUrl}, ${screenshotUrl})
-    ON CONFLICT (domain)
-    DO UPDATE SET
-      site_title = COALESCE(EXCLUDED.site_title, dr_claims.site_title),
-      meta_description = COALESCE(EXCLUDED.meta_description, dr_claims.meta_description),
-      site_url = COALESCE(EXCLUDED.site_url, dr_claims.site_url),
-      screenshot_url = COALESCE(EXCLUDED.screenshot_url, dr_claims.screenshot_url),
-      updated_at = NOW()
-    RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
-  `)
-  return rows[0] || null
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -798,7 +656,7 @@ export async function recordDrCheck({ domain, domainRating, provider = null, che
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const safeRating = clampDr(domainRating)
     if (safeRating === null) return null
     const list = fallbackChecks.get(domain) || []
@@ -815,13 +673,8 @@ export async function recordDrCheck({ domain, domainRating, provider = null, che
     schedulePersist()
     return { id: null, domain, ...next }
   }
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    INSERT INTO dr_checks (domain, domain_rating, provider, checked_at)
-    VALUES (${domain}, ${domainRating}, ${provider}, COALESCE(${checkedAt}, NOW()))
-    RETURNING id, domain, domain_rating, provider, checked_at
-  `)
-  return rows[0] || null
+
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -880,7 +733,7 @@ export async function recordDrHistoryChecks({ domain, points, provider = "ahrefs
     return recorded
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const list = fallbackChecks.get(normalizedDomain) || []
     for (const point of normalizedPoints) {
       const checkedAtMs = point.checked_at.getTime()
@@ -912,23 +765,7 @@ export async function recordDrHistoryChecks({ domain, points, provider = "ahrefs
     }))
   }
 
-  await ensureTables()
-  const recorded = []
-  for (const point of normalizedPoints) {
-    await sql`
-      DELETE FROM dr_checks
-      WHERE domain = ${normalizedDomain}
-        AND provider IS NOT DISTINCT FROM ${point.provider}
-        AND checked_at = ${point.checked_at}
-    `
-    const rows = rowsFrom(await sql`
-      INSERT INTO dr_checks (domain, domain_rating, provider, checked_at)
-      VALUES (${normalizedDomain}, ${point.domain_rating}, ${point.provider}, ${point.checked_at})
-      RETURNING id, domain, domain_rating, provider, checked_at
-    `)
-    if (rows[0]) recorded.push(rows[0])
-  }
-  return recorded
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -954,22 +791,14 @@ export async function getDrChecks(domain, opts = {}) {
     return rows.reverse()
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const list = fallbackChecks.get(domain) || []
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
     const sorted = list.slice().sort((a, b) => a.checked_at.getTime() - b.checked_at.getTime())
     return sorted.slice(Math.max(0, sorted.length - limit))
   }
-  await ensureTables()
-  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
-  const rows = rowsFrom(await sql`
-    SELECT domain_rating, provider, checked_at
-    FROM dr_checks
-    WHERE domain = ${domain}
-    ORDER BY checked_at DESC
-    LIMIT ${limit}
-  `)
-  return rows.reverse()
+
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -997,7 +826,7 @@ export async function listDrChecks(opts = {}) {
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const rows = []
     for (const [checkDomain, list] of fallbackChecks.entries()) {
       if (domain && checkDomain !== domain) continue
@@ -1018,16 +847,7 @@ export async function listDrChecks(opts = {}) {
     return rows.slice(offset, offset + limit)
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    SELECT domain, domain_rating, provider, checked_at
-    FROM dr_checks
-    WHERE ${domain === null} OR domain = ${domain}
-    ORDER BY checked_at ASC, id ASC
-    LIMIT ${limit}
-    OFFSET ${offset}
-  `)
-  return rows
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -1066,7 +886,7 @@ export async function listClaims(opts = {}) {
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
     const q = String(opts.query ?? "").trim().toLowerCase()
@@ -1105,35 +925,8 @@ export async function listClaims(opts = {}) {
       updated_at: row.updated_at.toISOString(),
     }))
   }
-  await ensureTables()
 
-  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
-  const q = String(opts.query ?? "").trim()
-  const pattern = q ? `%${q}%` : null
-  const sort = opts.sort === "updated" ? "updated" : "dr"
-
-  const result =
-    sort === "updated"
-      ? await sql`
-          SELECT domain, domain_rating, updated_at
-               , site_title, meta_description, site_url, screenshot_url
-          FROM dr_claims
-          WHERE ${pattern === null} OR domain ILIKE ${pattern}
-          ORDER BY updated_at DESC NULLS LAST, domain ASC
-          LIMIT ${limit}
-          OFFSET ${offset}
-        `
-      : await sql`
-          SELECT domain, domain_rating, updated_at
-               , site_title, meta_description, site_url, screenshot_url
-          FROM dr_claims
-          WHERE ${pattern === null} OR domain ILIKE ${pattern}
-          ORDER BY domain_rating DESC NULLS LAST, updated_at DESC NULLS LAST, domain ASC
-          LIMIT ${limit}
-          OFFSET ${offset}
-        `
-  return rowsFrom(result)
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -1157,7 +950,7 @@ export async function countClaims(opts = {}) {
     return Number(row?.count) || 0
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const q = String(opts.query ?? "").trim().toLowerCase()
     if (!q) return fallbackClaims.size
     let count = 0
@@ -1166,17 +959,8 @@ export async function countClaims(opts = {}) {
     }
     return count
   }
-  await ensureTables()
 
-  const q = String(opts.query ?? "").trim()
-  const pattern = q ? `%${q}%` : null
-
-  const rows = rowsFrom(await sql`
-    SELECT COUNT(*)::int AS count
-    FROM dr_claims
-    WHERE ${pattern === null} OR domain ILIKE ${pattern}
-  `)
-  return Number(rows?.[0]?.count) || 0
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -1212,7 +996,7 @@ export async function listClaimRows(opts = {}) {
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     return Array.from(fallbackClaims.values())
       .slice()
       .sort((a, b) => String(a.domain).localeCompare(String(b.domain)))
@@ -1231,25 +1015,7 @@ export async function listClaimRows(opts = {}) {
       }))
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    SELECT
-      domain,
-      email,
-      domain_rating,
-      provider,
-      site_title,
-      meta_description,
-      site_url,
-      screenshot_url,
-      claimed_at,
-      updated_at
-    FROM dr_claims
-    ORDER BY domain ASC
-    LIMIT ${limit}
-    OFFSET ${offset}
-  `)
-  return rows
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -1291,7 +1057,7 @@ export async function listClaimsByEmail(opts) {
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
     const q = String(opts.query ?? "").trim().toLowerCase()
@@ -1332,36 +1098,7 @@ export async function listClaimsByEmail(opts) {
     }))
   }
 
-  await ensureTables()
-
-  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
-  const q = String(opts.query ?? "").trim()
-  const pattern = q ? `%${q}%` : null
-  const sort = opts.sort === "updated" ? "updated" : "dr"
-
-  const result =
-    sort === "updated"
-      ? await sql`
-          SELECT domain, domain_rating, updated_at
-               , site_title, meta_description, site_url, screenshot_url
-          FROM dr_claims
-          WHERE email = ${email} AND (${pattern === null} OR domain ILIKE ${pattern})
-          ORDER BY updated_at DESC NULLS LAST, domain ASC
-          LIMIT ${limit}
-          OFFSET ${offset}
-        `
-      : await sql`
-          SELECT domain, domain_rating, updated_at
-               , site_title, meta_description, site_url, screenshot_url
-          FROM dr_claims
-          WHERE email = ${email} AND (${pattern === null} OR domain ILIKE ${pattern})
-          ORDER BY domain_rating DESC NULLS LAST, updated_at DESC NULLS LAST, domain ASC
-          LIMIT ${limit}
-          OFFSET ${offset}
-        `
-
-  return rowsFrom(result)
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -1388,7 +1125,7 @@ export async function countClaimsByEmail(opts) {
     return Number(row?.count) || 0
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const q = String(opts.query ?? "").trim().toLowerCase()
     let count = 0
     for (const row of fallbackClaims.values()) {
@@ -1399,17 +1136,7 @@ export async function countClaimsByEmail(opts) {
     return count
   }
 
-  await ensureTables()
-
-  const q = String(opts.query ?? "").trim()
-  const pattern = q ? `%${q}%` : null
-
-  const rows = rowsFrom(await sql`
-    SELECT COUNT(*)::int AS count
-    FROM dr_claims
-    WHERE email = ${email} AND (${pattern === null} OR domain ILIKE ${pattern})
-  `)
-  return Number(rows?.[0]?.count) || 0
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -1517,7 +1244,7 @@ export async function listSites(opts = {}) {
     return rows.slice(offset, offset + limit)
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
     const q = String(opts.query ?? "").trim().toLowerCase()
@@ -1577,69 +1304,7 @@ export async function listSites(opts = {}) {
     return filtered.slice(offset, offset + limit)
   }
 
-  await ensureTables()
-
-  const q = String(opts.query ?? "").trim()
-  const pattern = q ? `%${q}%` : null
-  const sort = opts.sort === "updated" ? "updated" : "dr"
-
-  const rawRows = rowsFrom(
-    sort === "updated"
-      ? await sql`
-          SELECT
-            d.domain,
-            COALESCE(c.domain_rating, cl.domain_rating) AS domain_rating,
-            cl.site_title,
-            cl.meta_description,
-            cl.site_url,
-            cl.screenshot_url,
-            GREATEST(c.updated_at, cl.updated_at) AS updated_at
-          FROM (
-            SELECT domain FROM dr_claims
-            UNION
-            SELECT domain FROM dr_checks
-          ) d
-          LEFT JOIN LATERAL (
-            SELECT domain_rating, checked_at AS updated_at
-            FROM dr_checks
-            WHERE domain = d.domain
-            ORDER BY checked_at DESC
-            LIMIT 1
-          ) c ON true
-          LEFT JOIN dr_claims cl ON cl.domain = d.domain
-          WHERE ${pattern === null} OR d.domain ILIKE ${pattern}
-          ORDER BY updated_at DESC NULLS LAST, d.domain ASC
-        `
-      : await sql`
-          SELECT
-            d.domain,
-            COALESCE(c.domain_rating, cl.domain_rating) AS domain_rating,
-            cl.site_title,
-            cl.meta_description,
-            cl.site_url,
-            cl.screenshot_url,
-            GREATEST(c.updated_at, cl.updated_at) AS updated_at
-          FROM (
-            SELECT domain FROM dr_claims
-            UNION
-            SELECT domain FROM dr_checks
-          ) d
-          LEFT JOIN LATERAL (
-            SELECT domain_rating, checked_at AS updated_at
-            FROM dr_checks
-            WHERE domain = d.domain
-            ORDER BY checked_at DESC
-            LIMIT 1
-          ) c ON true
-          LEFT JOIN dr_claims cl ON cl.domain = d.domain
-          WHERE ${pattern === null} OR d.domain ILIKE ${pattern}
-          ORDER BY domain_rating DESC NULLS LAST, updated_at DESC NULLS LAST, d.domain ASC
-        `
-  )
-  const rows = filterValidSiteRows(rawRows)
-  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
-  return rows.slice(offset, offset + limit)
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -1667,7 +1332,7 @@ export async function countSites(opts = {}) {
     return filterValidSiteRows(rows).length
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const q = String(opts.query ?? "").trim().toLowerCase()
     const domains = Array.from(new Set([...fallbackChecks.keys(), ...fallbackClaims.keys()])).filter((domain) =>
       isValidDomainTarget(domain)
@@ -1680,21 +1345,7 @@ export async function countSites(opts = {}) {
     return count
   }
 
-  await ensureTables()
-
-  const q = String(opts.query ?? "").trim()
-  const pattern = q ? `%${q}%` : null
-
-  const rows = rowsFrom(await sql`
-    SELECT domain
-    FROM (
-      SELECT domain FROM dr_claims
-      UNION
-      SELECT domain FROM dr_checks
-    ) d
-    WHERE ${pattern === null} OR d.domain ILIKE ${pattern}
-  `)
-  return filterValidSiteRows(rows).length
+  return persistentDatabaseUnavailable()
 }
 
 export async function purgeInvalidSiteDomains(opts = {}) {
@@ -1796,25 +1447,15 @@ export async function purgeInvalidSiteDomains(opts = {}) {
             .filter((domain) => domain && !isValidDomainTarget(domain))
         )
       )
-    : hasDb
+    : canUseFallbackStore()
       ? Array.from(
-          new Set(
-            rowsFrom(await sql`
-              SELECT domain FROM dr_claims
-              UNION
-              SELECT domain FROM dr_checks
-            `)
-              .map((row) => String(row?.domain ?? "").trim().toLowerCase())
-              .filter((domain) => domain && !isValidDomainTarget(domain))
-          )
-        )
-      : Array.from(
           new Set(
             [...fallbackClaims.keys(), ...fallbackChecks.keys()]
               .map((domain) => String(domain ?? "").trim().toLowerCase())
               .filter((domain) => domain && !isValidDomainTarget(domain))
           )
         )
+      : persistentDatabaseUnavailable()
 
   if (!invalidDomains.length) {
     return {
@@ -1826,27 +1467,7 @@ export async function purgeInvalidSiteDomains(opts = {}) {
   }
 
   if (dryRun) {
-    if (hasDb) {
-      await ensureTables()
-      let claimCount = 0
-      let checkCount = 0
-      for (const domain of invalidDomains) {
-        const claimRows = rowsFrom(await sql`
-          SELECT domain
-          FROM dr_claims
-          WHERE domain = ${domain}
-        `)
-        const checkRows = rowsFrom(await sql`
-          SELECT id
-          FROM dr_checks
-          WHERE domain = ${domain}
-        `)
-        claimCount += claimRows.length
-        checkCount += checkRows.length
-      }
-      return { claimCount, checkCount, domains: invalidDomains, dryRun }
-    }
-
+    if (!canUseFallbackStore()) persistentDatabaseUnavailable()
     return {
       claimCount: invalidDomains.filter((domain) => fallbackClaims.has(domain)).length,
       checkCount: invalidDomains.filter((domain) => fallbackChecks.has(domain)).length,
@@ -1855,7 +1476,7 @@ export async function purgeInvalidSiteDomains(opts = {}) {
     }
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     let claimCount = 0
     let checkCount = 0
     for (const domain of invalidDomains) {
@@ -1866,26 +1487,7 @@ export async function purgeInvalidSiteDomains(opts = {}) {
     return { claimCount, checkCount, domains: invalidDomains, dryRun }
   }
 
-  await ensureTables()
-  let claimCount = 0
-  let checkCount = 0
-
-  for (const domain of invalidDomains) {
-    const deletedChecks = rowsFrom(await sql`
-      DELETE FROM dr_checks
-      WHERE domain = ${domain}
-      RETURNING id
-    `)
-    const deletedClaims = rowsFrom(await sql`
-      DELETE FROM dr_claims
-      WHERE domain = ${domain}
-      RETURNING domain
-    `)
-    checkCount += deletedChecks.length
-    claimCount += deletedClaims.length
-  }
-
-  return { claimCount, checkCount, domains: invalidDomains, dryRun }
+  return persistentDatabaseUnavailable()
 }
 
 function normalizeEmail(value) {
@@ -1981,7 +1583,7 @@ export async function upsertSubscription({
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const now = new Date()
     const previous = fallbackSubscriptions.get(subscriptionId)
     const next = {
@@ -2003,55 +1605,7 @@ export async function upsertSubscription({
     return next
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    INSERT INTO dr_subscriptions (
-      email,
-      stripe_customer_id,
-      stripe_subscription_id,
-      stripe_price_id,
-      billing_interval,
-      domains_limit,
-      status,
-      current_period_end,
-      cancel_at_period_end
-    )
-    VALUES (
-      ${normalizedEmail},
-      ${stripeCustomerId},
-      ${subscriptionId},
-      ${stripePriceId},
-      ${billingInterval},
-      ${domainsLimit},
-      ${status},
-      ${currentPeriodEnd},
-      ${cancelAtPeriodEnd}
-    )
-    ON CONFLICT (stripe_subscription_id)
-    DO UPDATE SET
-      email = COALESCE(EXCLUDED.email, dr_subscriptions.email),
-      stripe_customer_id = COALESCE(EXCLUDED.stripe_customer_id, dr_subscriptions.stripe_customer_id),
-      stripe_price_id = COALESCE(EXCLUDED.stripe_price_id, dr_subscriptions.stripe_price_id),
-      billing_interval = COALESCE(EXCLUDED.billing_interval, dr_subscriptions.billing_interval),
-      domains_limit = COALESCE(EXCLUDED.domains_limit, dr_subscriptions.domains_limit),
-      status = COALESCE(EXCLUDED.status, dr_subscriptions.status),
-      current_period_end = COALESCE(EXCLUDED.current_period_end, dr_subscriptions.current_period_end),
-      cancel_at_period_end = COALESCE(EXCLUDED.cancel_at_period_end, dr_subscriptions.cancel_at_period_end),
-      updated_at = NOW()
-    RETURNING
-      email,
-      stripe_customer_id,
-      stripe_subscription_id,
-      stripe_price_id,
-      billing_interval,
-      domains_limit,
-      status,
-      current_period_end,
-      cancel_at_period_end,
-      created_at,
-      updated_at
-  `)
-  return rows[0] || null
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -2092,7 +1646,7 @@ export async function getActiveSubscriptionByEmail(email) {
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const matches = Array.from(fallbackSubscriptions.values()).filter(
       (row) => row.email === normalizedEmail && ["active", "trialing"].includes(row.status)
     )
@@ -2101,28 +1655,7 @@ export async function getActiveSubscriptionByEmail(email) {
     return matches[0] || null
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    SELECT
-      email,
-      stripe_customer_id,
-      stripe_subscription_id,
-      stripe_price_id,
-      billing_interval,
-      domains_limit,
-      status,
-      current_period_end,
-      cancel_at_period_end,
-      created_at,
-      updated_at
-    FROM dr_subscriptions
-    WHERE email = ${normalizedEmail}
-      AND status IN ('active', 'trialing')
-      AND (current_period_end IS NULL OR current_period_end > NOW())
-    ORDER BY updated_at DESC
-    LIMIT 1
-  `)
-  return rows[0] || null
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -2161,33 +1694,14 @@ export async function getLatestSubscriptionByEmail(email) {
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const matches = Array.from(fallbackSubscriptions.values()).filter((row) => row.email === normalizedEmail)
     if (!matches.length) return null
     matches.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     return matches[0] || null
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    SELECT
-      email,
-      stripe_customer_id,
-      stripe_subscription_id,
-      stripe_price_id,
-      billing_interval,
-      domains_limit,
-      status,
-      current_period_end,
-      cancel_at_period_end,
-      created_at,
-      updated_at
-    FROM dr_subscriptions
-    WHERE email = ${normalizedEmail}
-    ORDER BY updated_at DESC
-    LIMIT 1
-  `)
-  return rows[0] || null
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -2227,34 +1741,14 @@ export async function listSubscriptions(opts = {}) {
     return rows.map(normalizeD1SubscriptionRow)
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     let rows = Array.from(fallbackSubscriptions.values())
     if (email) rows = rows.filter((row) => row.email === email)
     rows.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     return rows.slice(offset, offset + limit)
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    SELECT
-      email,
-      stripe_customer_id,
-      stripe_subscription_id,
-      stripe_price_id,
-      billing_interval,
-      domains_limit,
-      status,
-      current_period_end,
-      cancel_at_period_end,
-      created_at,
-      updated_at
-    FROM dr_subscriptions
-    WHERE ${email === null} OR email = ${email}
-    ORDER BY updated_at DESC
-    LIMIT ${limit}
-    OFFSET ${offset}
-  `)
-  return rows
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -2372,7 +1866,7 @@ export async function insertBillingAudit({
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const createdAt = new Date()
     const entry = {
       stripe_event_id: stripeEventId ?? null,
@@ -2398,74 +1892,7 @@ export async function insertBillingAudit({
     return entry
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    INSERT INTO dr_billing_audit (
-      stripe_event_id,
-      stripe_event_type,
-      stripe_customer_id,
-      stripe_subscription_id,
-      stripe_price_id,
-      email,
-      billing_interval,
-      domains_limit,
-      status,
-      current_period_end,
-      cancel_at_period_end,
-      event_created_at,
-      success,
-      error
-    )
-    VALUES (
-      ${stripeEventId},
-      ${stripeEventType},
-      ${stripeCustomerId},
-      ${stripeSubscriptionId},
-      ${stripePriceId},
-      ${email ? normalizeEmail(email) : null},
-      ${billingInterval},
-      ${domainsLimit},
-      ${status},
-      ${currentPeriodEnd},
-      ${cancelAtPeriodEnd},
-      ${eventCreatedAt},
-      ${success},
-      ${error}
-    )
-    ON CONFLICT (stripe_event_id)
-    DO UPDATE SET
-      stripe_event_type = EXCLUDED.stripe_event_type,
-      stripe_customer_id = COALESCE(EXCLUDED.stripe_customer_id, dr_billing_audit.stripe_customer_id),
-      stripe_subscription_id = COALESCE(EXCLUDED.stripe_subscription_id, dr_billing_audit.stripe_subscription_id),
-      stripe_price_id = COALESCE(EXCLUDED.stripe_price_id, dr_billing_audit.stripe_price_id),
-      email = COALESCE(EXCLUDED.email, dr_billing_audit.email),
-      billing_interval = COALESCE(EXCLUDED.billing_interval, dr_billing_audit.billing_interval),
-      domains_limit = COALESCE(EXCLUDED.domains_limit, dr_billing_audit.domains_limit),
-      status = COALESCE(EXCLUDED.status, dr_billing_audit.status),
-      current_period_end = COALESCE(EXCLUDED.current_period_end, dr_billing_audit.current_period_end),
-      cancel_at_period_end = COALESCE(EXCLUDED.cancel_at_period_end, dr_billing_audit.cancel_at_period_end),
-      event_created_at = COALESCE(EXCLUDED.event_created_at, dr_billing_audit.event_created_at),
-      success = COALESCE(EXCLUDED.success, dr_billing_audit.success),
-      error = COALESCE(EXCLUDED.error, dr_billing_audit.error),
-      created_at = NOW()
-    RETURNING
-      stripe_event_id,
-      stripe_event_type,
-      stripe_customer_id,
-      stripe_subscription_id,
-      stripe_price_id,
-      email,
-      billing_interval,
-      domains_limit,
-      status,
-      current_period_end,
-      cancel_at_period_end,
-      event_created_at,
-      success,
-      error,
-      created_at
-  `)
-  return rows[0] || null
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -2507,7 +1934,7 @@ export async function getLatestBillingAuditEvent(opts = {}) {
     )
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const rows =
       success === null ? [...fallbackBillingAudit] : fallbackBillingAudit.filter((row) => row.success === success)
     if (!rows.length) return null
@@ -2515,30 +1942,7 @@ export async function getLatestBillingAuditEvent(opts = {}) {
     return rows[0] || null
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    SELECT
-      stripe_event_id,
-      stripe_event_type,
-      stripe_customer_id,
-      stripe_subscription_id,
-      stripe_price_id,
-      email,
-      billing_interval,
-      domains_limit,
-      status,
-      current_period_end,
-      cancel_at_period_end,
-      event_created_at,
-      success,
-      error,
-      created_at
-    FROM dr_billing_audit
-    WHERE ${success === null} OR success = ${success}
-    ORDER BY created_at DESC
-    LIMIT 1
-  `)
-  return rows[0] || null
+  return persistentDatabaseUnavailable()
 }
 
 export async function getLatestBillingAuditFailure() {
@@ -2586,7 +1990,7 @@ export async function listBillingAudit(opts = {}) {
     return rows.map(normalizeD1BillingAuditRow)
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const rows = (success === null
       ? [...fallbackBillingAudit]
       : fallbackBillingAudit.filter((row) => row.success === success)
@@ -2601,31 +2005,7 @@ export async function listBillingAudit(opts = {}) {
     return rows
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    SELECT
-      stripe_event_id,
-      stripe_event_type,
-      stripe_customer_id,
-      stripe_subscription_id,
-      stripe_price_id,
-      email,
-      billing_interval,
-      domains_limit,
-      status,
-      current_period_end,
-      cancel_at_period_end,
-      event_created_at,
-      success,
-      error,
-      created_at
-    FROM dr_billing_audit
-    WHERE ${success === null} OR success = ${success}
-    ORDER BY created_at ASC, id ASC
-    LIMIT ${limit}
-    OFFSET ${offset}
-  `)
-  return rows
+  return persistentDatabaseUnavailable()
 }
 
 /**
@@ -2659,7 +2039,7 @@ export async function countPrunableBillingAudit(opts = {}) {
     return { count: Number(row?.count) || 0, cutoff }
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const count = fallbackBillingAudit.filter((row) => {
       const createdAt = row.created_at instanceof Date ? row.created_at : new Date(row.created_at)
       return Number.isFinite(createdAt.getTime()) && createdAt < cutoff
@@ -2667,13 +2047,7 @@ export async function countPrunableBillingAudit(opts = {}) {
     return { count, cutoff }
   }
 
-  await ensureTables()
-  const rows = rowsFrom(await sql`
-    SELECT COUNT(*)::int AS count
-    FROM dr_billing_audit
-    WHERE created_at < ${cutoff}
-  `)
-  return { count: Number(rows?.[0]?.count) || 0, cutoff }
+  return persistentDatabaseUnavailable()
 }
 
 export async function pruneBillingAudit(opts = {}) {
@@ -2693,7 +2067,7 @@ export async function pruneBillingAudit(opts = {}) {
     return { removed, cutoff }
   }
 
-  if (!hasDb) {
+  if (canUseFallbackStore()) {
     const before = fallbackBillingAudit.length
     const remaining = fallbackBillingAudit.filter((row) => {
       const createdAt = row.created_at instanceof Date ? row.created_at : new Date(row.created_at)
@@ -2704,11 +2078,5 @@ export async function pruneBillingAudit(opts = {}) {
     return { removed: before - fallbackBillingAudit.length, cutoff }
   }
 
-  await ensureTables()
-  const result = await sql`
-    DELETE FROM dr_billing_audit
-    WHERE created_at < ${cutoff}
-  `
-  const removed = Number(result?.rowCount ?? result?.count ?? 0)
-  return { removed, cutoff }
+  return persistentDatabaseUnavailable()
 }
