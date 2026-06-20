@@ -7,8 +7,8 @@ Status: production traffic for `dr.serp.co` is live on Cloudflare Workers/OpenNe
 - Production hostname: `dr.serp.co`
 - Production Worker name: `serp-dr`
 - Preview Worker name: `serp-dr-preview`
-- Production Worker route prepared in Cloudflare: `dr.serp.co/*` on zone `serp.co`.
-- Public DNS now resolves `dr.serp.co` through Cloudflare and normal requests return `server: cloudflare` with `x-opennext: 1`. Do not remove Vercel/Neon/Redis until after Cloudflare traffic is stable.
+- Production Worker custom domain: `dr.serp.co` on zone `serp.co`.
+- Public DNS now resolves `dr.serp.co` through Cloudflare and normal requests return `server: cloudflare` with `x-opennext: 1`. Worker hostname ownership is managed by the Wrangler custom domain entry, not a legacy `dr.serp.co/*` route. Do not remove Vercel/Neon/Redis until after Cloudflare traffic is stable.
 - Deployment authority: GitHub Actions or Wrangler may deploy only after the release owner approves the target environment. Local commands in this checkpoint are dry-run or local preview only.
 - Wrangler config: `wrangler.jsonc`
 - OpenNext config: `open-next.config.ts`
@@ -31,7 +31,7 @@ Cloudflare resources currently configured in `wrangler.jsonc`:
 - Preview Worker host: `https://serp-dr-preview.serpcompany.workers.dev`
 - Production D1 name: `serp-dr-prod`
 - Production D1 ID: `0a6e5e69-60e4-4145-a84a-3f8c9177ad0c`
-- Current production Worker version validated after DNS cutover: `19994859-979d-43ff-b74e-38d8b7043f82`
+- Current production Worker version validated after custom domain deploy: `db2a76fb-1be5-4f8a-bacb-376d4457da80`
 
 Target D1 database names:
 
@@ -229,14 +229,14 @@ BASE_A_URL=https://dr.serp.co BASE_B_URL=https://<preview-host> npm run routes:p
 
 - Keep Vercel production, Neon/Postgres, and Redis available through the Cloudflare observation window.
 - If Cloudflare preview or production fails before DNS cutover, stop Cloudflare deploys and leave Vercel serving traffic.
-- If failure occurs after DNS cutover, route traffic back to the existing Vercel target and pause additional Stripe webhook changes.
+- If failure occurs after DNS cutover, detach the Worker custom domain, route traffic back to the existing Vercel target, and pause additional Stripe webhook changes.
 - Do not delete Neon, Redis, Vercel env vars, or Vercel project config until production Cloudflare traffic is stable and rollback is no longer required.
 - D1 migrations are forward-only operationally; restore from D1 backup/export only after approval and incident notes identify the restore target.
 
 ## Cutover checklist
 
 - Done: replace all D1 placeholder names and IDs in `wrangler.jsonc`.
-- Done: confirm Cloudflare account `SERP`, zone `serp.co`, and prepared route `dr.serp.co/*`.
+- Done: confirm Cloudflare account `SERP`, zone `serp.co`, and custom domain target `dr.serp.co`.
 - Done: install required Cloudflare secrets for preview and production.
 - Done: run `npm run test`, `npm run build` via OpenNext, `npm run cf:types`, `npm run cf:audit -- --strict --pretty`, and dry-run deploy checks.
 - Done: apply D1 migrations to preview and production.
@@ -244,6 +244,6 @@ BASE_A_URL=https://dr.serp.co BASE_B_URL=https://<preview-host> npm run routes:p
 - Done: import preview and production data.
 - Done: deploy preview and production Workers.
 - Done: validate production Worker through Cloudflare edge using forced resolution before DNS cutover.
-- Done: update Cloudflare DNS for `dr.serp.co` so traffic reaches the Worker route instead of Vercel.
+- Done: update Cloudflare DNS for `dr.serp.co` so traffic reaches the Worker custom domain instead of Vercel.
 - Done: confirm Stripe has an enabled webhook endpoint at `https://dr.serp.co/api/stripe/webhook` with the required event set.
 - Pending: monitor live Cloudflare traffic and keep rollback systems online through the observation window.

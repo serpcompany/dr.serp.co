@@ -133,6 +133,13 @@ try {
   if (!wrangler.durable_objects?.bindings?.some((entry) => entry.name === "RATE_LIMITER")) {
     findings.push({ severity: "error", area: "wrangler", message: "RATE_LIMITER Durable Object binding is required" })
   }
+  const productionRoutes = wrangler.env?.production?.routes ?? []
+  if (!productionRoutes.some((entry) => entry.pattern === "dr.serp.co" && entry.custom_domain === true)) {
+    findings.push({ severity: "error", area: "wrangler", message: "Production must attach dr.serp.co as a custom domain" })
+  }
+  if (productionRoutes.some((entry) => entry.pattern === "dr.serp.co/*")) {
+    findings.push({ severity: "error", area: "wrangler", message: "Production must not use the legacy dr.serp.co/* Worker route" })
+  }
 
   const declaredSecrets = unique([
     ...(wrangler.secrets?.required ?? []),

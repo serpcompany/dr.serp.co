@@ -109,8 +109,8 @@
       "preview_urls": true,
       "routes": [
         {
-          "pattern": "dr.serp.co/*",
-          "zone_name": "serp.co"
+          "pattern": "dr.serp.co",
+          "custom_domain": true
         }
       ],
       "services": [
