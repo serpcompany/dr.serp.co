@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { normalizeTarget } from "@/server/dr-providers.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
+import { resolveRecheckCadence } from "@/server/recheck-cadence.mjs"
 import { BadgeEmbed } from "@/components/badges/badge-embed"
 import { ClaimClient } from "./claim-client"
 import { DrLineLabel } from "./dr-line-label"
@@ -56,10 +57,21 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
   const embedLinkUrl = `${embedBase}/sites/${encodeURIComponent(domain)}`
   const embedBadgeBase = process.env.DR_BADGE_BASE_URL || embedBase
   const embedBadgeUrl = `${embedBadgeBase}/badge/${encodeURIComponent(domain)}?style=serp-dr-v3`
-  const { chartPoints, domainRating, claimEmail, siteTitle, metaDescription, siteUrl, screenshotUrl, lookupError } =
+  const {
+    chartPoints,
+    domainRating,
+    lastCheckedAt,
+    claimEmail,
+    siteTitle,
+    metaDescription,
+    siteUrl,
+    screenshotUrl,
+    lookupError,
+  } =
     await getSitePageData(domain)
   const entitlement = claimEmail ? await resolveEntitlement({ email: claimEmail }) : null
   const isPaidLink = Boolean(entitlement?.canAccessPaidFeatures)
+  const recheckCadence = resolveRecheckCadence({ isPaid: isPaidLink, lastCheckedAt })
   const pageSiteTitle = getPageSiteTitle({ siteTitle, domain })
   const pageDescription = getPageSiteDescription({ metaDescription, domain })
   const outboundUrl = siteUrl || `https://${domain}`
@@ -105,7 +117,13 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <RecheckButton domain={domain} />
+            <RecheckButton
+              domain={domain}
+              canRecheck={recheckCadence.canRecheck}
+              nextAllowedAt={recheckCadence.nextAllowedAt?.toISOString() ?? null}
+              intervalDays={recheckCadence.intervalDays}
+              tier={recheckCadence.tier === "paid" ? "paid" : "free"}
+            />
             <ClaimClient domain={domain} claimEmail={claimEmail} />
           </div>
         </div>

@@ -1,5 +1,12 @@
-import { getClaim, getDrChecks, recordDrCheck, setClaimSiteMetadata, upsertClaim } from "@/server/db.mjs"
-import { fetchDomainRating } from "@/server/dr-providers.mjs"
+import {
+  getClaim,
+  getDrChecks,
+  recordDrCheck,
+  recordDrHistoryChecks,
+  setClaimSiteMetadata,
+  upsertClaim,
+} from "@/server/db.mjs"
+import { fetchDomainRating, fetchDomainRatingHistory } from "@/server/dr-providers.mjs"
 import { resolveSitePresentation } from "@/server/site-presentation.mjs"
 
 type ChartPoint = {
@@ -10,6 +17,7 @@ type ChartPoint = {
 type SiteSnapshot = {
   chartPoints: ChartPoint[]
   domainRating: number | null
+  lastCheckedAt: string | null
   claimEmail: string | null
   siteTitle: string | null
   metaDescription: string | null
@@ -60,7 +68,7 @@ export async function loadSiteSnapshot(domain: string): Promise<SiteSnapshot> {
   const storedChartPoints = chartPointsFromChecks(checks)
 
   let domainRating = claim ? clampDomainRating(claim.domain_rating) : null
-  let lastCheckedAt = claim?.updated_at ? new Date(claim.updated_at) : null
+  let lastCheckedAt: Date | null = null
 
   if (storedChartPoints.length > 0) {
     const last = storedChartPoints[storedChartPoints.length - 1]
@@ -68,9 +76,11 @@ export async function loadSiteSnapshot(domain: string): Promise<SiteSnapshot> {
     if (domainRating === null && lastValue !== null) {
       domainRating = lastValue
     }
-    if (!lastCheckedAt && last?.checkedAt) {
+    if (last?.checkedAt) {
       lastCheckedAt = new Date(last.checkedAt)
     }
+  } else if (domainRating !== null && claim?.updated_at) {
+    lastCheckedAt = new Date(claim.updated_at)
   }
 
   let chartPoints =
@@ -109,6 +119,25 @@ export async function loadSiteSnapshot(domain: string): Promise<SiteSnapshot> {
               domainRating: fetchedRating,
             },
           ]
+          if (provider === "ahrefs" || provider === "ahrefs-api" || Boolean(process.env.AHREFS_API_KEY)) {
+            try {
+              const history = await fetchDomainRatingHistory({ target: domain })
+              const recorded = await recordDrHistoryChecks({
+                domain,
+                provider: (history as any)?.provider ?? "ahrefs-history",
+                points: Array.isArray((history as any)?.points) ? (history as any).points : [],
+              })
+              chartPoints = chartPointsFromChecks([
+                ...recorded,
+                {
+                  checked_at: checkedAt,
+                  domain_rating: fetchedRating,
+                },
+              ])
+            } catch {
+              // Historical Ahrefs import is best-effort; the current DR is enough to render.
+            }
+          }
         }
       }
     } catch (error) {
@@ -139,6 +168,7 @@ export async function loadSiteSnapshot(domain: string): Promise<SiteSnapshot> {
   return {
     chartPoints,
     domainRating,
+    lastCheckedAt: lastCheckedAt && Number.isFinite(lastCheckedAt.getTime()) ? lastCheckedAt.toISOString() : null,
     claimEmail: claim?.email ?? null,
     siteTitle,
     metaDescription,

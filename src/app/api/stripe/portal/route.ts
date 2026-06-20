@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
 
 import { getStripe } from "@/lib/stripe"
+import { readRequestJsonRecord } from "@/lib/read-json"
 import { getLatestSubscriptionByEmail } from "@/server/db.mjs"
 import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 
@@ -24,8 +25,8 @@ export async function POST(request: Request) {
     )
   }
 
-  const body = await request.json().catch(() => ({}))
-  const email = String((body as any)?.email || "").trim().toLowerCase()
+  const body = await readRequestJsonRecord(request)
+  const email = String(body?.email || "").trim().toLowerCase()
 
   if (!isValidEmail(email)) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 })

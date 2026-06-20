@@ -5,6 +5,7 @@ import * as Sentry from "@sentry/nextjs"
 import { getStripe } from "@/lib/stripe"
 import { getPriceId } from "@/lib/stripe-pricing"
 import type { BillingPeriod } from "@/lib/pricing"
+import { readRequestJsonRecord } from "@/lib/read-json"
 import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 
 const ALLOWED_DOMAINS = [12, 25, 50, 100] as const
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const body = await request.json()
+    const body = await readRequestJsonRecord(request)
     const domains = Number(body?.domains)
     const billing = body?.billing as BillingPeriod
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : null
@@ -38,6 +39,11 @@ export async function POST(request: Request) {
 
     const stripe = getStripe()
     const priceId = getPriceId(domains, billing)
+    const metadata: Record<string, string> = {
+      domains: String(domains),
+      billing,
+    }
+    if (email) metadata.email = email
 
     const origin = request.headers.get("origin")
     const baseUrl =
@@ -49,11 +55,7 @@ export async function POST(request: Request) {
       customer_email: email || undefined,
       success_url: `${baseUrl}/pricing?checkout=success`,
       cancel_url: `${baseUrl}/pricing?checkout=cancelled`,
-      metadata: {
-        domains: String(domains),
-        billing,
-        email: email || undefined,
-      },
+      metadata,
     })
 
     if (!session.url) {

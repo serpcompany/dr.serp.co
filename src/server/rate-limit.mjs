@@ -1,55 +1,104 @@
-import { RateLimiterMemory, RateLimiterRedis } from "rate-limiter-flexible"
-import Redis from "ioredis"
+const memoryBuckets = new Map()
 
-const limiterCache = new Map()
-const redisClientKey = "__dr_serp_rate_limit_redis__"
-const redisUrl = process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL || ""
+function normalizeLimit(value, fallback) {
+  const number = Math.floor(Number(value))
+  return Number.isFinite(number) && number > 0 ? number : fallback
+}
 
-function getRedisClient() {
-  if (!redisUrl) return null
-  const cached = globalThis[redisClientKey]
-  if (cached) return cached
+function toLimitResponse(value, fallbackRetryAfterMs) {
+  return {
+    allowed: Boolean(value?.allowed),
+    remaining: Math.max(0, Math.floor(Number(value?.remaining) || 0)),
+    retryAfterMs: Math.max(0, Math.floor(Number(value?.retryAfterMs) || fallbackRetryAfterMs)),
+  }
+}
+
+async function getRateLimiterBinding() {
   try {
-    const client = new Redis(redisUrl, {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-    })
-    globalThis[redisClientKey] = client
-    return client
+    const { getCloudflareContext } = await import("@opennextjs/cloudflare")
+    return getCloudflareContext()?.env?.RATE_LIMITER ?? null
   } catch {
     return null
   }
 }
 
-function getLimiter(points, duration) {
-  const key = `${points}:${duration}`
-  if (!limiterCache.has(key)) {
-    const redisClient = getRedisClient()
-    const limiter = redisClient
-      ? new RateLimiterRedis({ storeClient: redisClient, points, duration })
-      : new RateLimiterMemory({ points, duration })
-    limiterCache.set(key, limiter)
+async function checkDurableObjectRateLimit({ binding, key, points, duration }) {
+  const stub = binding.get(binding.idFromName(String(key)))
+  const retryAfterMs = duration * 1000
+  const response = await stub.fetch("https://rate-limit.local/check", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ points, duration }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Rate limiter Durable Object failed with ${response.status}`)
   }
-  return limiterCache.get(key)
+
+  const payload = await response.json().catch(() => null)
+  return toLimitResponse(payload, retryAfterMs)
+}
+
+function checkMemoryRateLimit({ key, points, duration }) {
+  const now = Date.now()
+  const retryAfterMs = duration * 1000
+  const bucketKey = `${key}:${points}:${duration}`
+  const current = memoryBuckets.get(bucketKey)
+  const bucket =
+    current && Number(current.resetAt) > now
+      ? current
+      : { count: 0, resetAt: now + retryAfterMs }
+
+  if (bucket.count >= points) {
+    memoryBuckets.set(bucketKey, bucket)
+    return {
+      allowed: false,
+      remaining: 0,
+      retryAfterMs: Math.max(0, bucket.resetAt - now),
+    }
+  }
+
+  bucket.count += 1
+  memoryBuckets.set(bucketKey, bucket)
+
+  return {
+    allowed: true,
+    remaining: Math.max(0, points - bucket.count),
+    retryAfterMs: Math.max(0, bucket.resetAt - now),
+  }
 }
 
 export function getRateLimitKey(request, prefix) {
+  const cloudflareIp = request.headers.get("cf-connecting-ip")?.trim()
+  if (cloudflareIp) return `${prefix}:${cloudflareIp}`
+
   const forwarded = request.headers.get("x-forwarded-for") || ""
   const ip = forwarded.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown"
   return `${prefix}:${ip}`
 }
 
 export async function checkRateLimit({ key, points, duration }) {
-  const limiter = getLimiter(points, duration)
-  try {
-    const res = await limiter.consume(key)
-    return { allowed: true, remaining: res.remainingPoints, retryAfterMs: res.msBeforeNext }
-  } catch (err) {
-    const res = err?.remainingPoints !== undefined ? err : null
-    return {
-      allowed: false,
-      remaining: res?.remainingPoints ?? 0,
-      retryAfterMs: res?.msBeforeNext ?? duration * 1000,
+  const safeKey = String(key ?? "").trim() || "unknown"
+  const safePoints = normalizeLimit(points, 1)
+  const safeDuration = normalizeLimit(duration, 60)
+
+  const binding = await getRateLimiterBinding()
+  if (binding) {
+    try {
+      return await checkDurableObjectRateLimit({
+        binding,
+        key: safeKey,
+        points: safePoints,
+        duration: safeDuration,
+      })
+    } catch {
+      return { allowed: false, remaining: 0, retryAfterMs: safeDuration * 1000 }
     }
   }
+
+  return checkMemoryRateLimit({
+    key: safeKey,
+    points: safePoints,
+    duration: safeDuration,
+  })
 }

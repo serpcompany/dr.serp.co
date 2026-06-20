@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { readRequestJsonRecord } from "@/lib/read-json"
 import { verifyOtpToken } from "@/server/otp-token.mjs"
 
 function isValidEmail(email: string) {
@@ -9,10 +10,10 @@ function isValidEmail(email: string) {
 export const runtime = "nodejs"
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}))
-  const email = String((body as any)?.email || "").trim().toLowerCase()
-  const code = String((body as any)?.code || "").trim()
-  const token = String((body as any)?.token || "").trim()
+  const body = await readRequestJsonRecord(request)
+  const email = String(body?.email || "").trim().toLowerCase()
+  const code = String(body?.code || "").trim()
+  const token = String(body?.token || "").trim()
 
   if (!isValidEmail(email) || code.length !== 6 || !token) {
     return NextResponse.json({ error: "Email, code, and token required" }, { status: 400 })

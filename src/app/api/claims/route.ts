@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { readRequestJsonRecord } from "@/lib/read-json"
 import { normalizeTarget } from "@/server/dr-providers.mjs"
 import { clearClaimEmail, getClaim, setClaimEmail } from "@/server/db.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
@@ -11,9 +12,9 @@ function isValidEmail(email: string) {
 export const runtime = "nodejs"
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}))
-  const email = String((body as any)?.email || "").trim().toLowerCase()
-  const domain = normalizeTarget(String((body as any)?.domain || ""))
+  const body = await readRequestJsonRecord(request)
+  const email = String(body?.email || "").trim().toLowerCase()
+  const domain = normalizeTarget(String(body?.domain || ""))
 
   if (!isValidEmail(email) || !domain) {
     return NextResponse.json({ error: "Valid email and domain required" }, { status: 400 })
@@ -42,9 +43,9 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const body = await request.json().catch(() => ({}))
-  const email = String((body as any)?.email || "").trim().toLowerCase()
-  const domain = normalizeTarget(String((body as any)?.domain || ""))
+  const body = await readRequestJsonRecord(request)
+  const email = String(body?.email || "").trim().toLowerCase()
+  const domain = normalizeTarget(String(body?.domain || ""))
 
   if (!isValidEmail(email) || !domain) {
     return NextResponse.json({ error: "Valid email and domain required" }, { status: 400 })

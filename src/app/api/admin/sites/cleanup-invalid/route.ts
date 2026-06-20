@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { readRequestJsonRecord } from "@/lib/read-json"
 import { purgeInvalidSiteDomains } from "@/server/db.mjs"
 
 export const runtime = "nodejs"
@@ -41,11 +42,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 })
   }
 
-  const body = await request.json().catch(() => ({}))
+  const body = await readRequestJsonRecord(request)
   const dryRun = body?.dryRun !== false
+  const scanAll = body?.scanAll === true
 
   const result = await purgeInvalidSiteDomains({
-    domains: KNOWN_INVALID_SITE_DOMAINS,
+    domains: scanAll ? undefined : KNOWN_INVALID_SITE_DOMAINS,
     dryRun,
   })
 

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { BillingPortalButton } from "@/app/_components/billing-portal-button"
 
 import { filterSiteHistory, removeSiteHistory, type SiteRow } from "@/lib/site-history"
+import { readJsonRecord } from "@/lib/read-json"
 
 function formatUpdatedAt(value: string | null) {
   if (!value) return null
@@ -49,7 +50,7 @@ export function MySites({ email }: { email: string }) {
           body: JSON.stringify({ email: trimmedEmail, query: nextQuery, limit: 12, offset: 0 }),
           signal: controller.signal,
         })
-        const payload = await response.json().catch(() => ({}))
+        const payload = await readJsonRecord(response)
         if (payload?.code === "upgrade_required") {
           setUpgrade({
             message: typeof payload?.error === "string" ? payload.error : "Upgrade required to manage domains.",
@@ -106,7 +107,7 @@ export function MySites({ email }: { email: string }) {
         body: JSON.stringify({ email: trimmedEmail, domain: normalizedDomain }),
       })
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({}))
+        const payload = await readJsonRecord(response)
         throw new Error(typeof payload?.error === "string" ? payload.error : "Failed to delete site.")
       }
       toast.success("Removed from your sites")

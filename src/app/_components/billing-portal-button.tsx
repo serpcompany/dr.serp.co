@@ -4,6 +4,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { readJsonRecord } from "@/lib/read-json"
 
 type BillingPortalButtonProps = {
   email: string
@@ -30,7 +31,7 @@ export function BillingPortalButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       })
-      const payload = await response.json().catch(() => ({}))
+      const payload = await readJsonRecord(response)
       if (!response.ok) {
         throw new Error(typeof payload?.error === "string" ? payload.error : "Unable to open billing portal.")
       }

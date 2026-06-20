@@ -1,7 +1,8 @@
 import Stripe from "stripe"
 
-import { listSubscriptions } from "../src/server/db.mjs"
+import { callAdminApi, hasAdminApi, loadAdminEnv } from "./_admin-api.mjs"
 
+const adminEnv = loadAdminEnv()
 const stripeKey = process.env.STRIPE_SECRET_KEY
 
 if (!stripeKey) {
@@ -11,8 +12,50 @@ if (!stripeKey) {
 
 const stripe = new Stripe(stripeKey)
 
+function loadAppPriceIds() {
+  if (!process.env.STRIPE_PRICE_IDS) return null
+  try {
+    const config = JSON.parse(process.env.STRIPE_PRICE_IDS)
+    const priceIds = new Set()
+    for (const group of [config.monthly, config.annual]) {
+      for (const value of Object.values(group ?? {})) {
+        if (typeof value === "string" && value) priceIds.add(value)
+      }
+    }
+    return priceIds.size ? priceIds : null
+  } catch {
+    return null
+  }
+}
+
+const appPriceIds = loadAppPriceIds()
+
+function subscriptionPriceId(subscription) {
+  return subscription.items?.data?.[0]?.price?.id ?? null
+}
+
 async function loadAllDbSubscriptions() {
+  if (hasAdminApi(adminEnv)) {
+    const payload = await callAdminApi("/api/admin/subscriptions", {
+      method: "GET",
+      env: adminEnv,
+    })
+    return (payload.report ?? []).map((row) => ({
+      email: row.email,
+      stripe_subscription_id: row.stripeSubscriptionId,
+      stripe_customer_id: row.stripeCustomerId,
+      stripe_price_id: row.stripePriceId,
+      billing_interval: row.billingInterval,
+      domains_limit: row.domainsLimit,
+      status: row.status,
+      current_period_end: row.currentPeriodEnd,
+      cancel_at_period_end: row.cancelAtPeriodEnd,
+      updated_at: row.updatedAt,
+    }))
+  }
+
   const rows = []
+  const { listSubscriptions } = await import("../src/server/db.mjs")
   let offset = 0
   while (true) {
     const batch = await listSubscriptions({ limit: 200, offset })
@@ -28,7 +71,13 @@ async function loadAllStripeSubscriptions() {
   let startingAfter
   while (true) {
     const page = await stripe.subscriptions.list({ limit: 100, starting_after: startingAfter })
-    rows.push(...page.data)
+    rows.push(
+      ...page.data.filter((subscription) => {
+        if (!appPriceIds) return true
+        const priceId = subscriptionPriceId(subscription)
+        return priceId ? appPriceIds.has(priceId) : false
+      })
+    )
     if (!page.has_more) break
     startingAfter = page.data[page.data.length - 1]?.id
   }
@@ -55,7 +104,7 @@ const mismatched = []
 for (const stripeSub of stripeSubs) {
   const db = dbById.get(stripeSub.id)
   if (!db) continue
-  const priceId = stripeSub.items.data[0]?.price?.id ?? null
+  const priceId = subscriptionPriceId(stripeSub)
   const currentPeriodEnd = stripeSub.current_period_end ?? null
   const dbPeriodEnd = toUnixSeconds(db.current_period_end)
 

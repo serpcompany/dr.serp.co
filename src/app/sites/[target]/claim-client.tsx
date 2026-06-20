@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 
 import { upsertSiteHistory } from "@/lib/site-history"
+import { readJsonRecord } from "@/lib/read-json"
 
 type Entitlement = {
   canClaim?: boolean
@@ -32,7 +33,7 @@ export function ClaimClient({ domain, claimEmail = null }: { domain: string; cla
           body: JSON.stringify({ email }),
           signal: controller.signal,
         })
-        const entitlementPayload = await entitlementResponse.json().catch(() => ({}))
+        const entitlementPayload = await readJsonRecord(entitlementResponse)
         if (!entitlementResponse.ok) {
           throw new Error(
             typeof entitlementPayload?.error === "string"
@@ -54,7 +55,7 @@ export function ClaimClient({ domain, claimEmail = null }: { domain: string; cla
           body: JSON.stringify({ email, domain }),
           signal: controller.signal,
         })
-        const payload = await response.json().catch(() => ({}))
+        const payload = await readJsonRecord(response)
         if (!response.ok) {
           if (payload?.code === "upgrade_required") {
             setMessage(typeof payload?.error === "string" ? payload.error : "Upgrade required to claim domains.")

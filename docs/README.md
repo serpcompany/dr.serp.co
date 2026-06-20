@@ -64,11 +64,14 @@ svgs/badges/                # SVG badge templates
 | `STRIPE_PORTAL_RETURN_URL` | Optional portal return URL |
 | `DR_ADMIN_TOKEN` | Admin token for subscription report endpoint |
 | `SENTRY_DSN` | Sentry DSN for server monitoring |
-| `RATE_LIMIT_REDIS_URL` | Optional Redis URL for shared rate limiting |
+| `SERP_DR_DB` | Cloudflare D1 binding for app data |
+| `RATE_LIMITER` | Cloudflare Durable Object binding for rate limiting |
 
 ## Database
 
-The app is deployed on Vercel and uses Neon Postgres via `@neondatabase/serverless`, configured through environment variables (see `src/server/db.mjs`). Running `vercel link` + `vercel env pull` writes these values into `.env.local` for local dev:
+Production traffic is served by Cloudflare Workers/OpenNext and uses D1 through the `SERP_DR_DB` binding. Rate limits use the `RATE_LIMITER` Durable Object binding.
+
+Vercel, Neon/Postgres, and Redis remain available only for rollback during the Cloudflare observation window. Local development can still use existing Postgres env vars when present:
 
 - `POSTGRES_URL` (primary)
 - or `POSTGRES_URL_NON_POOLING`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `STORAGE_URL`, `STORAGE_URL_NON_POOLING`

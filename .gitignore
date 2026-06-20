@@ -12,7 +12,9 @@ dist
 dist-ssr
 *-dist
 .next
+.open-next
 .vercel
+.wrangler
 .turbo
 out
 .playwright-mcp/

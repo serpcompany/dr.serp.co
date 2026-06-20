@@ -14,12 +14,25 @@
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build --env=preview && opennextjs-cloudflare preview --env=preview",
+    "cf:preview:dry-run": "opennextjs-cloudflare build --env=preview && wrangler deploy --env preview --dry-run",
+    "cf:deploy:dry-run": "opennextjs-cloudflare build --env production && wrangler deploy --env production --dry-run",
+    "cf:types": "wrangler types --env production --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "cf:audit": "node scripts/cloudflare-migration-audit.mjs",
+    "routes:manifest": "node scripts/generate-route-manifest.mjs",
+    "routes:parity": "node scripts/compare-route-parity.mjs",
+    "d1:export": "node scripts/export-d1-migration-data.mjs",
+    "billing:prune-audit": "node scripts/prune-billing-audit.mjs",
+    "billing:reconcile": "node scripts/reconcile-stripe-subscriptions.mjs",
+    "webhook:health": "node scripts/check-webhook-health.mjs",
     "r2:replace-badges": "node scripts/replace-r2-badge-assets.mjs",
     "sites:purge-invalid": "node scripts/purge-invalid-site-domains.mjs",
     "sites:backfill-metadata": "node scripts/backfill-site-metadata.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
+    "@opennextjs/cloudflare": "^1.19.11",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-aspect-ratio": "^1.1.2",
@@ -88,6 +101,7 @@
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.38.0",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "wrangler": "^4.103.0"
   }
 }
