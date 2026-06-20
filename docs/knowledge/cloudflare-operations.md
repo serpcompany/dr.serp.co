@@ -31,7 +31,7 @@ Cloudflare resources currently configured in `wrangler.jsonc`:
 - Preview Worker host: `https://serp-dr-preview.serpcompany.workers.dev`
 - Production D1 name: `serp-dr-prod`
 - Production D1 ID: `0a6e5e69-60e4-4145-a84a-3f8c9177ad0c`
-- Current production Worker version validated after Sentry dependency cleanup: `ce91f155-ebef-4d03-9cf9-a23cdef592b6`
+- Current production Worker version validated after observability dependency cleanup: `ce91f155-ebef-4d03-9cf9-a23cdef592b6`
 
 Target D1 database names:
 
