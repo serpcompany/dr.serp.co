@@ -9,7 +9,7 @@ Status: production traffic for `dr.serp.co` is live on Cloudflare Workers/OpenNe
 - Preview Worker name: `serp-dr-preview`
 - Production Worker custom domain: `dr.serp.co` on zone `serp.co`.
 - Public DNS now resolves `dr.serp.co` through Cloudflare and normal requests return `server: cloudflare` with `x-opennext: 1`. Worker hostname ownership is managed by the Wrangler custom domain entry, not a legacy `dr.serp.co/*` route.
-- Deployment authority: GitHub Actions or Wrangler may deploy only after the release owner approves the target environment. Local commands in this checkpoint are dry-run or local preview only.
+- Deployment authority: Wrangler from an intended `main` commit. No GitHub Actions deploy workflow exists in this repo right now. If CI deploys are added later, update `docs/runbooks/gitflow.md` and this runbook.
 - Wrangler config: `wrangler.jsonc`
 - OpenNext config: `open-next.config.ts`
 - Worker entry: `cloudflare-worker.js`, which delegates fetch handling to `.open-next/worker.js` and exports this app's custom `RateLimitDurableObject`. Keep any OpenNext internal Durable Object re-exports separate if future caching features add them.

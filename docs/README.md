@@ -23,6 +23,7 @@ The `knowledge/` folder contains internal reference documentation.
 
 ### Runbooks
 
+- [Git Workflow](runbooks/gitflow.md) — Branch, PR, commit, and Cloudflare deploy workflow for this repo.
 - [Stripe Event Replay](runbooks/stripe-event-replay.md) — How to resend webhook events safely.
 - [Billing Deployment](runbooks/billing-deployment.md) — Deployment env vars and monitoring checklist.
 
