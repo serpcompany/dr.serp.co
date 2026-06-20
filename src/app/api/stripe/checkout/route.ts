@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server"
 
-import * as Sentry from "@sentry/nextjs"
-
 import { getStripe } from "@/lib/stripe"
 import { getPriceId } from "@/lib/stripe-pricing"
 import type { BillingPeriod } from "@/lib/pricing"
@@ -64,7 +62,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url })
   } catch (error) {
-    Sentry.captureException(error)
+    console.error("stripe.checkout: session creation failed", error)
     const message = error instanceof Error ? error.message : "Unexpected error."
     return NextResponse.json({ error: message }, { status: 500 })
   }

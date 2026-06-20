@@ -57,7 +57,6 @@ See `.env.example`. Key variables:
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
 | `STRIPE_PORTAL_RETURN_URL` | Optional return URL for billing portal |
 | `DR_ADMIN_TOKEN` | Token for admin subscription report endpoint |
-| `SENTRY_DSN` | Sentry DSN for server-side error monitoring |
 | `SERP_DR_DB` | Cloudflare D1 binding for app data |
 | `RATE_LIMITER` | Cloudflare Durable Object binding for rate limiting |
 

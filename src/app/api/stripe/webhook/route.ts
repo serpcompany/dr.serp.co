@@ -1,7 +1,6 @@
 import Stripe from "stripe"
 import { headers } from "next/headers"
 import { NextResponse } from "next/server"
-import * as Sentry from "@sentry/nextjs"
 
 import { getStripe } from "@/lib/stripe"
 import { getTierForPriceId } from "@/lib/stripe-pricing"
@@ -130,7 +129,6 @@ export async function POST(request: Request) {
     const body = Buffer.from(await request.arrayBuffer())
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
   } catch (error) {
-    Sentry.captureException(error)
     const message = error instanceof Error ? error.message : "Invalid signature."
     console.error("stripe.webhook: signature verification failed", message)
     return NextResponse.json({ error: message }, { status: 400 })
@@ -243,7 +241,6 @@ export async function POST(request: Request) {
       }
     }
   } catch (error) {
-    Sentry.captureException(error)
     const message = error instanceof Error ? error.message : "Webhook handler failed."
     console.error("stripe.webhook: handler error", message)
     await insertBillingAudit({

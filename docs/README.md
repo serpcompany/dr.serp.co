@@ -17,7 +17,7 @@ This folder contains documentation for [dr.serp.co](https://dr.serp.co).
 ### Knowledge Base
 
 The `knowledge/` folder contains internal reference documentation.
-- [Billing Ops](knowledge/billing-ops.md) — Billing endpoints, audit logs, rate limits, and Sentry notes.
+- [Billing Ops](knowledge/billing-ops.md) — Billing endpoints, audit logs, rate limits, and monitoring notes.
 - [Invalid Domain Cleanup](knowledge/invalid-domain-cleanup.md) — Shared domain validation, `/sites` filtering, and the admin cleanup endpoint for legacy junk rows.
 - [Site Lookup Loading And Badge Fallback](knowledge/site-lookup-loading-and-badge-fallback.md) — Why fresh DR checks can feel slow and why missing badge values must render as `0`.
 
@@ -62,7 +62,6 @@ svgs/badges/                # SVG badge templates
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
 | `STRIPE_PORTAL_RETURN_URL` | Optional portal return URL |
 | `DR_ADMIN_TOKEN` | Admin token for subscription report endpoint |
-| `SENTRY_DSN` | Sentry DSN for server monitoring |
 | `SERP_DR_DB` | Cloudflare D1 binding for app data |
 | `RATE_LIMITER` | Cloudflare Durable Object binding for rate limiting |
 

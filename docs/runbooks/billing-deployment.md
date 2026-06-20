@@ -8,7 +8,6 @@ Set these in Cloudflare Worker secrets or approved non-secret vars. Do not commi
 - `STRIPE_WEBHOOK_SECRET`
 - `STRIPE_PORTAL_RETURN_URL` (optional, defaults to `/billing`)
 - `DR_ADMIN_TOKEN` (for `/api/admin/subscriptions`)
-- `SENTRY_DSN` and/or `NEXT_PUBLIC_SENTRY_DSN`
 - Rate limit knobs: `CHECKOUT_RATE_LIMIT_POINTS`, `CHECKOUT_RATE_LIMIT_DURATION`, `STRIPE_WEBHOOK_RATE_LIMIT_POINTS`, `STRIPE_WEBHOOK_RATE_LIMIT_DURATION`, `BILLING_PORTAL_RATE_LIMIT_POINTS`, `BILLING_PORTAL_RATE_LIMIT_DURATION`, `AHREFS_RATE_LIMIT_POINTS`, `AHREFS_RATE_LIMIT_DURATION`, `RECHECK_RATE_LIMIT_POINTS`, `RECHECK_RATE_LIMIT_DURATION`
 - `RATE_LIMITER` Durable Object binding, configured in `wrangler.jsonc`
 
