@@ -134,7 +134,7 @@ describe("loadSiteSnapshot", () => {
     })
     fetchDomainRating.mockResolvedValue({
       domainRating: 57,
-      provider: "frogdr",
+      provider: "ahrefs-api",
     })
     upsertClaim.mockResolvedValue({
       updated_at: "2026-04-16T12:00:00.000Z",
@@ -147,7 +147,7 @@ describe("loadSiteSnapshot", () => {
     expect(upsertClaim).toHaveBeenCalledWith({
       domain: "example.com",
       domainRating: 57,
-      provider: "frogdr",
+      provider: "ahrefs-api",
     })
     expect(recordDrCheck).toHaveBeenCalled()
     expect(result.domainRating).toBe(57)
@@ -275,20 +275,20 @@ describe("loadSiteSnapshot", () => {
     expect(fetchDomainRating).not.toHaveBeenCalled()
   })
 
-  it("surfaces lookup errors when no cached rating exists", async () => {
+  it("does not surface raw provider errors when no cached rating exists", async () => {
     getDrChecks.mockResolvedValue([])
     getClaim.mockResolvedValue({
       domain: "example.com",
       domain_rating: null,
       updated_at: "2026-04-16T00:00:00.000Z",
     })
-    fetchDomainRating.mockRejectedValue(new Error("FROGDR_SESSION is invalid or expired"))
+    fetchDomainRating.mockRejectedValue(new Error("AHREFS_API_KEY env var not set"))
 
     const { loadSiteSnapshot } = await import("./site-snapshot")
     const result = await loadSiteSnapshot("example.com")
 
     expect(result.domainRating).toBeNull()
     expect(result.chartPoints).toEqual([])
-    expect(result.lookupError).toBe("FROGDR_SESSION is invalid or expired")
+    expect(result.lookupError).toBeNull()
   })
 })
