@@ -306,7 +306,7 @@ function createMockD1() {
       return { rows: allSiteRows(pattern, sort), changes: 0 }
     }
 
-    if (text.startsWith("SELECT domain FROM ( SELECT domain FROM dr_claims UNION SELECT domain FROM dr_checks")) {
+    if (text.startsWith("SELECT d.domain, cl.site_title FROM ( SELECT domain FROM dr_claims UNION SELECT domain FROM dr_checks")) {
       const [pattern] = params
       const domains = new Set([
         ...Array.from(state.claims.keys()),
@@ -314,16 +314,21 @@ function createMockD1() {
       ])
       const rows = Array.from(domains)
         .filter((domain) => likeDomain(domain, pattern))
-        .map((domain) => ({ domain }))
+        .map((domain) => ({ domain, site_title: state.claims.get(domain)?.site_title ?? null }))
       return { rows, changes: 0 }
     }
 
-    if (text === "SELECT domain FROM dr_claims UNION SELECT domain FROM dr_checks") {
+    if (text.startsWith("SELECT d.domain, cl.site_title, cl.email FROM ( SELECT domain FROM dr_claims UNION SELECT domain FROM dr_checks")) {
       const domains = new Set([
         ...Array.from(state.claims.keys()),
         ...state.checks.map((row) => row.domain),
       ])
-      return { rows: Array.from(domains).map((domain) => ({ domain })), changes: 0 }
+      const rows = Array.from(domains).map((domain) => ({
+        domain,
+        site_title: state.claims.get(domain)?.site_title ?? null,
+        email: state.claims.get(domain)?.email ?? null,
+      }))
+      return { rows, changes: 0 }
     }
 
     if (text.startsWith("DELETE FROM dr_claims")) {
@@ -568,6 +573,32 @@ describe("D1 database boundary", () => {
       expect.objectContaining({ domain: "valid-a.com", domain_rating: 80 }),
     ])
     expect(count).toBe(2)
+  })
+
+  it("hides spam sites from listings and purges them only while unclaimed", async () => {
+    const { db } = await importDbWithD1()
+
+    await db.recordDrCheck({ domain: "legit.com", domainRating: 40, checkedAt: new Date("2026-01-01T00:00:00Z") })
+    await db.recordDrCheck({ domain: "bestcasinos.com", domainRating: 60, checkedAt: new Date("2026-01-01T00:00:00Z") })
+    await db.recordDrCheck({ domain: "hijacked.org", domainRating: 50, checkedAt: new Date("2026-01-01T00:00:00Z") })
+    await db.setClaimSiteMetadata({ domain: "hijacked.org", siteTitle: "Best UK Non GamStop Casinos for 2026" })
+    await db.recordDrCheck({ domain: "claimed-spam.com", domainRating: 30, checkedAt: new Date("2026-01-01T00:00:00Z") })
+    await db.setClaimSiteMetadata({ domain: "claimed-spam.com", siteTitle: "Slot Gacor Online" })
+    await db.setClaimEmail({ domain: "claimed-spam.com", email: "owner@example.com" })
+    await db.recordDrCheck({ domain: "config.php.save", domainRating: 6, checkedAt: new Date("2026-01-01T00:00:00Z") })
+
+    const rows = await db.listSites({ limit: 10, offset: 0, sort: "dr" })
+    expect(rows.map((row: { domain: string }) => row.domain)).toEqual(["legit.com"])
+    expect(await db.countSites()).toBe(1)
+
+    const dryRun = await db.purgeInvalidSiteDomains({ dryRun: true })
+    expect(dryRun.domains.sort()).toEqual(["bestcasinos.com", "config.php.save", "hijacked.org"])
+
+    await db.purgeInvalidSiteDomains({ dryRun: false })
+    expect(await db.getClaim("hijacked.org")).toBeNull()
+    expect(await db.getClaim("claimed-spam.com")).toMatchObject({ email: "owner@example.com" })
+    expect(await db.getDrChecks("bestcasinos.com")).toEqual([])
+    expect(await db.getDrChecks("legit.com")).toHaveLength(1)
   })
 
   it("replaces duplicate historical checks for null and non-null providers", async () => {
