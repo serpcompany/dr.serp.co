@@ -14,6 +14,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { normalizeTarget } from "@/server/dr-providers.mjs"
+import { getSessionEmail } from "@/server/auth-session.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
 import { getRateLimitKey } from "@/server/rate-limit.mjs"
 import { isSpamSite } from "@/server/site-spam.mjs"
@@ -77,6 +78,10 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
     await getSitePageData(domain)
   if (isSpamSite({ domain, siteTitle })) notFound()
   const entitlement = claimEmail ? await resolveEntitlement({ email: claimEmail }) : null
+  // Resolve ownership on the server so the owner's email is never sent to visitors.
+  const viewerEmail = getSessionEmail({ headers: await headers() })
+  const ownerEmail = claimEmail?.trim().toLowerCase() || null
+  const claimStatus = !ownerEmail ? "none" : ownerEmail === viewerEmail ? "mine" : "other"
   const isPaidLink = Boolean(entitlement?.canAccessPaidFeatures)
   const recheckCadence = resolveRecheckCadence({ isPaid: isPaidLink, lastCheckedAt })
   const pageSiteTitle = getPageSiteTitle({ siteTitle, domain })
@@ -131,7 +136,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
               intervalDays={recheckCadence.intervalDays}
               tier={recheckCadence.tier === "paid" ? "paid" : "free"}
             />
-            <ClaimClient domain={domain} claimEmail={claimEmail} />
+            <ClaimClient domain={domain} claimStatus={claimStatus} signedIn={Boolean(viewerEmail)} />
           </div>
         </div>
       </div>

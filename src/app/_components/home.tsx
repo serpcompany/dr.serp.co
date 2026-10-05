@@ -128,6 +128,9 @@ export function Home() {
     const email = authEmail.trim().toLowerCase()
     if (authStep === "authed" && email) {
       upsertSiteHistory(email, { domain: cleanDomain })
+      // Adding a site while signed in claims it; browsing site pages never does.
+      router.push(`/sites/${encodeURIComponent(cleanDomain)}?claim=1`)
+      return
     }
     router.push(`/sites/${encodeURIComponent(cleanDomain)}`)
   }

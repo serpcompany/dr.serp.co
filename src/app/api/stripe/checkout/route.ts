@@ -4,6 +4,7 @@ import { getStripe } from "@/lib/stripe"
 import { getPriceId } from "@/lib/stripe-pricing"
 import type { BillingPeriod } from "@/lib/pricing"
 import { readRequestJsonRecord } from "@/lib/read-json"
+import { getSessionEmail } from "@/server/auth-session.mjs"
 import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 
 const ALLOWED_DOMAINS = [12, 25, 50, 100] as const
@@ -25,7 +26,8 @@ export async function POST(request: Request) {
     const body = await readRequestJsonRecord(request)
     const domains = Number(body?.domains)
     const billing = body?.billing as BillingPeriod
-    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : null
+    // Subscriptions are matched to accounts by email, so only use the signed-in email; Stripe collects one otherwise.
+    const email = getSessionEmail(request)
 
     if (!ALLOWED_DOMAINS.includes(domains as (typeof ALLOWED_DOMAINS)[number])) {
       return NextResponse.json({ error: "Invalid domain tier." }, { status: 400 })

@@ -1,30 +1,39 @@
 import { NextResponse } from "next/server"
 
 import { readRequestJsonRecord } from "@/lib/read-json"
+import { getSessionEmail } from "@/server/auth-session.mjs"
 import { normalizeTarget } from "@/server/dr-providers.mjs"
 import { clearClaimEmail, getClaim, setClaimEmail } from "@/server/db.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
 
-function isValidEmail(email: string) {
-  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
-}
-
 export const runtime = "nodejs"
 
-export async function POST(request: Request) {
-  const body = await readRequestJsonRecord(request)
-  const email = String(body?.email || "").trim().toLowerCase()
-  const domain = normalizeTarget(String(body?.domain || ""))
+function authRequired() {
+  return NextResponse.json({ error: "Sign in required.", code: "auth_required" }, { status: 401 })
+}
 
-  if (!isValidEmail(email) || !domain) {
-    return NextResponse.json({ error: "Valid email and domain required" }, { status: 400 })
+function claimedByOther() {
+  return NextResponse.json(
+    { error: "This site is already claimed by another account.", code: "claimed_by_other" },
+    { status: 409 }
+  )
+}
+
+export async function POST(request: Request) {
+  const email = getSessionEmail(request)
+  if (!email) return authRequired()
+
+  const body = await readRequestJsonRecord(request)
+  const domain = normalizeTarget(String(body?.domain || ""))
+  if (!domain) {
+    return NextResponse.json({ error: "Valid domain required" }, { status: 400 })
   }
 
   const existing = await getClaim(domain)
-  const alreadyClaimedByUser =
-    existing && String(existing.email ?? "").trim().toLowerCase() === email
+  const existingEmail = String(existing?.email ?? "").trim().toLowerCase()
+  if (existingEmail && existingEmail !== email) return claimedByOther()
 
-  if (!alreadyClaimedByUser) {
+  if (existingEmail !== email) {
     const entitlement = await resolveEntitlement({ email })
     if (!entitlement?.canClaim) {
       return NextResponse.json(
@@ -38,17 +47,20 @@ export async function POST(request: Request) {
     }
   }
 
+  // setClaimEmail refuses to overwrite another owner, which also covers a claim racing this one.
   const claim = await setClaimEmail({ domain, email })
+  if (!claim) return claimedByOther()
   return NextResponse.json({ ok: true, claim })
 }
 
 export async function DELETE(request: Request) {
-  const body = await readRequestJsonRecord(request)
-  const email = String(body?.email || "").trim().toLowerCase()
-  const domain = normalizeTarget(String(body?.domain || ""))
+  const email = getSessionEmail(request)
+  if (!email) return authRequired()
 
-  if (!isValidEmail(email) || !domain) {
-    return NextResponse.json({ error: "Valid email and domain required" }, { status: 400 })
+  const body = await readRequestJsonRecord(request)
+  const domain = normalizeTarget(String(body?.domain || ""))
+  if (!domain) {
+    return NextResponse.json({ error: "Valid domain required" }, { status: 400 })
   }
 
   const claim = await clearClaimEmail({ domain, email })
