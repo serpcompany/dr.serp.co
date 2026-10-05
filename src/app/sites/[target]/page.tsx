@@ -1,3 +1,4 @@
+import { headers } from "next/headers"
 import { notFound } from "next/navigation"
 import { cache } from "react"
 import type { Metadata } from "next"
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { normalizeTarget } from "@/server/dr-providers.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
+import { getRateLimitKey } from "@/server/rate-limit.mjs"
 import { resolveRecheckCadence } from "@/server/recheck-cadence.mjs"
 import { BadgeEmbed } from "@/components/badges/badge-embed"
 import { ClaimClient } from "./claim-client"
@@ -30,7 +32,9 @@ import {
 
 export const runtime = "nodejs"
 
-const getSitePageData = cache(async (domain: string) => loadSiteSnapshot(domain))
+const getSitePageData = cache(async (domain: string) =>
+  loadSiteSnapshot(domain, { rateLimitKey: getRateLimitKey({ headers: await headers() }, "new-site-lookup") })
+)
 
 export async function generateMetadata({
   params,

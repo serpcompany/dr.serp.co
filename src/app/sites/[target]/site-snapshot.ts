@@ -7,7 +7,30 @@ import {
   upsertClaim,
 } from "@/server/db.mjs"
 import { fetchDomainRating, fetchDomainRatingHistory } from "@/server/dr-providers.mjs"
+import { checkRateLimit } from "@/server/rate-limit.mjs"
 import { resolveSitePresentation } from "@/server/site-presentation.mjs"
+
+// First visits to unknown domains trigger paid Ahrefs lookups, so cap them per client and globally.
+const NEW_SITE_LOOKUP_RATE_LIMIT_POINTS = Number(process.env.NEW_SITE_LOOKUP_RATE_LIMIT_POINTS ?? 10)
+const NEW_SITE_LOOKUP_RATE_LIMIT_DURATION = Number(process.env.NEW_SITE_LOOKUP_RATE_LIMIT_DURATION ?? 3600)
+const NEW_SITE_LOOKUP_DAILY_LIMIT = Number(process.env.NEW_SITE_LOOKUP_DAILY_LIMIT ?? 100)
+const NEW_SITE_LOOKUP_LIMITED_MESSAGE = "Too many new site lookups right now. Please try again later."
+
+async function allowNewSiteLookup(rateLimitKey: string) {
+  const perClient = await checkRateLimit({
+    key: rateLimitKey,
+    points: NEW_SITE_LOOKUP_RATE_LIMIT_POINTS,
+    duration: NEW_SITE_LOOKUP_RATE_LIMIT_DURATION,
+  })
+  if (!perClient.allowed) return false
+
+  const global = await checkRateLimit({
+    key: "new-site-lookup:global",
+    points: NEW_SITE_LOOKUP_DAILY_LIMIT,
+    duration: 24 * 60 * 60,
+  })
+  return global.allowed
+}
 
 type ChartPoint = {
   checkedAt: string
@@ -60,7 +83,10 @@ function chartPointsFromChecks(checks: StoredCheck[]): ChartPoint[] {
     .map(({ checkedAt, domainRating }) => ({ checkedAt, domainRating }))
 }
 
-export async function loadSiteSnapshot(domain: string): Promise<SiteSnapshot> {
+export async function loadSiteSnapshot(
+  domain: string,
+  { rateLimitKey = "new-site-lookup:unknown" }: { rateLimitKey?: string } = {}
+): Promise<SiteSnapshot> {
   const [checks, claim] = await Promise.all([
     getDrChecks(domain, { limit: 365 }),
     getClaim(domain),
@@ -101,7 +127,9 @@ export async function loadSiteSnapshot(domain: string): Promise<SiteSnapshot> {
   let screenshotUrl = claim?.screenshot_url ?? null
   let lookupError: string | null = null
 
-  if (domainRating === null) {
+  if (domainRating === null && !(await allowNewSiteLookup(rateLimitKey))) {
+    lookupError = NEW_SITE_LOOKUP_LIMITED_MESSAGE
+  } else if (domainRating === null) {
     try {
       const result = await fetchDomainRating({ target: domain })
       if (!(result as { captchaRequired?: boolean })?.captchaRequired) {
@@ -119,7 +147,9 @@ export async function loadSiteSnapshot(domain: string): Promise<SiteSnapshot> {
               domainRating: fetchedRating,
             },
           ]
-          if (provider === "ahrefs" || provider === "ahrefs-api" || Boolean(process.env.AHREFS_API_KEY)) {
+          // History import is a second paid call; only spend it on claimed domains.
+          const isAhrefs = provider === "ahrefs" || provider === "ahrefs-api" || Boolean(process.env.AHREFS_API_KEY)
+          if (claim?.email && isAhrefs) {
             try {
               const history = await fetchDomainRatingHistory({ target: domain })
               const recorded = await recordDrHistoryChecks({

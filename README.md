@@ -35,7 +35,6 @@ npm run dev
 | `POST /api/auth/request-otp` | Send email OTP |
 | `POST /api/auth/verify-otp` | Verify OTP |
 | `POST /api/billing/status` | Billing status + entitlement API |
-| `GET /api/ahrefs/domain-rating?target=...` | DR lookup API |
 | `POST /api/stripe/portal` | Stripe customer portal session |
 | `GET /api/stripe/webhook/health` | Webhook health status |
 | `GET /api/admin/subscriptions` | Admin subscription report |

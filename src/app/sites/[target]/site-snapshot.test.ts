@@ -9,6 +9,7 @@ const setClaimSiteMetadata = vi.fn()
 const resolveSitePresentation = vi.fn()
 const fetchDomainRating = vi.fn()
 const fetchDomainRatingHistory = vi.fn()
+const checkRateLimit = vi.fn()
 
 vi.mock("@/server/db.mjs", () => ({
   getClaim,
@@ -21,6 +22,10 @@ vi.mock("@/server/db.mjs", () => ({
 
 vi.mock("@/server/site-presentation.mjs", () => ({
   resolveSitePresentation,
+}))
+
+vi.mock("@/server/rate-limit.mjs", () => ({
+  checkRateLimit,
 }))
 
 vi.mock("@/server/dr-providers.mjs", async () => {
@@ -43,6 +48,8 @@ describe("loadSiteSnapshot", () => {
     resolveSitePresentation.mockReset()
     fetchDomainRating.mockReset()
     fetchDomainRatingHistory.mockReset()
+    checkRateLimit.mockReset()
+    checkRateLimit.mockResolvedValue({ allowed: true, remaining: 9, retryAfterMs: 0 })
   })
 
   afterEach(() => {
@@ -152,11 +159,12 @@ describe("loadSiteSnapshot", () => {
     ])
   })
 
-  it("imports Ahrefs history on first scan when the Ahrefs API is available", async () => {
+  it("imports Ahrefs history on first scan of a claimed domain", async () => {
     vi.stubEnv("AHREFS_API_KEY", "test-key")
     getDrChecks.mockResolvedValue([])
     getClaim.mockResolvedValue({
       domain: "example.com",
+      email: "owner@example.com",
       domain_rating: null,
       updated_at: "2026-04-16T00:00:00.000Z",
     })
@@ -197,6 +205,74 @@ describe("loadSiteSnapshot", () => {
       { checkedAt: "2026-04-16T12:00:00.000Z", domainRating: 64 },
     ])
     expect(result.lastCheckedAt).toBe("2026-04-16T12:00:00.000Z")
+  })
+
+  it("skips the paid Ahrefs history import for unclaimed domains", async () => {
+    vi.stubEnv("AHREFS_API_KEY", "test-key")
+    getDrChecks.mockResolvedValue([])
+    getClaim.mockResolvedValue(null)
+    fetchDomainRating.mockResolvedValue({
+      domainRating: 64,
+      provider: "ahrefs",
+    })
+    upsertClaim.mockResolvedValue({
+      updated_at: "2026-04-16T12:00:00.000Z",
+    })
+
+    const { loadSiteSnapshot } = await import("./site-snapshot")
+    const result = await loadSiteSnapshot("example.com")
+
+    expect(fetchDomainRating).toHaveBeenCalledWith({ target: "example.com" })
+    expect(fetchDomainRatingHistory).not.toHaveBeenCalled()
+    expect(recordDrHistoryChecks).not.toHaveBeenCalled()
+    expect(result.domainRating).toBe(64)
+  })
+
+  it("rate limits new site lookups per client before calling the provider", async () => {
+    getDrChecks.mockResolvedValue([])
+    getClaim.mockResolvedValue(null)
+    checkRateLimit.mockResolvedValueOnce({ allowed: false, remaining: 0, retryAfterMs: 60000 })
+
+    const { loadSiteSnapshot } = await import("./site-snapshot")
+    const result = await loadSiteSnapshot("example.com", { rateLimitKey: "new-site-lookup:203.0.113.7" })
+
+    expect(checkRateLimit).toHaveBeenCalledTimes(1)
+    expect(checkRateLimit).toHaveBeenCalledWith(expect.objectContaining({ key: "new-site-lookup:203.0.113.7" }))
+    expect(fetchDomainRating).not.toHaveBeenCalled()
+    expect(result.domainRating).toBeNull()
+    expect(result.lookupError).toBe("Too many new site lookups right now. Please try again later.")
+  })
+
+  it("stops new site lookups once the global daily cap is reached", async () => {
+    getDrChecks.mockResolvedValue([])
+    getClaim.mockResolvedValue(null)
+    checkRateLimit
+      .mockResolvedValueOnce({ allowed: true, remaining: 9, retryAfterMs: 0 })
+      .mockResolvedValueOnce({ allowed: false, remaining: 0, retryAfterMs: 60000 })
+
+    const { loadSiteSnapshot } = await import("./site-snapshot")
+    const result = await loadSiteSnapshot("example.com", { rateLimitKey: "new-site-lookup:203.0.113.7" })
+
+    expect(checkRateLimit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ key: "new-site-lookup:global", duration: 86400 })
+    )
+    expect(fetchDomainRating).not.toHaveBeenCalled()
+    expect(result.lookupError).toBe("Too many new site lookups right now. Please try again later.")
+  })
+
+  it("does not spend rate limit points when a cached rating exists", async () => {
+    getDrChecks.mockResolvedValue([])
+    getClaim.mockResolvedValue({
+      domain: "example.com",
+      domain_rating: 42,
+      updated_at: "2026-04-16T00:00:00.000Z",
+    })
+
+    const { loadSiteSnapshot } = await import("./site-snapshot")
+    await loadSiteSnapshot("example.com")
+
+    expect(checkRateLimit).not.toHaveBeenCalled()
+    expect(fetchDomainRating).not.toHaveBeenCalled()
   })
 
   it("surfaces lookup errors when no cached rating exists", async () => {

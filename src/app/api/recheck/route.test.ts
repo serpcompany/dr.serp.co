@@ -156,7 +156,8 @@ describe("POST /api/recheck", () => {
     expect(fetchDomainRatingHistory).not.toHaveBeenCalled()
   })
 
-  it("records Ahrefs monthly history after a successful recheck", async () => {
+  it("records Ahrefs monthly history after a successful recheck of a claimed domain", async () => {
+    getClaim.mockResolvedValue({ domain: "example.com", email: "owner@example.com" })
     fetchDomainRating.mockResolvedValue({
       target: "example.com",
       provider: "ahrefs",
@@ -225,5 +226,53 @@ describe("POST /api/recheck", () => {
       tier: "free",
       historyPointCount: 2,
     })
+  })
+
+  it("skips the paid Ahrefs history import when rechecking an unclaimed domain", async () => {
+    fetchDomainRating.mockResolvedValue({
+      target: "example.com",
+      provider: "ahrefs",
+      domainRating: 72,
+    })
+    upsertClaim.mockResolvedValue({
+      updated_at: "2026-05-28T12:00:00.000Z",
+    })
+
+    const { POST } = await import("./route")
+    const request = new Request("http://localhost/api/recheck", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain: "example.com" }),
+    })
+
+    const response = await POST(request)
+    const payload = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(recordDrCheck).toHaveBeenCalled()
+    expect(fetchDomainRatingHistory).not.toHaveBeenCalled()
+    expect(recordDrHistoryChecks).not.toHaveBeenCalled()
+    expect(payload).toMatchObject({ historyPointCount: 0 })
+  })
+
+  it("reports provider failures instead of returning the cached rating as a success", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    getClaim.mockResolvedValue({ domain: "example.com", domain_rating: 31, updated_at: "2026-07-03T00:00:00.000Z" })
+    fetchDomainRating.mockRejectedValue(new Error("API units limit reached."))
+
+    const { POST } = await import("./route")
+    const request = new Request("http://localhost/api/recheck", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain: "example.com" }),
+    })
+
+    const response = await POST(request)
+    const payload = await response.json()
+
+    expect(response.status).toBe(503)
+    expect(payload).toEqual({ error: "DR provider is unavailable right now. Please try again later." })
+    expect(upsertClaim).not.toHaveBeenCalled()
+    expect(recordDrCheck).not.toHaveBeenCalled()
   })
 })

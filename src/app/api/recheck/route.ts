@@ -66,8 +66,10 @@ export async function POST(request: Request) {
 
     let historyPointCount = 0
     let historyWarning: string | null = null
+    // History import is a second paid call; only spend it on claimed domains.
     const shouldFetchHistory =
-      provider === "ahrefs" || provider === "ahrefs-api" || Boolean(process.env.AHREFS_API_KEY)
+      Boolean(claim?.email) &&
+      (provider === "ahrefs" || provider === "ahrefs-api" || Boolean(process.env.AHREFS_API_KEY))
 
     if (shouldFetchHistory) {
       try {
@@ -100,22 +102,13 @@ export async function POST(request: Request) {
       historyPointCount,
       ...(historyWarning ? { historyWarning } : {}),
     })
-  } catch {
-    // Provider failed — return the last cached rating if available
-    const cached = await getClaim(domain).catch(() => null)
-    if (cached?.domain_rating != null) {
-      const dr = Math.max(0, Math.min(100, Math.floor(Number(cached.domain_rating))))
-      if (Number.isFinite(dr)) {
-        return NextResponse.json({
-          ok: true,
-          domain,
-          domainRating: dr,
-          provider: cached.provider ?? null,
-          checkedAt: cached.updated_at ? new Date(cached.updated_at).toISOString() : null,
-          stale: true,
-        })
-      }
-    }
-    return NextResponse.json({ error: "Rating temporarily unavailable" }, { status: 503 })
+  } catch (error) {
+    // Report provider failures instead of returning the cached rating as a successful recheck,
+    // so the button stays usable and the outage is visible.
+    console.error("recheck: DR provider failed", error)
+    return NextResponse.json(
+      { error: "DR provider is unavailable right now. Please try again later." },
+      { status: 503 }
+    )
   }
 }
