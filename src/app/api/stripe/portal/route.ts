@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server"
 
 import { getStripe } from "@/lib/stripe"
-import { readRequestJsonRecord } from "@/lib/read-json"
+import { getSessionEmail } from "@/server/auth-session.mjs"
 import { getLatestSubscriptionByEmail } from "@/server/db.mjs"
 import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
-
-function isValidEmail(email: string) {
-  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
-}
 
 export const runtime = "nodejs"
 const RATE_LIMIT_POINTS = Number(process.env.BILLING_PORTAL_RATE_LIMIT_POINTS ?? 10)
@@ -24,11 +20,9 @@ export async function POST(request: Request) {
     )
   }
 
-  const body = await readRequestJsonRecord(request)
-  const email = String(body?.email || "").trim().toLowerCase()
-
-  if (!isValidEmail(email)) {
-    return NextResponse.json({ error: "Valid email required" }, { status: 400 })
+  const email = getSessionEmail(request)
+  if (!email) {
+    return NextResponse.json({ error: "Sign in required.", code: "auth_required" }, { status: 401 })
   }
 
   const subscription = await getLatestSubscriptionByEmail(email)

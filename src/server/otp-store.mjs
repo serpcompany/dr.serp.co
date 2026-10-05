@@ -1,3 +1,5 @@
+import crypto from 'node:crypto'
+
 const otpStore = globalThis.__otpStore || new Map()
 globalThis.__otpStore = otpStore
 
@@ -10,7 +12,7 @@ export function createOtp(email) {
     return { ok: false, retryAfterMs: RESEND_COOLDOWN_MS - (now - existing.lastSentAt) }
   }
 
-  const code = String(Math.floor(100000 + Math.random() * 900000))
+  const code = String(crypto.randomInt(100000, 1000000))
   otpStore.set(email, { lastSentAt: now })
   return { ok: true, code, expiresAt: now + 10 * 60 * 1000 }
 }

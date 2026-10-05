@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import { createSessionToken } from "@/server/auth-session.mjs"
 
 const countClaimsByEmail = vi.fn()
 const listClaimsByEmail = vi.fn()
@@ -13,11 +15,35 @@ vi.mock("@/server/entitlements.mjs", () => ({
   resolveEntitlement,
 }))
 
+function sessionCookie(email: string) {
+  return `dr_session=${createSessionToken(email, { secret: "test-secret" })}`
+}
+
 describe("POST /api/my-sites", () => {
   beforeEach(() => {
+    vi.stubEnv("USESEND_OTP_SECRET", "test-secret")
     countClaimsByEmail.mockReset()
     listClaimsByEmail.mockReset()
     resolveEntitlement.mockReset()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it("requires a signed-in session instead of trusting the email in the body", async () => {
+    const { POST } = await import("./route")
+    const response = await POST(
+      new Request("http://localhost/api/my-sites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "victim@example.com" }),
+      })
+    )
+
+    expect(response.status).toBe(401)
+    expect(resolveEntitlement).not.toHaveBeenCalled()
+    expect(listClaimsByEmail).not.toHaveBeenCalled()
   })
 
   it("returns an upgrade payload without an HTTP error for unpaid users", async () => {
@@ -31,8 +57,8 @@ describe("POST /api/my-sites", () => {
     const response = await POST(
       new Request("http://localhost/api/my-sites", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "user@example.com" }),
+        headers: { "Content-Type": "application/json", cookie: sessionCookie("user@example.com") },
+        body: JSON.stringify({}),
       })
     )
     const payload = await response.json()
@@ -61,8 +87,8 @@ describe("POST /api/my-sites", () => {
     const response = await POST(
       new Request("http://localhost/api/my-sites", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "user@example.com", query: "ex", limit: 12, offset: 0 }),
+        headers: { "Content-Type": "application/json", cookie: sessionCookie("user@example.com") },
+        body: JSON.stringify({ email: "someone-else@example.com", query: "ex", limit: 12, offset: 0 }),
       })
     )
     const payload = await response.json()

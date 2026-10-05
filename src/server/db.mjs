@@ -437,6 +437,7 @@ export async function upsertClaim({ domain, email = null, domainRating, provider
 
 /**
  * Associate a domain with an email without overwriting the DR/provider.
+ * Never takes over a domain claimed by a different email; returns null in that case.
  * @param {{ domain: string, email: string }} input
  */
 export async function setClaimEmail({ domain, email }) {
@@ -453,6 +454,7 @@ export async function setClaimEmail({ domain, email }) {
           DO UPDATE SET
             email = excluded.email,
             updated_at = excluded.updated_at
+          WHERE dr_claims.email IS NULL OR lower(dr_claims.email) = lower(excluded.email)
           RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
         `,
         [domain, email, now]
@@ -463,6 +465,8 @@ export async function setClaimEmail({ domain, email }) {
   if (canUseFallbackStore()) {
     const now = new Date()
     const previous = fallbackClaims.get(domain)
+    const previousEmail = String(previous?.email ?? "").trim().toLowerCase()
+    if (previousEmail && previousEmail !== String(email ?? "").trim().toLowerCase()) return null
     const claimedAt = previous?.claimed_at || now
     const next = {
       domain,
