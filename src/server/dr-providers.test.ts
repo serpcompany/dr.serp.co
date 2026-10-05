@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
-  extractDrFromFrogDrHtml,
   fetchDomainRating,
   fetchDomainRatingHistory,
   fetchDrFromAhrefsApi,
@@ -9,47 +8,6 @@ import {
 
 afterEach(() => {
   vi.restoreAllMocks()
-})
-
-describe("extractDrFromFrogDrHtml", () => {
-  it("prefers the DR value from FrogDR meta descriptions over placeholder card values", () => {
-    const html = `
-      <html>
-        <head>
-          <meta
-            name="description"
-            content="Hey, we are tracking the Domain Rating for frogdr.com and it is currently at DR71. Let's grow your SEO."
-          />
-        </head>
-        <body>
-          <div class="number">
-            <h3>0</h3>
-          </div>
-        </body>
-      </html>
-    `
-
-    expect(extractDrFromFrogDrHtml(html)).toBe(71)
-  })
-
-  it("falls back to the latest chart dataset value when the meta description is missing", () => {
-    const html = `
-      <script>
-        const data = {
-          labels: ['Jan 01', 'Jan 02', 'Jan 03'],
-          datasets: [{
-            data: [66, 68, 72],
-          }]
-        }
-      </script>
-    `
-
-    expect(extractDrFromFrogDrHtml(html)).toBe(72)
-  })
-
-  it("returns null when no usable FrogDR rating is present", () => {
-    expect(extractDrFromFrogDrHtml("<html><body><h3>0</h3></body></html>")).toBeNull()
-  })
 })
 
 describe("fetchDomainRating", () => {
@@ -225,9 +183,7 @@ describe("fetchDomainRating", () => {
 
   it("normalizes targets before selecting a provider", async () => {
     const previousApiKey = process.env.AHREFS_API_KEY
-    const previousSession = process.env.FROGDR_SESSION
     delete process.env.AHREFS_API_KEY
-    delete process.env.FROGDR_SESSION
 
     try {
       await expect(fetchDomainRating({ target: "https://www.Example.com/path?q=1" })).rejects.toThrow(
@@ -238,11 +194,6 @@ describe("fetchDomainRating", () => {
         delete process.env.AHREFS_API_KEY
       } else {
         process.env.AHREFS_API_KEY = previousApiKey
-      }
-      if (previousSession === undefined) {
-        delete process.env.FROGDR_SESSION
-      } else {
-        process.env.FROGDR_SESSION = previousSession
       }
     }
   })

@@ -67,7 +67,6 @@ Operator scripts can target a deployed Worker by setting:
 
 Optional Worker/operator env vars:
 
-- `FROGDR_SESSION`
 - `NEXT_PUBLIC_BASE_URL`
 - `STRIPE_PORTAL_RETURN_URL`
 - `CHECKOUT_RATE_LIMIT_POINTS`

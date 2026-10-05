@@ -171,7 +171,8 @@ export async function loadSiteSnapshot(
         }
       }
     } catch (error) {
-      lookupError = error instanceof Error ? error.message : "Rating temporarily unavailable"
+      // Provider errors can name internal env vars; log them server-side only.
+      console.error("DR lookup failed", { domain, error: error instanceof Error ? error.message : error })
     }
   }
 

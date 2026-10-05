@@ -29,13 +29,6 @@ async function fetchText(url, { cookieHeader = '', headers = {}, method = 'GET',
   return { res, text }
 }
 
-function frogDrSessionLooksAuthenticated(html) {
-  const normalized = String(html ?? '').toLowerCase()
-  if (!normalized) return false
-  if (normalized.includes('href="/sign-in"') || normalized.includes('>sign in<')) return false
-  return normalized.includes('ajxdom') || normalized.includes('sign out') || normalized.includes('dashboard')
-}
-
 function parseJsonInlineVariable(html, variableName) {
   const re = new RegExp(`var\\s+${variableName}\\s*=\\s*(\\{[\\s\\S]*?\\});`)
   const m = html.match(re)
@@ -45,11 +38,6 @@ function parseJsonInlineVariable(html, variableName) {
   } catch {
     return null
   }
-}
-
-function clampDr(value) {
-  const dr = Math.max(0, Math.min(100, Math.floor(Number(value))))
-  return Number.isFinite(dr) ? dr : null
 }
 
 function getAhrefsApiDate() {
@@ -85,26 +73,6 @@ function extractApiError(payload, fallback) {
   }
   if (typeof payload?.message === 'string' && payload.message.trim()) return payload.message.trim()
   return fallback
-}
-
-export function extractDrFromFrogDrHtml(html) {
-  const source = String(html ?? '')
-
-  const metaMatch = source.match(/currently at DR(\d{1,3})\b/i)
-  const metaDr = clampDr(metaMatch?.[1])
-  if (metaDr !== null && metaDr > 0) return metaDr
-
-  const datasetMatch = source.match(/datasets:\s*\[\s*\{[\s\S]*?data:\s*\[([\d,\s]+)\]/i)
-  if (datasetMatch?.[1]) {
-    const values = datasetMatch[1]
-      .split(',')
-      .map((entry) => clampDr(entry))
-      .filter((entry) => entry !== null)
-    const last = values.at(-1)
-    if (last !== undefined && last !== null && last > 0) return last
-  }
-
-  return null
 }
 
 export async function fetchDrFromAhrefsApi({ target, date = getAhrefsApiDate() } = {}) {
@@ -369,98 +337,6 @@ export async function fetchDrFromEditorialLink({ target } = {}) {
   }
 }
 
-/**
- * FrogDR provider — uses a free frogdr.com account session to look up DR.
- *
- * Flow (free tier allows 3 tracked domains):
- *   1. Add the domain:  GET /ajxDom?add={domain}  (authenticated)
- *   2. Trigger refresh: GET /ajxDom?upd={domain}  (authenticated)
- *   3. Scrape DR:       GET /{domain}              (public page, DR in HTML)
- *   4. Remove domain:   GET /ajxDom?d={domain}    (authenticated, frees the slot)
- *
- * Required env var: FROGDR_SESSION  (value of the PHPSESSID cookie from a logged-in
- * frogdr.com browser session — grab it from DevTools → Application → Cookies)
- *
- * NOTE: The /ajxDom?add= endpoint is inferred from the naming pattern of the other
- * endpoints. If it silently fails, the alternative is a POST to / with body `d={domain}`.
- */
-export async function fetchDrFromFrogDR({ target } = {}) {
-  const normalizedTarget = normalizeTarget(target)
-  if (!normalizedTarget) throw new Error('Missing "target"')
-
-  const session = process.env.FROGDR_SESSION
-  if (!session) throw new Error('FROGDR_SESSION env var not set')
-
-  const authHeaders = {
-    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'cookie': `PHPSESSID=${session}`,
-    'referer': 'https://frogdr.com/',
-  }
-
-  const dashboardRes = await fetch('https://frogdr.com/', {
-    headers: authHeaders,
-    redirect: 'follow',
-  })
-  const dashboardHtml = await dashboardRes.text()
-  if (!frogDrSessionLooksAuthenticated(dashboardHtml)) {
-    throw new Error('FROGDR_SESSION is invalid or expired')
-  }
-
-  // Step 1: add domain to dashboard (may already be tracked — that's fine)
-  const addRes = await fetch(`https://frogdr.com/ajxDom?add=${encodeURIComponent(normalizedTarget)}`, {
-    headers: authHeaders,
-    redirect: 'follow',
-  })
-  if (!addRes.ok && addRes.status !== 200) {
-    throw new Error(`FrogDR add failed (${addRes.status})`)
-  }
-
-  // Step 2: trigger a fresh DR fetch
-  await fetch(`https://frogdr.com/ajxDom?upd=${encodeURIComponent(normalizedTarget)}`, {
-    headers: authHeaders,
-    redirect: 'follow',
-  })
-
-  // Step 3: poll the public domain page until DR data appears (up to ~15s)
-  let dr = null
-  for (let attempt = 0; attempt < 6; attempt++) {
-    if (attempt > 0) await new Promise((r) => setTimeout(r, 2500))
-    const pageRes = await fetch(`https://frogdr.com/${encodeURIComponent(normalizedTarget)}`, {
-      headers: { ...authHeaders, 'accept': 'text/html' },
-      redirect: 'follow',
-    })
-    if (!pageRes.ok) continue
-    const html = await pageRes.text()
-    const extracted = extractDrFromFrogDrHtml(html)
-    if (extracted !== null) {
-      dr = extracted
-      break
-    }
-  }
-
-  // Step 4: always remove the domain to keep the slot free
-  try {
-    await fetch(`https://frogdr.com/ajxDom?d=${encodeURIComponent(normalizedTarget)}`, {
-      headers: authHeaders,
-      redirect: 'follow',
-    })
-  } catch {
-    // Non-fatal — removal failure just uses up a slot until manual cleanup
-  }
-
-  if (dr === null || !Number.isFinite(dr)) {
-    throw new Error('FrogDR response missing DR number')
-  }
-
-  return {
-    provider: 'frogdr',
-    target: normalizedTarget,
-    domainRating: dr,
-    extra: null,
-  }
-}
-
 export async function fetchDomainRating({ target, provider, captchaAnswer, captchaHash, date } = {}) {
   const normalizedTarget = normalizeTarget(target)
   if (!normalizedTarget) throw new Error('Missing "target"')
@@ -474,25 +350,13 @@ export async function fetchDomainRating({ target, provider, captchaAnswer, captc
   if (provider === 'editoriallink') {
     return fetchDrFromEditorialLink({ target: normalizedTarget })
   }
-  if (provider === 'frogdr') {
-    return fetchDrFromFrogDR({ target: normalizedTarget })
-  }
 
   if (process.env.AHREFS_API_KEY) {
-    try {
-      return await fetchDrFromAhrefsApi({ target: normalizedTarget, date })
-    } catch (error) {
-      if (!process.env.FROGDR_SESSION) throw error
-    }
-  }
-
-  // Try FrogDR if a session is configured
-  if (process.env.FROGDR_SESSION) {
-    return fetchDrFromFrogDR({ target: normalizedTarget })
+    return fetchDrFromAhrefsApi({ target: normalizedTarget, date })
   }
 
   // No working provider available
   throw new Error(
-    'All providers unavailable: Set AHREFS_API_KEY to enable Ahrefs API | Set FROGDR_SESSION to enable FrogDR'
+    'All providers unavailable: Set AHREFS_API_KEY to enable Ahrefs API'
   )
 }
