@@ -1,5 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { isValidDomainTarget } from "./domain-target.mjs"
+import { isSpamSite } from "./site-spam.mjs"
 
 const D1_BINDING_NAME = "SERP_DR_DB"
 
@@ -306,8 +307,20 @@ function normalizeD1BillingAuditRow(row) {
   }
 }
 
-function filterValidSiteRows(rows) {
-  return rows.filter((row) => isValidDomainTarget(row?.domain))
+function isListableSiteRow(row) {
+  return isValidDomainTarget(row?.domain) && !isSpamSite({ domain: row?.domain, siteTitle: row?.site_title })
+}
+
+function filterListableSiteRows(rows) {
+  return rows.filter(isListableSiteRow)
+}
+
+// Invalid domains are always purged; spam is purged only while unclaimed so a claim is never silently deleted.
+function isPurgeableSiteRow(row) {
+  const domain = String(row?.domain ?? "").trim().toLowerCase()
+  if (!domain) return false
+  if (!isValidDomainTarget(domain)) return true
+  return !row?.email && isSpamSite({ domain, siteTitle: row?.site_title })
 }
 
 function rowsFrom(result) {
@@ -1238,7 +1251,7 @@ export async function listSites(opts = {}) {
           `,
       [pattern, pattern]
     )
-    const rows = filterValidSiteRows(rawRows)
+    const rows = filterListableSiteRows(rawRows)
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
     return rows.slice(offset, offset + limit)
@@ -1279,7 +1292,7 @@ export async function listSites(opts = {}) {
       }
     })
 
-    const filtered = filterValidSiteRows(rows).filter((row) => (q ? row.domain.toLowerCase().includes(q) : true))
+    const filtered = filterListableSiteRows(rows).filter((row) => (q ? row.domain.toLowerCase().includes(q) : true))
     filtered.sort((a, b) => {
       if (sort === "updated") {
         const at = a.updated_at ? Date.parse(a.updated_at) : -Infinity
@@ -1319,23 +1332,24 @@ export async function countSites(opts = {}) {
     const rows = await d1Rows(
       d1,
       `
-        SELECT domain
+        SELECT d.domain, cl.site_title
         FROM (
           SELECT domain FROM dr_claims
           UNION
           SELECT domain FROM dr_checks
         ) d
+        LEFT JOIN dr_claims cl ON cl.domain = d.domain
         WHERE (? IS NULL OR lower(d.domain) LIKE lower(?))
       `,
       [pattern, pattern]
     )
-    return filterValidSiteRows(rows).length
+    return filterListableSiteRows(rows).length
   }
 
   if (canUseFallbackStore()) {
     const q = String(opts.query ?? "").trim().toLowerCase()
     const domains = Array.from(new Set([...fallbackChecks.keys(), ...fallbackClaims.keys()])).filter((domain) =>
-      isValidDomainTarget(domain)
+      isListableSiteRow({ domain, site_title: fallbackClaims.get(domain)?.site_title })
     )
     if (!q) return domains.length
     let count = 0
@@ -1348,6 +1362,10 @@ export async function countSites(opts = {}) {
   return persistentDatabaseUnavailable()
 }
 
+/**
+ * Delete invalid domains and unclaimed spam sites, or only the given invalid domains.
+ * @param {{ domains?: string[], dryRun?: boolean }} [opts]
+ */
 export async function purgeInvalidSiteDomains(opts = {}) {
   const requested = Array.isArray(opts.domains)
     ? opts.domains.filter((domain) => String(domain ?? "").trim())
@@ -1369,13 +1387,17 @@ export async function purgeInvalidSiteDomains(opts = {}) {
             (await d1Rows(
               d1,
               `
-                SELECT domain FROM dr_claims
-                UNION
-                SELECT domain FROM dr_checks
+                SELECT d.domain, cl.site_title, cl.email
+                FROM (
+                  SELECT domain FROM dr_claims
+                  UNION
+                  SELECT domain FROM dr_checks
+                ) d
+                LEFT JOIN dr_claims cl ON cl.domain = d.domain
               `
             ))
-              .map((row) => String(row?.domain ?? "").trim().toLowerCase())
-              .filter((domain) => domain && !isValidDomainTarget(domain))
+              .filter(isPurgeableSiteRow)
+              .map((row) => String(row.domain).trim().toLowerCase())
           )
         )
 
@@ -1451,8 +1473,9 @@ export async function purgeInvalidSiteDomains(opts = {}) {
       ? Array.from(
           new Set(
             [...fallbackClaims.keys(), ...fallbackChecks.keys()]
-              .map((domain) => String(domain ?? "").trim().toLowerCase())
-              .filter((domain) => domain && !isValidDomainTarget(domain))
+              .map((domain) => ({ domain, ...fallbackClaims.get(domain) }))
+              .filter(isPurgeableSiteRow)
+              .map((row) => String(row.domain).trim().toLowerCase())
           )
         )
       : persistentDatabaseUnavailable()

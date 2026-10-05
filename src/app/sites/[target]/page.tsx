@@ -16,6 +16,7 @@ import {
 import { normalizeTarget } from "@/server/dr-providers.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
 import { getRateLimitKey } from "@/server/rate-limit.mjs"
+import { isSpamSite } from "@/server/site-spam.mjs"
 import { resolveRecheckCadence } from "@/server/recheck-cadence.mjs"
 import { BadgeEmbed } from "@/components/badges/badge-embed"
 import { ClaimClient } from "./claim-client"
@@ -43,7 +44,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { target } = await params
   const domain = normalizeTarget(target)
-  if (!domain) return {}
+  if (!domain || isSpamSite({ domain })) return {}
 
   const site = await getSitePageData(domain)
   const pageSiteTitle = getPageSiteTitle({ siteTitle: site.siteTitle, domain })
@@ -55,7 +56,8 @@ export async function generateMetadata({
 export default async function SitePage({ params }: { params: Promise<{ target: string }> }) {
   const { target } = await params
   const domain = normalizeTarget(target)
-  if (!domain) notFound()
+  // Spam domains get no page (and no paid DR lookup); spam titles are only known after the first lookup.
+  if (!domain || isSpamSite({ domain })) notFound()
 
   const embedBase = process.env.DR_PUBLIC_BASE_URL || "https://dr.serp.co"
   const embedLinkUrl = `${embedBase}/sites/${encodeURIComponent(domain)}`
@@ -73,6 +75,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
     lookupError,
   } =
     await getSitePageData(domain)
+  if (isSpamSite({ domain, siteTitle })) notFound()
   const entitlement = claimEmail ? await resolveEntitlement({ email: claimEmail }) : null
   const isPaidLink = Boolean(entitlement?.canAccessPaidFeatures)
   const recheckCadence = resolveRecheckCadence({ isPaid: isPaidLink, lastCheckedAt })

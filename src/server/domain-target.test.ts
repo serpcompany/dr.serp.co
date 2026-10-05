@@ -50,6 +50,14 @@ describe("normalizeTarget", () => {
       "index.php.dev",
       "index.php.prod",
       "index.php.new",
+      "app.js.map",
+      "getlooma.com.map",
+      "env.prod",
+      "dockerfile.dev",
+      "dockerfile.prod",
+      "phpinfo.dev",
+      "outputs.tf",
+      "sendmail.cf",
     ]
 
     for (const target of scannerTargets) {
@@ -63,7 +71,17 @@ describe("normalizeTarget", () => {
   })
 
   it("accepts real domains that resemble file names", () => {
-    const realTargets = ["php.net", "wiki.php.net", "json.org", "vue.js.org", "web.dev", "docs.new", "bushe.co"]
+    const realTargets = [
+      "php.net",
+      "wiki.php.net",
+      "json.org",
+      "vue.js.org",
+      "web.dev",
+      "env.dev",
+      "docs.new",
+      "bushe.co",
+      "docs.docker.com",
+    ]
 
     for (const target of realTargets) {
       expect(normalizeTarget(target)).toBe(target)

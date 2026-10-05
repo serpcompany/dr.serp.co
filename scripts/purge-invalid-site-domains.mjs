@@ -4,7 +4,8 @@ import { loadProjectEnv } from "./_load-env.mjs"
 function printHelp() {
   console.log(`Usage: node scripts/purge-invalid-site-domains.mjs [options]
 
-Counts or purges invalid site domains through the Worker admin API when
+Counts or purges invalid site domains and unclaimed spam sites (gambling,
+escort, darknet, pharma; see src/server/site-spam.mjs) through the Worker admin API when
 DR_ADMIN_BASE_URL/DR_PUBLIC_BASE_URL and DR_ADMIN_TOKEN are configured.
 Falls back to the project DB API for local development.
 
