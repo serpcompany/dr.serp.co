@@ -17,8 +17,9 @@ This folder contains documentation for [dr.serp.co](https://dr.serp.co).
 ### Knowledge Base
 
 The `knowledge/` folder contains internal reference documentation.
+- [Auth Sessions And Claims](knowledge/auth-sessions.md) — OTP sign-in, the `dr_session` cookie, and claim ownership rules.
 - [Billing Ops](knowledge/billing-ops.md) — Billing endpoints, audit logs, rate limits, and monitoring notes.
-- [Invalid Domain Cleanup](knowledge/invalid-domain-cleanup.md) — Shared domain validation, `/sites` filtering, and the admin cleanup endpoint for legacy junk rows.
+- [Invalid Domain Cleanup](knowledge/invalid-domain-cleanup.md) — Domain validation, scanner-probe and spam filtering, and the purge for junk rows.
 - [Site Lookup Loading And Badge Fallback](knowledge/site-lookup-loading-and-badge-fallback.md) — Why fresh DR checks can feel slow and why missing badge values must render as `0`.
 
 ### Runbooks
@@ -56,6 +57,7 @@ svgs/badges/                # SVG badge templates
 | Variable | Description |
 |----------|-------------|
 | `USESEND_API_KEY` | UseSend API key for OTP emails |
+| `USESEND_OTP_SECRET` | Secret that signs OTP tokens and `dr_session` cookies (rotating it signs everyone out) |
 | `DR_PUBLIC_BASE_URL` | Public base URL used to build `/sites/:domain` profile links (default: `https://dr.serp.co`) |
 | `DR_BADGE_BASE_URL` | Badge base URL (default: `https://embeds.serp.co`) |
 | `STRIPE_SECRET_KEY` | Stripe API secret key |

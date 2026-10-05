@@ -34,12 +34,14 @@ Notes:
 - Public `/sites/{page}` profiles give partners, directory listing customers, and link-building clients a shareable DR tracking page.
 - The page shows the latest DR, historical DR chart, site metadata, homepage preview when available, and copyable badge embed.
 - Signed-in users can return to tracked domains from "Your sites".
+- Adding a site from the home page while signed in claims it. On a site page, signed-in users claim with "Claim this site"; viewing a page never claims it. A claimed site can't be taken over by another account.
 
 ## Public site pages
 
 - Every public `/sites/{page}` profile attempts to resolve and store the site title and meta description.
 - The first unresolved `/sites/{page}` visit uses Microlink to fetch normalized metadata and a screenshot.
-- The first uncached DR scan imports Ahrefs Domain Rating history when `AHREFS_API_KEY` is configured.
+- The first uncached DR scan of a claimed site imports Ahrefs Domain Rating history when `AHREFS_API_KEY` is configured. Unclaimed sites skip the history import to save API units.
+- First-visit DR lookups are capped per IP and per day; spam and scanner-probe domains never get a lookup or a public page.
 - Direct fetch parsing is used only as a fallback when Microlink fails.
 - Resolved metadata is stored in the DB to avoid repeated third-party requests.
 - A best-effort homepage screenshot is stored and displayed when Microlink returns one.

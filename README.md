@@ -33,7 +33,8 @@ npm run dev
 | `/pricing` | Pricing plans |
 | `/billing` | Billing status and portal access |
 | `POST /api/auth/request-otp` | Send email OTP |
-| `POST /api/auth/verify-otp` | Verify OTP |
+| `POST /api/auth/verify-otp` | Verify OTP and set the `dr_session` cookie |
+| `GET/DELETE /api/auth/session` | Read the signed-in email / sign out |
 | `POST /api/billing/status` | Billing status + entitlement API |
 | `POST /api/stripe/portal` | Stripe customer portal session |
 | `GET /api/stripe/webhook/health` | Webhook health status |

@@ -1,7 +1,7 @@
 # Billing ops notes
 
-- **Billing status API**: `POST /api/billing/status` with `{ email }` returns entitlement + subscription details for UI.
-- **Customer portal**: `POST /api/stripe/portal` with `{ email }` returns a Stripe portal session URL.
+- **Billing status API**: `POST /api/billing/status` (session cookie required) returns entitlement + subscription details for UI.
+- **Customer portal**: `POST /api/stripe/portal` (session cookie required) returns a Stripe portal session URL.
 - **Admin report**: `GET /api/admin/subscriptions` with `x-admin-token: $DR_ADMIN_TOKEN` returns subscription + usage stats.
 - **Webhook health**: `GET /api/stripe/webhook/health` returns `ok`, `status`, and last event timestamps. Hook this into your uptime monitor to alert when `ok=false`.
 - **Health script**: `npm run webhook:health` exits non-zero on unhealthy status (use in cron/monitors).
