@@ -10,7 +10,7 @@ Status: production traffic for `dr.serp.co` is live on Cloudflare Workers/OpenNe
 - Production Worker custom domain: `dr.serp.co` on zone `serp.co`.
 - Public DNS now resolves `dr.serp.co` through Cloudflare and normal requests return `server: cloudflare` with `x-opennext: 1`. Worker hostname ownership is managed by the Wrangler custom domain entry, not a legacy `dr.serp.co/*` route.
 - Deployment authority: Wrangler from an intended `main` commit. No GitHub Actions deploy workflow exists in this repo right now. If CI deploys are added later, update `docs/runbooks/gitflow.md` and this runbook.
-- Wrangler config: `wrangler.jsonc`
+- Wrangler config: `wrangler.jsonc`. Its top level is local-only (Worker `serp-dr-local`, a local D1 database, `localhost` URLs) and is never deployed. Every remote Wrangler command passes `--env preview` or `--env production`; `npm run cf:audit` fails if the top level points at a deployed Worker or database.
 - OpenNext config: `open-next.config.ts`
 - Worker entry: `cloudflare-worker.js`, which delegates fetch handling to `.open-next/worker.js` and exports this app's custom `RateLimitDurableObject`. Keep any OpenNext internal Durable Object re-exports separate if future caching features add them.
 - D1 migrations directory: `migrations/`
@@ -41,7 +41,13 @@ Target D1 database names:
 
 ## Secrets and vars
 
-Do not commit secret values. Install secrets through Cloudflare Dashboard or `wrangler secret put` after explicit approval for the target environment.
+Do not commit secret values. Install or remove secrets through Cloudflare Dashboard or Wrangler after explicit approval for the target environment, always naming it:
+
+```sh
+npx wrangler secret put <NAME> --env preview
+npx wrangler secret put <NAME> --env production
+npx wrangler secret delete <NAME> --env production
+```
 
 Required Worker secrets:
 
@@ -141,10 +147,10 @@ Important indexes:
 
 ## Migration and import flow
 
-Local-only schema check:
+Local-only schema check (top-level local config):
 
 ```sh
-npx wrangler d1 migrations apply SERP_DR_DB --env preview --local
+npx wrangler d1 migrations apply SERP_DR_DB --local
 ```
 
 Preview apply requires explicit approval first:

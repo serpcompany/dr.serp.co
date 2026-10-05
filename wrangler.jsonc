@@ -1,7 +1,9 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "main": "./cloudflare-worker.js",
-  "name": "serp-dr",
+  // Top level is local-only (wrangler dev, --local D1, opennextjs-cloudflare preview). It is never
+  // deployed: every remote command passes --env preview or --env production.
+  "name": "serp-dr-local",
   "compatibility_date": "2026-06-20",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
@@ -9,21 +11,21 @@
     "binding": "ASSETS"
   },
   "workers_dev": false,
-  "preview_urls": true,
+  "preview_urls": false,
   "observability": {
     "enabled": true
   },
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "serp-dr"
+      "service": "serp-dr-local"
     }
   ],
   "d1_databases": [
     {
       "binding": "SERP_DR_DB",
-      "database_name": "serp-dr-prod",
-      "database_id": "0a6e5e69-60e4-4145-a84a-3f8c9177ad0c",
+      "database_name": "serp-dr-local",
+      "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }
   ],
@@ -43,8 +45,8 @@
   ],
   "vars": {
     "NEXTJS_ENV": "production",
-    "DR_PUBLIC_BASE_URL": "https://dr.serp.co",
-    "DR_BADGE_BASE_URL": "https://dr.serp.co"
+    "DR_PUBLIC_BASE_URL": "http://localhost:8787",
+    "DR_BADGE_BASE_URL": "http://localhost:8787"
   },
   "secrets": {
     "required": [

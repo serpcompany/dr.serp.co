@@ -131,6 +131,18 @@ try {
   if (!wrangler.durable_objects?.bindings?.some((entry) => entry.name === "RATE_LIMITER")) {
     findings.push({ severity: "error", area: "wrangler", message: "RATE_LIMITER Durable Object binding is required" })
   }
+  // The top level is local-only; a bare `wrangler` command must never reach a deployed Worker or database.
+  const deployedEnvs = Object.values(wrangler.env ?? {})
+  if (deployedEnvs.some((entry) => entry.name === wrangler.name)) {
+    findings.push({ severity: "error", area: "wrangler", message: "Top-level name must be local-only, not a deployed Worker name" })
+  }
+  if (wrangler.routes?.length || wrangler.route) {
+    findings.push({ severity: "error", area: "wrangler", message: "Top-level config must not declare routes" })
+  }
+  const deployedDatabaseIds = deployedEnvs.flatMap((entry) => (entry.d1_databases ?? []).map((db) => db.database_id))
+  if ((wrangler.d1_databases ?? []).some((db) => deployedDatabaseIds.includes(db.database_id))) {
+    findings.push({ severity: "error", area: "wrangler", message: "Top-level D1 binding must not point at a deployed database" })
+  }
   const productionRoutes = wrangler.env?.production?.routes ?? []
   if (!productionRoutes.some((entry) => entry.pattern === "dr.serp.co" && entry.custom_domain === true)) {
     findings.push({ severity: "error", area: "wrangler", message: "Production must attach dr.serp.co as a custom domain" })
