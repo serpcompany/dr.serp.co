@@ -31,8 +31,8 @@ Cloudflare resources currently configured in `wrangler.jsonc`:
 - Preview Worker host: `https://serp-dr-preview.serpcompany.workers.dev`
 - Production D1 name: `serp-dr-prod`
 - Production D1 ID: `0a6e5e69-60e4-4145-a84a-3f8c9177ad0c`
-- Current production Worker version validated after the Ahrefs usage guards, spam filter and server-side sign-in (`main` 077b26a, PRs #29 and #30): `9a6fbf07-9616-4f3a-942c-6d2d3aa13c71`
-- Previous production Worker version (rollback target): `ce91f155-ebef-4d03-9cf9-a23cdef592b6`
+- Current production Worker version validated after FrogDR removal and local-only top-level Wrangler config (`main` 0a619a0, PRs #33 and #35): `b9297061-8889-4f4d-907b-baba0bfaf1f6`
+- Previous production Worker version (rollback target): `9a6fbf07-9616-4f3a-942c-6d2d3aa13c71`
 
 Target D1 database names:
 
