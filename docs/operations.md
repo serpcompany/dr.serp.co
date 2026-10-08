@@ -15,8 +15,11 @@ change secrets or run remote D1 commands. Moving deploys and migrations into CI 
 | Preview (`--env preview`) | `serp-dr-preview` | `serp-dr-preview` | `serp-dr-preview.serpcompany.workers.dev` |
 | Production (`--env production`) | `serp-dr` | `serp-dr-prod` | `dr.serp.co`, a Worker custom domain on the `serp.co` zone |
 
-Named environments inherit nothing from the top level, so each one repeats every binding, var and
-service. Every remote command passes `--env`; without it Wrangler uses the local configuration.
+Named environments don't inherit the top level's bindings, vars or services, so each repeats
+them. They do inherit other keys, including `main`, `compatibility_date`, `compatibility_flags`,
+`assets`, `observability` and the Durable Object `migrations`, so changing one of those at the top
+level changes Preview and Production too. Every remote command passes `--env`; without it
+Wrangler uses the local configuration.
 `npm run cf:audit -- --strict --pretty` fails when the top level points at a deployed Worker or
 database. After changing bindings or vars, run `npm run cf:types` to regenerate
 `cloudflare-env.d.ts`.
@@ -44,7 +47,8 @@ npm run deploy:production
 
 Each `deploy:*` script builds for its environment, runs the bundle check, then runs
 `opennextjs-cloudflare deploy --env <env>`. Never use `wrangler deploy` directly: it skips the
-pages OpenNext uploads. `npm run cf:deploy:dry-run` builds and validates without deploying.
+build and the bundle check, and the cache upload OpenNext adds once an incremental cache is
+configured. `npm run cf:deploy:dry-run` builds and validates without deploying.
 
 After a deploy, check that Wrangler reported `dr.serp.co (custom domain)`, then smoke-test:
 

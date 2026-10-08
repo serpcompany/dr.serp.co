@@ -15,8 +15,8 @@ Sign-in is a one-time code sent by email. There are no passwords.
    per 10 minutes (`VERIFY_OTP_RATE_LIMIT_*`). On success it sets the `dr_session` cookie:
    HttpOnly, Secure, `SameSite=Lax`, valid for 30 days.
 
-Tokens are signed with `USESEND_OTP_SECRET`, falling back to `USESEND_API_KEY`
-(`src/server/signed-token.mjs`). Each token carries a `typ`, so a code token can't be replayed as a
+Tokens are signed with `USESEND_OTP_SECRET`, falling back to `USESEND_API_KEY` (`getAuthSecret`
+in `src/server/auth-session.mjs`). Each token carries a `typ`, so a code token can't be replayed as a
 session. Sessions are stateless: the only way to revoke them is to rotate the secret, which signs
 everyone out. `DELETE /api/auth/session` signs one browser out.
 

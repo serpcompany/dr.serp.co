@@ -26,7 +26,10 @@ logic lives in `src/server/`, and each part has tests next to it.
 
 - **Pages** (`src/app/**/page.tsx`) are server components that read through `src/server/`.
   Client components are for interaction only and call route handlers with `fetch`.
-- **Route handlers** (`src/app/api/**/route.ts`) do every write. There are no Server Actions.
+- **Route handlers** (`src/app/api/**/route.ts`) do every write a visitor asks for. There are no
+  Server Actions. Two reads also write: rendering `/sites/<domain>` stores a first lookup and the
+  site's metadata, and `GET /badge/<domain>` copies the latest `dr_checks` reading into `dr_claims`
+  when that row has no DR.
 - **`src/server/`** holds the domain logic and is server-only: data access, DR providers, site
   metadata, domain validation, the spam filter, sign-in tokens and sessions, entitlements and rate
   limits. It never imports pages, route handlers or components. `src/server/db.mjs` is the only

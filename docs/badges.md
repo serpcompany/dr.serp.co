@@ -20,7 +20,8 @@ template in `badge-templates.ts`.
   errors are `no-store`.
 - An invalid domain returns 400.
 
-The templates load the Inter font from Google Fonts inside the SVG.
+The `serp-dr-v3` template asks for the Inter font from Google Fonts, but an SVG shown through
+`<img>` can't load external fonts, so browsers fall back to the template's other font families.
 
 ## The embed code
 
@@ -28,7 +29,7 @@ The templates load the Inter font from Google Fonts inside the SVG.
 to `DR_PUBLIC_BASE_URL/sites/<domain>` and loads the image from
 `DR_BADGE_BASE_URL/badge/<domain>?style=serp-dr-v3`. `DR_BADGE_BASE_URL` falls back to
 `DR_PUBLIC_BASE_URL`, then to `https://dr.serp.co`; each environment in `wrangler.jsonc` sets both
-to its own origin. The preview on the page is HTML, not the SVG.
+to its own origin. The page shows the live badge from that URL, as a button that copies the code.
 
 ```html
 <a href="https://dr.serp.co/sites/example.com" target="_blank" rel="noopener noreferrer"><img

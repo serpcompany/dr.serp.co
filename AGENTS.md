@@ -11,24 +11,24 @@ against the code before relying on it.
 
 Stage: ship
 
+Base branch: `main`. Branch from it as `issue-<number>-<slug>` and open pull requests into it.
+
 ## SERP standards
 
-This repository follows the shared standards in
-[serpcompany/serp](https://github.com/serpcompany/serp/tree/main/docs/engineering/standards).
-Read the ones your task touches:
+This repository follows the shared standards in serpcompany/serp's
+[docs/engineering](https://github.com/serpcompany/serp/tree/main/docs/engineering). Read the
+ones your task touches (paths below are relative to that folder):
 
-- **Every change:** [git workflow](https://github.com/serpcompany/serp/blob/main/docs/engineering/standards/git-workflow.md),
-  [verification cadence](https://github.com/serpcompany/serp/blob/main/docs/engineering/standards/verification-cadence.md)
-  and, for reviews, the [review prompt](https://github.com/serpcompany/serp/blob/main/docs/engineering/standards/agent-harness/review-prompt.md).
-- **Config, Worker entry, caching, deploys:** [Next.js on Workers](https://github.com/serpcompany/serp/blob/main/docs/engineering/standards/web-stack/nextjs-on-workers.md)
-  and [environment configuration](https://github.com/serpcompany/serp/blob/main/docs/engineering/standards/environment-configuration.md).
-- **Tables and queries:** [data and storage](https://github.com/serpcompany/serp/blob/main/docs/engineering/standards/web-stack/data-and-storage.md)
-  and [Cloudflare D1 limits](https://github.com/serpcompany/serp/blob/main/docs/engineering/technology/cloudflare-d1-limits.md).
-- **UI:** [shadcn first](https://github.com/serpcompany/serp/blob/main/docs/engineering/standards/web-stack/shadcn-first.md).
-- **Claims and badges:** the [native submissions](https://github.com/serpcompany/serp/blob/main/docs/engineering/websites/features/submissions/README.md)
-  spec, which names dr.serp.co as its next directory.
-- **Docs:** [docs are maps](https://github.com/serpcompany/serp/blob/main/docs/engineering/standards/agent-harness/docs-are-maps.md)
-  and [docs/README.md](docs/README.md).
+- **Every change:** `standards/git-workflow.md`, `standards/verification-cadence.md`, and for
+  reviews `standards/agent-harness/review-prompt.md`.
+- **Config, Worker entry, caching, deploys:** `standards/web-stack/nextjs-on-workers.md` and
+  `standards/environment-configuration.md`.
+- **Tables and queries:** `standards/web-stack/data-and-storage.md` and
+  `technology/cloudflare-d1-limits.md`.
+- **UI:** `standards/web-stack/shadcn-first.md`.
+- **Claims and badges:** the native submissions spec in `websites/features/submissions/`, which
+  names dr.serp.co as its next directory.
+- **Docs:** `standards/agent-harness/docs-are-maps.md` and [docs/README.md](docs/README.md).
 
 The site is moving to the SERP web stack under
 [epic #36](https://github.com/serpcompany/dr.serp.co/issues/36), one sub-issue at a time. Until
@@ -37,8 +37,9 @@ components ahead of their issue.
 
 ## Where things live
 
-- `src/app/`: pages and route handlers. `src/app/api/` holds every write; there are no Server
-  Actions.
+- `src/app/`: pages and route handlers. Writes a visitor asks for are route handlers under
+  `src/app/api/`; there are no Server Actions. A first visit to a site page and the badge route
+  also write to D1 ([Architecture](docs/architecture.md#layers)).
 - `src/server/`: server-only logic: data access (`db.mjs`, the only place with SQL), DR providers,
   domain validation, the spam filter, sign-in tokens and sessions, entitlements and rate limits.
 - `src/lib/`: pricing tiers, the Stripe client and shared helpers.
@@ -55,10 +56,13 @@ components ahead of their issue.
 - [DR lookups](docs/dr-lookups.md): when the site calls Ahrefs, the cost guards, domain validation
   and the spam filter. Read it before adding any call to a DR provider.
 - [Accounts and claims](docs/accounts-and-claims.md): sign-in, sessions, claiming and entitlements.
+  Read it before touching sign-in, a session check, claims or what a paid plan unlocks.
 - [Badges](docs/badges.md): the badge route, its styles and caching, and the static R2 badges.
-- [Billing](docs/billing.md): plans, Stripe, webhooks and billing operations.
+  Read it before changing the badge route or the embed code, which third-party sites depend on.
+- [Billing](docs/billing.md): plans, Stripe, webhooks and billing operations. Read it before
+  changing prices, checkout, the portal or the webhook.
 - [Operations](docs/operations.md): environments, secrets, deploys, D1 migrations, operator scripts
-  and rollback.
+  and rollback. Read it before changing `wrangler.jsonc` or preparing anything remote.
 
 ## Commands
 
@@ -69,8 +73,8 @@ Inner loop, while editing:
 - Type errors in app code surface in `npm run build`. `npx tsc --noEmit` also checks test files,
   which have known errors until #42.
 
-Finish gate, once per finished state:
-`npm test && npm run cf:audit -- --strict --pretty && npm run cf:build && npm run docs:check`.
+Finish gate, once per finished state: `npm run lint && npm test &&
+npm run cf:audit -- --strict --pretty && npm run cf:build && npm run docs:check`.
 
 Evidence beyond the finish gate:
 
@@ -84,7 +88,9 @@ Evidence beyond the finish gate:
 - **Agents never deploy or run remote D1 commands** (`--remote`). The owner deploys with
   `npm run deploy:preview` or `npm run deploy:production`, never `wrangler deploy`, until
   [#44](https://github.com/serpcompany/dr.serp.co/issues/44) moves deploys to CI.
-- **The top level of `wrangler.jsonc` is local-only.** Every remote command passes `--env`.
+- **The top level of `wrangler.jsonc` is the local configuration,** and every remote command passes
+  `--env`. Environments still inherit some top-level keys, such as `compatibility_date`, so read
+  [Operations](docs/operations.md#environments) before changing it.
 - **Every Ahrefs call costs API units.** A new call site keeps the guards in
   [DR lookups](docs/dr-lookups.md).
 - **Scratch files go in `tmp/`**, which Git ignores, and are deleted when the task ends.
@@ -93,10 +99,9 @@ Agents never merge. The owner merges every pull request.
 
 ## Exceptions to the SERP standards
 
-- **Email:** sign-in codes go through useSend from a no-reply sender on `mail.serp.co`, the
-  serp.co-subdomain exception in the
-  [transactional email](https://github.com/serpcompany/serp/blob/main/docs/engineering/standards/transactional-email.md)
-  standard.
+- **Email:** sign-in codes go through useSend from a no-reply sender on `mail.serp.co`, under the
+  serp.co-subdomain directory exception in `standards/transactional-email.md`. That exception
+  also needs a footer saying the address isn't monitored, which the code email lacks; #54 adds it.
 - **URLs:** pages have no trailing slash, and the Worker strips one. Whether to adopt the SERP
   rule is [#51](https://github.com/serpcompany/dr.serp.co/issues/51); don't change slash
   behavior before it's decided.

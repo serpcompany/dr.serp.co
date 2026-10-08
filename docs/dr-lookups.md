@@ -16,25 +16,29 @@ The scraping research is in `.archive/research/ahrefs-dr-without-api.md`.
 
 ## When Ahrefs is called
 
-There is no public endpoint that proxies Ahrefs. It is called in three places only, and every
-result is written to `dr_checks`:
+Ahrefs is called in three places, and every result is written to `dr_checks`:
 
 1. **First visit to an unknown domain.** `/sites/<domain>` with no stored DR looks it up
    (`src/app/sites/[target]/site-snapshot.ts`). New lookups are capped at 10 per IP per hour and
-   100 per day across the site (`NEW_SITE_LOOKUP_*`). Over a cap, the page says so and calls
-   nothing.
+   100 per day across the site (`NEW_SITE_LOOKUP_*`). Over a cap, the page says so and doesn't
+   call Ahrefs, though it still fetches the site's metadata and stores the domain (#59).
 2. **A recheck.** `POST /api/recheck` allows 10 requests per IP per minute, and a domain can be
    rechecked once per 30 days, or once per 7 days when its owner has a paid plan
    (`src/server/recheck-cadence.mjs`), counted from its last check. When the provider fails, the
-   route answers 503; it never reports the stored rating as a fresh one.
-3. **History import.** A second paid call, made only for claimed domains: after their first
-   lookup and after each recheck. It is best effort; the current DR is enough to render.
+   route answers 503; it never reports the stored rating as a fresh one. A domain with no stored
+   DR can be rechecked at once, so this route also looks up new domains outside the first-visit
+   caps, and it doesn't check the spam filter. Closing that gap is
+   [#59](https://github.com/serpcompany/dr.serp.co/issues/59).
+3. **History import.** A second paid call, made only for claimed domains: on a first lookup of a
+   domain that is already claimed, and after each recheck. The add-site flow claims a domain after
+   its first lookup, so its history arrives with its first recheck. The import is best effort; the
+   current DR is enough to render.
 
 A new call site must be rate-limited, must record its result in `dr_checks`, and must not run for
 a domain that is invalid or spam.
 
-The first lookup can take a while, so `/sites/[target]/loading.tsx` tells the visitor it may take
-up to a minute. Provider errors can name internal env vars, so they're logged on the server and
+The first lookup can take a while; `/sites/[target]/loading.tsx` shows a loading state meanwhile.
+Provider errors can name internal env vars, so they're logged on the server and
 never shown to visitors.
 
 ## Valid domains
@@ -56,7 +60,8 @@ own downloader sites aren't caught. A spam site:
 
 - is hidden from the site list and its counts;
 - renders not-found, with `noindex`;
-- never gets a paid lookup.
+- gets no first-visit lookup when its domain matches. A site caught only by its title is known
+  after its first lookup, and `/api/recheck` doesn't check spam yet (#59).
 
 The list and its counts also drop invalid and spam rows when reading, as a backstop for rows
 stored before a rule existed.
@@ -64,9 +69,11 @@ stored before a rule existed.
 ## Cleaning up stored junk
 
 Validation stops new junk but doesn't remove old rows. `POST /api/admin/sites/cleanup-invalid`
-(with `x-admin-token`) dry-runs or purges invalid domains and unclaimed spam sites; claimed rows
-are never purged by the spam rule. `npm run sites:purge-invalid` calls it, and only deletes with
-`-- --apply`, after the owner approves ([Operations](operations.md#operator-scripts)).
+(with `x-admin-token`) dry-runs or purges them. By default it checks a fixed list of known junk
+domains; with `scanAll: true` it scans every row for invalid domains and unclaimed spam sites.
+Claimed rows are never purged by the spam rule. `npm run sites:purge-invalid` sends `scanAll`, and
+only deletes with `-- --apply`, after the owner approves
+([Operations](operations.md#operator-scripts)).
 
 ## Site metadata
 

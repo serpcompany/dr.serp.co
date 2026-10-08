@@ -16,7 +16,9 @@ billing costs 10 times the monthly price, so two months are free.
 | 50 | $15 | $150 |
 | 100 | $27 | $270 |
 
-- **A subscription belongs to an email address,** the one the subscriber signed in with.
+- **A subscription belongs to the email address Stripe has for the customer.** Checkout fills in
+  the signed-in email; a signed-out buyer types one into Stripe, and the plan applies once they
+  sign in with that address.
 - **Every size has the same features;** only the domain limit differs. At the limit, new claims are
   refused and the UI offers an upgrade ([Accounts and claims](accounts-and-claims.md)).
 - **What a plan gives** is listed in [Accounts and claims](accounts-and-claims.md#what-a-paid-plan-gives-a-claimed-domain).
@@ -37,7 +39,8 @@ billing costs 10 times the monthly price, so two months are free.
 
 ## Endpoints
 
-All of them take the subscriber from the session cookie, never from the request body.
+None of them reads an email from the request body. The portal and billing status need a session;
+checkout uses the session's email when there is one.
 
 - `POST /api/stripe/checkout` opens a subscription-mode Checkout Session, returning to
   `/pricing?checkout=success` or `/pricing?checkout=cancelled`.
