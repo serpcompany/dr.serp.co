@@ -36,7 +36,10 @@ async function checkDurableObjectRateLimit({ binding, key, points, duration }) {
     throw new Error(`Rate limiter Durable Object failed with ${response.status}`)
   }
 
-  const payload = await response.json().catch(() => null)
+  // An answer that isn't JSON is a fault, not a limit decision: let it take the outage path.
+  const payload = await response.json().catch(() => {
+    throw new Error("Rate limiter Durable Object answered with invalid JSON")
+  })
   return toLimitResponse(payload, retryAfterMs)
 }
 

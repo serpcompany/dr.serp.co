@@ -10,6 +10,7 @@ vi.mock("next/headers", () => ({
   headers: () => headerStore,
 }))
 
+const limiter = vi.hoisted(() => vi.fn(async () => ({ allowed: true, unavailable: false, remaining: 119, retryAfterMs: 0 })))
 const upsertSubscription = vi.fn()
 const insertBillingAudit = vi.fn()
 const retrieveSubscription = vi.fn()
@@ -24,7 +25,7 @@ vi.mock("@/server/db.mjs", () => ({
 
 vi.mock("@/server/rate-limit.mjs", () => ({
   RATE_LIMITER_UNAVAILABLE_MESSAGE: "This is unavailable right now. Please try again shortly.",
-  checkRateLimit: vi.fn(async () => ({ allowed: true, remaining: 119, retryAfterMs: 0 })),
+  checkRateLimit: limiter,
   getRateLimitKey: vi.fn(() => "stripe-webhook:127.0.0.1"),
 }))
 
@@ -374,5 +375,16 @@ describe("POST /api/stripe/webhook payload shapes", () => {
     expect(upsertSubscription).toHaveBeenCalledWith(
       expect.objectContaining({ email: "buyer@example.com", stripeSubscriptionId: "sub_1", domainsLimit: 25 })
     )
+  })
+
+  it("answers 503 while the rate limiter is down, so Stripe retries", async () => {
+    limiter.mockResolvedValueOnce({ allowed: false, unavailable: true, remaining: 0, retryAfterMs: 60000 })
+
+    const { POST } = await import("./route")
+    const response = await POST(signedRequest({ id: "evt_limiter_down", type: "charge.succeeded", data: { object: {} } }))
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get("Retry-After")).toBeNull()
+    expect(insertBillingAudit).not.toHaveBeenCalled()
   })
 })

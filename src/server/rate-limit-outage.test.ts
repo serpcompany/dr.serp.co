@@ -39,4 +39,15 @@ describe("checkRateLimit when the Durable Object fails", () => {
       retryAfterMs: 5000,
     })
   })
+
+  it("treats an answer that isn't JSON as an outage", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    fetchStub.mockResolvedValue(new Response("not json", { status: 200 }))
+    const { checkRateLimit } = await import("./rate-limit.mjs")
+
+    expect(await checkRateLimit({ key: "recheck:203.0.113.1", points: 10, duration: 60 })).toMatchObject({
+      allowed: false,
+      unavailable: true,
+    })
+  })
 })
