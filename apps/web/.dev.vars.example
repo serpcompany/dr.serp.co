@@ -1,5 +1,5 @@
-# Copy to .dev.vars for local runs. npm run dev and the operator scripts load every key. Wrangler
-# (wrangler dev, npm run cf:preview) loads only the keys in secrets.required in wrangler.jsonc,
+# Copy to .dev.vars for local runs. pnpm dev and the operator scripts load every key. Wrangler
+# (wrangler dev, pnpm cf:preview) loads only the keys in secrets.required in wrangler.jsonc,
 # and takes DR_PUBLIC_BASE_URL and DR_BADGE_BASE_URL from wrangler.jsonc's vars; other keys fall
 # back to their code defaults there.
 # Never put these in .env* files: the OpenNext build copies .env* values into the Worker bundle.

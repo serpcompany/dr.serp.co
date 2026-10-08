@@ -26,7 +26,7 @@ keeps the deployment history.
 - Never put live credentials or secret values in a doc.
 
 Maps (`AGENTS.md` and each `README.md`) stay within 120 lines, and every other doc within 300,
-counted at 100 characters a line. `npm run docs:check` checks sizes, names and relative links, and
+counted at 100 characters a line. `pnpm docs:check` checks sizes, names and relative links, and
 CI runs it on every pull request.
 
 Material that no longer describes the code, kept only for reference, goes in `.archive/`. It never

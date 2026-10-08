@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 
-import { Miniflare } from "miniflare"
+import { createRequire } from "node:module"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 const binding = vi.hoisted(() => ({ db: null as unknown }))
@@ -16,6 +16,10 @@ type D1 = {
   prepare: (sql: string) => { bind: (...values: unknown[]) => { run: () => Promise<unknown> } }
   batch: (statements: unknown[]) => Promise<unknown>
 }
+
+// The Miniflare that Wrangler itself runs, so these tests use the same workerd as preview and deploys.
+const requireFromWrangler = createRequire(createRequire(import.meta.url).resolve("wrangler/package.json"))
+type Miniflare = { getD1Database(name: string): Promise<unknown>; dispose(): Promise<void> }
 
 let mf: Miniflare
 let d1: D1
@@ -44,6 +48,7 @@ async function insertClaim(domain: string, { email = null as string | null, rati
 }
 
 beforeAll(async () => {
+  const { Miniflare } = await import(requireFromWrangler.resolve("miniflare"))
   mf = new Miniflare({
     modules: true,
     script: "export default { fetch() { return new Response('') } }",

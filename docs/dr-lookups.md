@@ -73,8 +73,8 @@ stored before a rule existed.
 Validation stops new junk but doesn't remove old rows. `POST /api/admin/sites/cleanup-invalid`
 (with `x-admin-token`) dry-runs or purges them. By default it checks a fixed list of known junk
 domains; with `scanAll: true` it scans every row for invalid domains and unclaimed spam sites.
-Claimed rows are never purged by the spam rule. `npm run sites:purge-invalid` sends `scanAll`, and
-only deletes with `-- --apply`, after the owner approves
+Claimed rows are never purged by the spam rule. `pnpm sites:purge-invalid` sends `scanAll`, and
+only deletes with `--apply`, after the owner approves
 ([Operations](operations.md#operator-scripts)).
 
 ## Site metadata
@@ -84,4 +84,4 @@ description and a homepage screenshot from Microlink, and falls back to fetching
 It runs on a visit to a page whose title, description or URL is still missing, and stores the
 result in `dr_claims`, so a site whose metadata resolves isn't fetched again. For a domain with no
 stored DR it counts against the new-lookup caps, and it never runs for a stored spam title.
-`npm run sites:backfill-metadata` fills in older rows.
+`pnpm sites:backfill-metadata` fills in older rows.

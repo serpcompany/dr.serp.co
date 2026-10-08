@@ -68,9 +68,9 @@ need a session; checkout uses the session's email when there is one.
 - `GET /api/admin/subscriptions` (admin token) reports every subscription and its domain usage.
 
 Checkout and the portal build their return URLs from `DR_PUBLIC_BASE_URL`, never from the
-request's `Origin` header, which the client controls. `npm run cf:preview` builds with
+request's `Origin` header, which the client controls. `pnpm cf:preview` builds with
 `--env=preview`, so a test checkout there returns to the deployed preview Worker, not to
-localhost; use `npm run dev` for a local round trip.
+localhost; use `pnpm dev` for a local round trip.
 
 ## Webhooks
 
@@ -107,7 +107,7 @@ endpoint's version can change payloads again; check the handler and its tests fi
 - `degraded`: a failed event in the last `STRIPE_WEBHOOK_FAILURE_WINDOW_MINUTES` (60);
 - `ok` otherwise.
 
-`npm run webhook:health` exits non-zero unless the status is `ok`, for a cron or uptime monitor.
+`pnpm webhook:health` exits non-zero unless the status is `ok`, for a cron or uptime monitor.
 
 ## Operations
 
@@ -116,8 +116,8 @@ local dev server in `.dev.vars.example`), when `DR_ADMIN_TOKEN` is set. Only `DR
 reaches Production. Without a base URL or token they run against the local fallback store.
 Neither local target proves anything about production.
 
-- `npm run billing:reconcile` compares Stripe's subscriptions with `dr_subscriptions`.
-- `npm run billing:prune-audit -- --days 180` reports audit rows older than 180 days, and deletes
+- `pnpm billing:reconcile` compares Stripe's subscriptions with `dr_subscriptions`.
+- `pnpm billing:prune-audit --days 180` reports audit rows older than 180 days, and deletes
   them with `--apply` once the owner approves.
 
 ## Replaying a failed event
@@ -129,4 +129,4 @@ failed. The reason is in the event's `dr_billing_audit.error` and in the Worker 
    the event under **Events** and choose **Replay**. With the CLI:
    `stripe events resend <event-id> --webhook-endpoint <endpoint-id>`.
 2. Check that `/api/stripe/webhook/health` reports the new event, and run
-   `npm run billing:reconcile` against Production to confirm `dr_subscriptions` matches Stripe.
+   `pnpm billing:reconcile` against Production to confirm `dr_subscriptions` matches Stripe.

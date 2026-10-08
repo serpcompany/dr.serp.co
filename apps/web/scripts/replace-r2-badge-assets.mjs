@@ -100,15 +100,15 @@ function loadReplacementMap(mapPath) {
 }
 
 function runWrangler(args, { apply }) {
-  const cmd = ["-y", "wrangler", "r2", "object", ...args]
-  const printable = `npx ${cmd.join(" ")}`
+  const cmd = ["exec", "wrangler", "r2", "object", ...args]
+  const printable = `pnpm ${cmd.join(" ")}`
 
   if (!apply) {
     console.log(`[dry-run] ${printable}`)
     return
   }
 
-  const result = spawnSync("npx", cmd, {
+  const result = spawnSync("pnpm", cmd, {
     cwd: process.cwd(),
     stdio: "inherit",
   })
@@ -200,7 +200,7 @@ for (const item of replacements) {
   )
 
   rollbackNotes.push(
-    `npx -y wrangler r2 object put ${objectPath} ${storageModeFlag} --file ${localBackupFile} --content-type image/svg+xml`
+    `pnpm exec wrangler r2 object put ${objectPath} ${storageModeFlag} --file ${localBackupFile} --content-type image/svg+xml`
   )
 
   console.log("")
