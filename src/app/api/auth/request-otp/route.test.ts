@@ -62,4 +62,15 @@ describe("POST /api/auth/request-otp", () => {
       details: '{"error":"domain mail.serp.co not verified"}',
     })
   })
+
+  it("answers 503 when the rate limiter is down, before sending email", async () => {
+    createOtp.mockResolvedValue({ ok: false, unavailable: true, retryAfterMs: 60000 })
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+    const { POST } = await import("./route")
+
+    const response = await POST(otpRequest())
+
+    expect(response.status).toBe(503)
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
 })

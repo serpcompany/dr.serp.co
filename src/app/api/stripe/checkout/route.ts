@@ -5,7 +5,7 @@ import { getStripe } from "@/lib/stripe"
 import { getPriceId } from "@/lib/stripe-pricing"
 import type { BillingPeriod } from "@/lib/pricing"
 import { getSessionEmail } from "@/server/auth-session.mjs"
-import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
+import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 import { readWriteRequest } from "@/server/write-route"
 import { CheckoutBody } from "@/server/write-schemas"
 
@@ -20,6 +20,9 @@ export async function POST(request: Request) {
   try {
     const rateKey = getRateLimitKey(request, "stripe-checkout")
     const rate = await checkRateLimit({ key: rateKey, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
+    if (rate.unavailable) {
+      return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
+    }
     if (!rate.allowed) {
       const retryAfter = Math.ceil(rate.retryAfterMs / 1000)
       return NextResponse.json(

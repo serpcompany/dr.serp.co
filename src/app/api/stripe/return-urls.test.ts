@@ -23,6 +23,7 @@ vi.mock("@/server/db.mjs", () => ({
 }))
 
 vi.mock("@/server/rate-limit.mjs", () => ({
+  RATE_LIMITER_UNAVAILABLE_MESSAGE: "This is unavailable right now. Please try again shortly.",
   checkRateLimit: async () => ({ allowed: true, remaining: 9, retryAfterMs: 0 }),
   getRateLimitKey: () => "test:127.0.0.1",
 }))

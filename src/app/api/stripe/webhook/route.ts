@@ -10,7 +10,7 @@ import {
   insertBillingAudit,
   upsertSubscription,
 } from "@/server/db.mjs"
-import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
+import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 
 export const runtime = "nodejs"
 
@@ -155,6 +155,9 @@ function auditFields(synced: Awaited<ReturnType<typeof syncSubscription>>) {
 export async function POST(request: Request) {
   const rateKey = getRateLimitKey(request, "stripe-webhook")
   const rate = await checkRateLimit({ key: rateKey, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
+  if (rate.unavailable) {
+    return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
+  }
   if (!rate.allowed) {
     const retryAfter = Math.ceil(rate.retryAfterMs / 1000)
     return NextResponse.json(

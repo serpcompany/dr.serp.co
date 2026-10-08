@@ -4,7 +4,7 @@ import { getPublicBaseUrl } from "@/lib/public-url"
 import { getStripe } from "@/lib/stripe"
 import { getSessionEmail } from "@/server/auth-session.mjs"
 import { getLatestSubscriptionByEmail } from "@/server/db.mjs"
-import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
+import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 import { EMPTY_BODY, readWriteRequest } from "@/server/write-route"
 
 export const runtime = "nodejs"
@@ -17,6 +17,9 @@ export async function POST(request: Request) {
 
   const rateKey = getRateLimitKey(request, "stripe-portal")
   const rate = await checkRateLimit({ key: rateKey, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
+  if (rate.unavailable) {
+    return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
+  }
   if (!rate.allowed) {
     const retryAfter = Math.ceil(rate.retryAfterMs / 1000)
     return NextResponse.json(

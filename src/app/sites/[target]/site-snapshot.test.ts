@@ -25,6 +25,7 @@ vi.mock("@/server/site-presentation.mjs", () => ({
 }))
 
 vi.mock("@/server/rate-limit.mjs", () => ({
+  RATE_LIMITER_UNAVAILABLE_MESSAGE: "This is unavailable right now. Please try again shortly.",
   checkRateLimit,
 }))
 
@@ -339,5 +340,18 @@ describe("loadSiteSnapshot", () => {
     expect(result.domainRating).toBeNull()
     expect(result.chartPoints).toEqual([])
     expect(result.lookupError).toBeNull()
+  })
+
+  it("says lookups are unavailable, not over the cap, when the rate limiter is down", async () => {
+    getDrChecks.mockResolvedValue([])
+    getClaim.mockResolvedValue(null)
+    checkRateLimit.mockResolvedValueOnce({ allowed: false, unavailable: true, remaining: 0, retryAfterMs: 60000 })
+
+    const { loadSiteSnapshot } = await import("./site-snapshot")
+    const result = await loadSiteSnapshot("example.com")
+
+    expect(fetchDomainRating).not.toHaveBeenCalled()
+    expect(resolveSitePresentation).not.toHaveBeenCalled()
+    expect(result.lookupError).toBe("New site lookups are unavailable right now. Please try again shortly.")
   })
 })

@@ -6,6 +6,7 @@ import { createOtpToken } from "@/server/otp-token.mjs"
 const checkRateLimit = vi.fn()
 
 vi.mock("@/server/rate-limit.mjs", () => ({
+  RATE_LIMITER_UNAVAILABLE_MESSAGE: "This is unavailable right now. Please try again shortly.",
   checkRateLimit,
 }))
 

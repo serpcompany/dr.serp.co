@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 import { SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS, createSessionToken } from "@/server/auth-session.mjs"
 import { verifyOtpToken } from "@/server/otp-token.mjs"
-import { checkRateLimit } from "@/server/rate-limit.mjs"
+import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit } from "@/server/rate-limit.mjs"
 import { readWriteRequest } from "@/server/write-route"
 import { VerifyOtpBody } from "@/server/write-schemas"
 
@@ -28,6 +28,9 @@ export async function POST(request: Request) {
 
   // Limit guesses per email so a 6-digit code can't be brute forced within its 10-minute lifetime.
   const rate = await checkRateLimit({ key: `verify-otp:${email}`, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
+  if (rate.unavailable) {
+    return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
+  }
   if (!rate.allowed) {
     const retryAfter = Math.ceil(rate.retryAfterMs / 1000)
     return NextResponse.json(

@@ -23,6 +23,7 @@ vi.mock("@/server/db.mjs", () => ({
 }))
 
 vi.mock("@/server/rate-limit.mjs", () => ({
+  RATE_LIMITER_UNAVAILABLE_MESSAGE: "This is unavailable right now. Please try again shortly.",
   checkRateLimit: vi.fn(async () => ({ allowed: true, remaining: 119, retryAfterMs: 0 })),
   getRateLimitKey: vi.fn(() => "stripe-webhook:127.0.0.1"),
 }))
