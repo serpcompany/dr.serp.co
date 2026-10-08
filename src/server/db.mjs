@@ -55,13 +55,12 @@ const fallbackSubscriptions = fallbackStore.subscriptions
 /** @type {Array<any>} */
 const fallbackBillingAudit = fallbackStore.billingAudit
 
-const persistEnabled = canUseFallbackStore()
 const persistDir = `${process.cwd()}/.cache`
 const persistPath = `${persistDir}/dr-fallback.json`
 const persistTimerKey = "__dr_serp_fallback_persist_timer__"
 
 async function hydrateFromDisk() {
-  if (!persistEnabled) return
+  if (!canUseFallbackStore()) return
   try {
     const fs = await import("node:fs/promises")
     const raw = await fs.readFile(persistPath, "utf8").catch((error) => {
@@ -168,7 +167,7 @@ async function hydrateFromDisk() {
 }
 
 function schedulePersist() {
-  if (!persistEnabled) return
+  if (!canUseFallbackStore()) return
   const existing = /** @type {any} */ (globalThis)[persistTimerKey]
   if (existing) return
 

@@ -1,5 +1,7 @@
 // No module reads process.env at load time: OpenNext fills it per request, and a value read into a
 // module-scope constant stays whatever the isolate loaded with (#71). Reads belong inside functions.
+// This checks where a read is written, not when it runs: a module-scope call to a function that reads
+// process.env (`const X = readX()`) gets past it, so don't write one.
 import { readdirSync, readFileSync, statSync } from "node:fs"
 import path from "node:path"
 
