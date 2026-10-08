@@ -1456,6 +1456,62 @@ export async function countSites(opts = {}) {
 }
 
 /**
+ * Every listable site (valid, non-spam domain), for the sitemap, with the time of its last DR
+ * check. Not dr_claims.updated_at: rendering a page can refresh a claim's metadata and stamp it,
+ * which would make every crawl look like a change. The sitemap route caps the list per file.
+ * @returns {Promise<Array<{ domain: string, updated_at: (string|null) }>>}
+ */
+export async function listSitemapSites() {
+  const d1 = getD1Database()
+  if (d1) {
+    const rows = await d1Rows(
+      d1,
+      `
+        WITH domains AS (
+          SELECT domain FROM dr_claims
+          UNION
+          SELECT domain FROM dr_checks
+        ),
+        last_checks AS (
+          SELECT domain, MAX(checked_at) AS checked_at FROM dr_checks GROUP BY domain
+        )
+        SELECT d.domain, cl.site_title, lc.checked_at AS updated_at
+        FROM domains d
+        LEFT JOIN last_checks lc ON lc.domain = d.domain
+        LEFT JOIN dr_claims cl ON cl.domain = d.domain
+        ORDER BY d.domain
+      `,
+      []
+    )
+    return filterListableSiteRows(rows).map(row => ({
+      domain: row.domain,
+      updated_at: isoText(row.updated_at)
+    }))
+  }
+
+  if (canUseFallbackStore()) {
+    const domains = Array.from(new Set([...fallbackChecks.keys(), ...fallbackClaims.keys()])).sort()
+    return domains
+      .filter(domain =>
+        isListableSiteRow({ domain, site_title: fallbackClaims.get(domain)?.site_title })
+      )
+      .map(domain => {
+        const times = (fallbackChecks.get(domain) ?? [])
+          .map(check => check.checked_at)
+          .map(value => coerceDate(value))
+          .filter(date => date !== null)
+          .map(date => date.getTime())
+        return {
+          domain,
+          updated_at: times.length ? new Date(Math.max(...times)).toISOString() : null
+        }
+      })
+  }
+
+  return persistentDatabaseUnavailable()
+}
+
+/**
  * Delete invalid domains and unclaimed spam sites, or only the given invalid domains.
  * @param {{ domains?: string[], dryRun?: boolean }} [opts]
  */

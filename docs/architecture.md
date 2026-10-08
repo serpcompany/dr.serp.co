@@ -28,6 +28,15 @@ logic lives in `src/server/rate-limit-do.mjs`.
 `next dev` doesn't run the Worker entry, so slash redirects and cache headers only show up in
 `pnpm preview` or a deployed Worker.
 
+## Search engines
+
+`/robots.txt`, `/sitemap-index.xml` (also served as `/sitemap.xml`), `/sitemap-pages.xml` and
+`/sitemap-sites.xml` are route handlers built from `src/lib/sitemap.ts`. Production's robots.txt
+allows crawling (except `/api/` and `/billing`) and names the sitemap index; any other `SITE_ENV`
+disallows everything, and `worker.ts` also sends `X-Robots-Tag: noindex` there. The sites sitemap
+lists every listable `/sites/<domain>` page (`listSitemapSites` in `db.mjs`), with its last DR check
+as lastmod. Past 50,000 sites the group needs a second file, and the route logs when that happens.
+
 ## Layers
 
 - **Pages** (`src/app/**/page.tsx`) are server components that read through `src/server/`.

@@ -181,3 +181,33 @@ describe('site search on workerd D1', () => {
     expect(await db.listClaimsByEmail({ email: 'owner@example.com', offset: 1e20 })).toEqual([])
   })
 })
+
+describe('sitemap sites on workerd D1', () => {
+  it('lists each listable site once, with its last check as the change time', async () => {
+    await insertClaim('example.com', { rating: 70 })
+    await insertClaim('best-casino.com', { rating: 90 })
+    await insertClaim('phpinfo.php', { rating: 80 })
+    await d1
+      .prepare(
+        'INSERT INTO dr_checks (domain, domain_rating, provider, checked_at) VALUES (?, ?, ?, ?)'
+      )
+      .bind('example.com', 71, 'ahrefs', '2026-10-05T00:00:00.000Z')
+      .run()
+    await d1
+      .prepare(
+        'INSERT INTO dr_checks (domain, domain_rating, provider, checked_at) VALUES (?, ?, ?, ?)'
+      )
+      .bind('checked-only.org', 40, 'ahrefs', '2026-09-01T00:00:00.000Z')
+      .run()
+    const db = await import('./db.mjs')
+
+    await insertClaim('claimed-only.net', { rating: 30 })
+
+    // claimed-only.net has no check, so no lastmod; its claim's updated_at doesn't count.
+    expect(await db.listSitemapSites()).toEqual([
+      { domain: 'checked-only.org', updated_at: '2026-09-01T00:00:00.000Z' },
+      { domain: 'claimed-only.net', updated_at: null },
+      { domain: 'example.com', updated_at: '2026-10-05T00:00:00.000Z' }
+    ])
+  })
+})
