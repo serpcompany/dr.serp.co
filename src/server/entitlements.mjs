@@ -1,5 +1,6 @@
 import { getTierForPriceId } from "@/lib/stripe-pricing"
 import { countClaimsByEmail, getLatestSubscriptionByEmail } from "@/server/db.mjs"
+import { LIVE_SUBSCRIPTION_STATUSES } from "@/server/subscription-status.mjs"
 
 const INTERNAL_PRO_EMAILS = new Set(["devin@serp.co", "otp@2faslingshot.com"])
 
@@ -62,6 +63,7 @@ export async function resolveEntitlement({ email, now = new Date() }) {
       domainsUsed,
       remaining: null,
       isUnlimited: true,
+      hasLivePlan: false,
       subscription: null,
     }
   }
@@ -89,6 +91,10 @@ export async function resolveEntitlement({ email, now = new Date() }) {
   const remaining = Math.max(0, domainsLimit - domainsUsed)
   const canAccessPaidFeatures = access.canAccessPaid
   const canClaim = canAccessPaidFeatures && domainsLimit > 0 && domainsUsed < domainsLimit
+  // A dr.serp.co subscription that a plan change can move; checkout refuses a second one.
+  const hasLivePlan = Boolean(
+    tier && subscription?.stripe_subscription_id && LIVE_SUBSCRIPTION_STATUSES.has(subscription.status)
+  )
 
   return {
     email: normalizedEmail,
@@ -99,6 +105,7 @@ export async function resolveEntitlement({ email, now = new Date() }) {
     domainsUsed,
     remaining,
     isUnlimited: false,
+    hasLivePlan,
     subscription: subscription
       ? {
           stripeCustomerId: subscription.stripe_customer_id ?? null,

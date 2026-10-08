@@ -27,6 +27,8 @@ const CLIENT_BODIES = [
   // src/app/pricing/pricing-selector.tsx (email is dropped when undefined)
   { name: "checkout", schema: CheckoutBody, body: { domains: 12, billing: "monthly" } },
   { name: "checkout, signed in", schema: CheckoutBody, body: { domains: 100, billing: "annual", email } },
+  // src/app/pricing/pricing-selector.tsx, for a subscriber
+  { name: "change plan", schema: CheckoutBody, body: { domains: 25, billing: "annual" } },
   // billing-portal-button.tsx, billing-status-card.tsx, auth-status.tsx (sign-out sends no body)
   { name: "portal and billing status", schema: EMPTY_BODY, body: { email } },
   { name: "sign out", schema: EMPTY_BODY, body: {} },

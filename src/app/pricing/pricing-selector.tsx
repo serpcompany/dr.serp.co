@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,17 +16,86 @@ const BILLING_LABELS = {
   annual: "Annual",
 }
 
+type Billing = keyof typeof BILLING_LABELS
+type CurrentPlan = { domains: number; billing: Billing }
+
+function readPlan(value: unknown): CurrentPlan | null {
+  const plan = value as { domains?: unknown; billing?: unknown } | null
+  const domains = Number(plan?.domains)
+  const billing = plan?.billing === "annual" ? "annual" : plan?.billing === "monthly" ? "monthly" : null
+  return Number.isFinite(domains) && domains > 0 && billing ? { domains, billing } : null
+}
+
+function describePlan(plan: CurrentPlan) {
+  return `${plan.domains} domains, billed ${plan.billing === "annual" ? "yearly" : "monthly"}`
+}
+
 export function PricingSelector() {
   const [tierIndex, setTierIndex] = useState(0)
   const [isAnnual, setIsAnnual] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // A subscriber changes their plan instead of starting a second subscription (#84).
+  const [currentPlan, setCurrentPlan] = useState<CurrentPlan | null>(null)
+  const [changed, setChanged] = useState<CurrentPlan | null>(null)
+  // A live plan waiting on an open invoice (past_due or unpaid): change-plan refuses until it's paid.
+  const [onHold, setOnHold] = useState(false)
+
+  // Start the selector on the subscriber's own plan, so nothing is one click from a downgrade.
+  const showCurrentPlan = (plan: CurrentPlan | null) => {
+    if (!plan) return
+    setCurrentPlan(plan)
+    const index = PRICING_TIERS.findIndex((item) => item.domains === plan.domains)
+    if (index >= 0) setTierIndex(index)
+    setIsAnnual(plan.billing === "annual")
+  }
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch("/api/billing/status", { method: "POST", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) return
+        const payload = await readJsonRecord(response)
+        const entitlement = payload?.entitlement
+        if (!entitlement?.hasLivePlan || !entitlement?.subscription) return
+        setOnHold(["past_due", "unpaid"].includes(entitlement.subscription.status))
+        showCurrentPlan(
+          readPlan({ domains: entitlement.subscription.domainsLimit, billing: entitlement.subscription.billingInterval })
+        )
+      })
+      .catch(() => {})
+    return () => controller.abort()
+  }, [])
 
   const tier = PRICING_TIERS[tierIndex]
   const price = isAnnual ? tier.annual : tier.monthly
   const priceLabel = isAnnual ? "/year" : "/month"
 
   const sliderValue = useMemo(() => [tierIndex], [tierIndex])
+
+  const selectedBilling: Billing = isAnnual ? "annual" : "monthly"
+  const isCurrentPlan = currentPlan?.domains === tier.domains && currentPlan?.billing === selectedBilling
+
+  const handleChangePlan = async () => {
+    setError(null)
+    setIsSubmitting(true)
+    try {
+      const response = await fetch("/api/stripe/change-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domains: tier.domains, billing: selectedBilling }),
+      })
+      const payload = await readJsonRecord(response)
+      if (!response.ok) throw new Error(payload?.error ?? "Unable to change your plan.")
+      const plan = { domains: tier.domains, billing: selectedBilling }
+      setCurrentPlan(plan)
+      setChanged(plan)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to change your plan.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const handleCheckout = async () => {
     setError(null)
@@ -51,6 +121,12 @@ export function PricingSelector() {
 
       if (!response.ok) {
         const payload = await readJsonRecord(response)
+        // A subscriber whose plan the page didn't know yet: show it and offer the switch instead.
+        const plan = payload?.code === "has_plan" ? readPlan(payload.plan) : null
+        if (plan) {
+          showCurrentPlan(plan)
+          return
+        }
         throw new Error(payload?.error ?? "Unable to start checkout.")
       }
 
@@ -143,14 +219,47 @@ export function PricingSelector() {
           </ul>
         </div>
 
+        {currentPlan ? (
+          <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+            <p>
+              Your plan: <span className="font-semibold">{describePlan(currentPlan)}</span>.
+            </p>
+            {onHold ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                It has an unpaid invoice. Pay it with Manage billing on the{" "}
+                <Link href="/billing" className="underline underline-offset-4">
+                  billing page
+                </Link>
+                , then switch.
+              </p>
+            ) : null}
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isCurrentPlan
+                ? "Pick another size or billing period to switch."
+                : `Switching to ${describePlan({ domains: tier.domains, billing: selectedBilling })} changes your existing subscription. The difference is prorated and charged or credited now.`}
+            </p>
+          </div>
+        ) : null}
+
+        {changed ? (
+          <p className="text-sm text-muted-foreground">
+            Plan changed to {describePlan(changed)}. It can take a moment to show on your billing page.
+          </p>
+        ) : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2">
-        <Button onClick={handleCheckout} disabled={isSubmitting} className="w-full">
-          {isSubmitting ? "Starting checkout..." : "Start monitoring"}
-        </Button>
+        {currentPlan ? (
+          <Button onClick={handleChangePlan} disabled={isSubmitting || isCurrentPlan || onHold} className="w-full">
+            {isSubmitting ? "Switching plan..." : isCurrentPlan ? "Current plan" : "Switch plan"}
+          </Button>
+        ) : (
+          <Button onClick={handleCheckout} disabled={isSubmitting} className="w-full">
+            {isSubmitting ? "Starting checkout..." : "Start monitoring"}
+          </Button>
+        )}
         <p className="text-center text-xs text-muted-foreground">
-          Secure checkout handled by Stripe.
+          {currentPlan ? "Your subscription is managed by Stripe." : "Secure checkout handled by Stripe."}
         </p>
       </CardFooter>
     </Card>

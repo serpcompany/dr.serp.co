@@ -17,6 +17,7 @@ type Entitlement = {
   domainsUsed: number
   remaining: number | null
   isUnlimited?: boolean
+  hasLivePlan?: boolean
   subscription: {
     stripeCustomerId: string | null
     stripeSubscriptionId: string | null
@@ -186,7 +187,8 @@ export function BillingStatusCard() {
               <Link href="/pricing">View plans</Link>
             </Button>
           )}
-          {entitlement && !entitlement.canAccessPaidFeatures ? (
+          {/* A plan on hold is paid through Manage billing, not bought again. */}
+          {entitlement && !entitlement.canAccessPaidFeatures && !entitlement.hasLivePlan ? (
             <Button asChild size="sm" variant="secondary">
               <Link href="/pricing">Upgrade</Link>
             </Button>
