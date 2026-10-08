@@ -142,7 +142,7 @@ describe("POST /api/admin/sites/backfill-metadata", () => {
     ])
     expect(consoleError).toHaveBeenCalledWith("admin.backfill-metadata: metadata lookup failed", {
       domain: "missing.example",
-      error: lookupError,
+      error: "Microlink 401: MICROLINK_API_KEY is invalid",
     })
   })
 })

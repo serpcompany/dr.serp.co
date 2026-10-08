@@ -63,7 +63,7 @@ describe("POST /api/auth/verify-otp", () => {
   })
 
   it("names no env var when the OTP secret is missing", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {})
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
     vi.stubEnv("USESEND_OTP_SECRET", "")
     vi.stubEnv("USESEND_API_KEY", "")
     const { POST } = await import("./route")
@@ -72,5 +72,6 @@ describe("POST /api/auth/verify-otp", () => {
 
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: "Sign-in is unavailable right now. Please try again later." })
+    expect(consoleError).toHaveBeenCalledWith("auth.verify-otp: USESEND_OTP_SECRET and USESEND_API_KEY are not set")
   })
 })

@@ -37,7 +37,7 @@ describe("POST /api/auth/request-otp", () => {
   })
 
   it("names no env var when the useSend key is missing", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {})
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
     vi.stubEnv("USESEND_API_KEY", "")
     const { POST } = await import("./route")
 
@@ -45,6 +45,7 @@ describe("POST /api/auth/request-otp", () => {
 
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: "Sign-in is unavailable right now. Please try again later." })
+    expect(consoleError).toHaveBeenCalledWith("auth.request-otp: USESEND_API_KEY is not set")
   })
 
   it("logs useSend's refusal and returns no details", async () => {
