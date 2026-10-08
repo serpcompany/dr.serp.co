@@ -14,7 +14,8 @@ template in `badge-templates.ts`.
   to the default.
 - **The number** is the stored DR from `dr_claims`, or else the latest row in `dr_checks`. The
   route never calls Ahrefs, so a badge can't spend API units ([DR lookups](dr-lookups.md)).
-- **No DR yet** renders `?`, as does a database error.
+- **No DR yet** renders `?`, as does a database error, which is logged on the server and never
+  returned.
 - **`?dr=NN`** forces a number (clamped to 0–100) for previews, with no lookup.
 - **Caching:** a badge with a known DR, or `?`, is sent with `Cache-Control: public`. Previews and
   errors are `no-store`.
