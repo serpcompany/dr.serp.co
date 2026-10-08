@@ -65,6 +65,11 @@ with `STRIPE_WEBHOOK_SECRET` and handles:
 Each event updates `dr_subscriptions` and writes one row to `dr_billing_audit`, which records
 success or the error and is unique on the Stripe event ID, so a replayed event is recorded once.
 
+A payload follows the endpoint's API version, `2025-06-30.basil`, while the SDK's own API calls
+use `2023-10-16`. Basil moved an invoice's subscription to `parent.subscription_details` and a
+subscription's period end onto its items, so the handler reads both shapes. Changing the
+endpoint's version can change payloads again; check the handler and its tests first.
+
 ## Monitoring
 
 `GET /api/stripe/webhook/health` returns `ok` and a `status`:
