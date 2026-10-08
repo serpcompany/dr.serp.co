@@ -1455,11 +1455,10 @@ export async function countSites(opts = {}) {
   return persistentDatabaseUnavailable()
 }
 
-// A sitemap file holds at most 50,000 URLs (xml-sitemaps.md, When a Group Overflows).
-export const SITEMAP_URL_LIMIT = 50000
-
 /**
- * Every listable site (valid, non-spam domain) with the time it last changed, for the sitemap.
+ * Every listable site (valid, non-spam domain), for the sitemap, with the time of its last DR
+ * check. Not dr_claims.updated_at: rendering a page can refresh a claim's metadata and stamp it,
+ * which would make every crawl look like a change. The sitemap route caps the list per file.
  * @returns {Promise<Array<{ domain: string, updated_at: (string|null) }>>}
  */
 export async function listSitemapSites() {
@@ -1476,22 +1475,13 @@ export async function listSitemapSites() {
         last_checks AS (
           SELECT domain, MAX(checked_at) AS checked_at FROM dr_checks GROUP BY domain
         )
-        SELECT
-          d.domain,
-          cl.site_title,
-          CASE
-            WHEN lc.checked_at IS NULL THEN cl.updated_at
-            WHEN cl.updated_at IS NULL THEN lc.checked_at
-            WHEN lc.checked_at > cl.updated_at THEN lc.checked_at
-            ELSE cl.updated_at
-          END AS updated_at
+        SELECT d.domain, cl.site_title, lc.checked_at AS updated_at
         FROM domains d
         LEFT JOIN last_checks lc ON lc.domain = d.domain
         LEFT JOIN dr_claims cl ON cl.domain = d.domain
         ORDER BY d.domain
-        LIMIT ?
       `,
-      [SITEMAP_URL_LIMIT + 1]
+      []
     )
     return filterListableSiteRows(rows).map(row => ({
       domain: row.domain,
@@ -1506,10 +1496,8 @@ export async function listSitemapSites() {
         isListableSiteRow({ domain, site_title: fallbackClaims.get(domain)?.site_title })
       )
       .map(domain => {
-        const times = [
-          fallbackClaims.get(domain)?.updated_at,
-          ...(fallbackChecks.get(domain) ?? []).map(check => check.checked_at)
-        ]
+        const times = (fallbackChecks.get(domain) ?? [])
+          .map(check => check.checked_at)
           .map(value => coerceDate(value))
           .filter(date => date !== null)
           .map(date => date.getTime())

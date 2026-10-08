@@ -1,7 +1,7 @@
 import { getPublicBaseUrl } from '@/lib/public-url'
-import { sitemapUrlset } from '@/lib/sitemap'
+import { SITEMAP_URL_LIMIT, sitemapUrlset } from '@/lib/sitemap'
 import { xmlResponse } from '@/lib/sitemap-response'
-import { listSitemapSites, SITEMAP_URL_LIMIT } from '@/server/db.mjs'
+import { listSitemapSites } from '@/server/db.mjs'
 
 export const dynamic = 'force-dynamic'
 

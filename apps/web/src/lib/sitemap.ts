@@ -60,5 +60,8 @@ export function robotsTxt(baseUrl: string, siteEnv: string | undefined) {
   ].join('\n')
 }
 
+// A sitemap file holds at most 50,000 URLs (xml-sitemaps.md, When a Group Overflows).
+export const SITEMAP_URL_LIMIT = 50000
+
 // Sitemaps and robots.txt change as sites are added, so caches keep them for an hour.
 export const SITEMAP_CACHE_CONTROL = 'public, max-age=3600'
