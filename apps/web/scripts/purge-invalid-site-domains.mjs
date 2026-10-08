@@ -4,8 +4,8 @@ function printHelp() {
   console.log(`Usage: node scripts/purge-invalid-site-domains.mjs [options]
 
 Counts or purges invalid site domains and unclaimed spam sites (gambling,
-escort, darknet, pharma; see src/server/site-spam.mjs) through the Worker admin API when
-DR_ADMIN_BASE_URL/DR_PUBLIC_BASE_URL and DR_ADMIN_TOKEN, which must be set.
+escort, darknet, pharma; see src/server/site-spam.mjs) through the Worker admin API.
+Requires DR_ADMIN_TOKEN and DR_ADMIN_BASE_URL (or DR_PUBLIC_BASE_URL).
 
 Options:
   --apply                Delete invalid rows. Default is dry run.

@@ -4,8 +4,7 @@ function printHelp() {
   console.log(`Usage: node scripts/backfill-site-metadata.mjs [options]
 
 Finds sites missing presentation metadata and backfills them through the Worker
-admin API when DR_ADMIN_BASE_URL/DR_PUBLIC_BASE_URL and DR_ADMIN_TOKEN are
-configured; they must be set.
+admin API. Requires DR_ADMIN_TOKEN and DR_ADMIN_BASE_URL (or DR_PUBLIC_BASE_URL).
 
 Options:
   --apply                Resolve and write metadata. Default is dry run.

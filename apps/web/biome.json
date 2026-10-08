@@ -67,7 +67,7 @@
       }
     },
     {
-      "includes": ["src/lib/**", "src/server/**", "!**/*.test.ts", "!**/*.test.tsx"],
+      "includes": ["src/lib/**", "src/server/**", "src/db/**", "!**/*.test.ts", "!**/*.test.tsx"],
       "linter": {
         "rules": {
           "style": {

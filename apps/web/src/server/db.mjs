@@ -367,15 +367,6 @@ async function d1First(db, sqlText, params = []) {
   return d1Statement(db, sqlText, params).first()
 }
 
-async function _d1Batch(db, statements) {
-  if (typeof db.batch === 'function') return db.batch(statements)
-  const results = []
-  for (const statement of statements) {
-    results.push(await statement.run())
-  }
-  return results
-}
-
 /**
  * @param {string} domain
  */

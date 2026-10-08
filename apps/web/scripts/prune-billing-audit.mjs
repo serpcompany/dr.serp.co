@@ -3,9 +3,8 @@ import { callAdminApi, loadAdminEnv, parseFlagArgs, requireAdminApi } from './_a
 function printHelp() {
   console.log(`Usage: node scripts/prune-billing-audit.mjs [options] [days]
 
-Counts or prunes billing audit records through the Worker admin API when
-DR_ADMIN_BASE_URL/DR_PUBLIC_BASE_URL and DR_ADMIN_TOKEN are configured.
-
+Counts or prunes billing audit records through the Worker admin API.
+Requires DR_ADMIN_TOKEN and DR_ADMIN_BASE_URL (or DR_PUBLIC_BASE_URL).
 
 Options:
   --apply                Delete matching rows. Default is dry run.
