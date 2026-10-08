@@ -5,6 +5,7 @@ import { getStripe } from "@/lib/stripe"
 import { getPriceId, getTierForPriceId } from "@/lib/stripe-pricing"
 import { getSessionEmail } from "@/server/auth-session.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
+import { LIVE_SUBSCRIPTION_STATUSES } from "@/server/subscription-status.mjs"
 import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 import { readWriteRequest } from "@/server/write-route"
 import { CheckoutBody } from "@/server/write-schemas"
@@ -14,7 +15,6 @@ export const runtime = "nodejs"
 const ALLOWED_DOMAINS = [12, 25, 50, 100] as const
 const RATE_LIMIT_POINTS = Number(process.env.CHANGE_PLAN_RATE_LIMIT_POINTS ?? 10)
 const RATE_LIMIT_DURATION = Number(process.env.CHANGE_PLAN_RATE_LIMIT_DURATION ?? 60)
-const LIVE_STATUSES = new Set(["active", "trialing", "past_due", "unpaid"])
 const NO_PLAN_MESSAGE = "You don't have a plan to change yet."
 
 // Moves a subscriber's existing subscription to another size or billing interval. Stripe's portal
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     const item = subscription.items.data[0]
     // Only ever move a live dr.serp.co subscription; the Stripe account also sells other products,
     // and D1 can lag behind Stripe.
-    if (!LIVE_STATUSES.has(subscription.status) || !item?.price?.id || !getTierForPriceId(item.price.id)) {
+    if (!LIVE_SUBSCRIPTION_STATUSES.has(subscription.status) || !item?.price?.id || !getTierForPriceId(item.price.id)) {
       return NextResponse.json({ error: NO_PLAN_MESSAGE, code: "no_plan" }, { status: 409 })
     }
     if (item.price.id === priceId) {

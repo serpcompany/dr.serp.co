@@ -110,6 +110,18 @@ describe("POST /api/stripe/change-plan", () => {
     expect(mocks.update).not.toHaveBeenCalled()
   })
 
+  it("moves an unpaid subscription, which restarts once paid", async () => {
+    mocks.retrieve.mockResolvedValue({
+      id: "sub_1",
+      status: "unpaid",
+      items: { data: [{ id: "si_1", price: { id: "price_12m" } }] },
+    })
+    const { POST } = await import("./route")
+
+    expect((await POST(changePlan({ domains: 25, billing: "monthly" }))).status).toBe(200)
+    expect(mocks.update).toHaveBeenCalled()
+  })
+
   it("refuses when D1 has no live plan, even with paid access in grace", async () => {
     mocks.resolveEntitlement.mockResolvedValue({ ...subscriber, hasLivePlan: false })
     const { POST } = await import("./route")

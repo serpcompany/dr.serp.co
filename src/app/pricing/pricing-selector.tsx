@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -37,6 +38,8 @@ export function PricingSelector() {
   // A subscriber changes their plan instead of starting a second subscription (#84).
   const [currentPlan, setCurrentPlan] = useState<CurrentPlan | null>(null)
   const [changed, setChanged] = useState<CurrentPlan | null>(null)
+  // A live plan without paid access: past_due or unpaid past its period, waiting on an open invoice.
+  const [onHold, setOnHold] = useState(false)
 
   // Start the selector on the subscriber's own plan, so nothing is one click from a downgrade.
   const showCurrentPlan = (plan: CurrentPlan | null) => {
@@ -55,6 +58,7 @@ export function PricingSelector() {
         const payload = await readJsonRecord(response)
         const entitlement = payload?.entitlement
         if (!entitlement?.hasLivePlan || !entitlement?.subscription) return
+        setOnHold(!entitlement.canAccessPaidFeatures)
         showCurrentPlan(
           readPlan({ domains: entitlement.subscription.domainsLimit, billing: entitlement.subscription.billingInterval })
         )
@@ -220,6 +224,15 @@ export function PricingSelector() {
             <p>
               Your plan: <span className="font-semibold">{describePlan(currentPlan)}</span>.
             </p>
+            {onHold ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                It&apos;s on hold until its open invoice is paid.{" "}
+                <Link href="/billing" className="underline underline-offset-4">
+                  Pay it on the billing page
+                </Link>
+                .
+              </p>
+            ) : null}
             <p className="mt-1 text-xs text-muted-foreground">
               {isCurrentPlan
                 ? "Pick another size or billing period to switch."
