@@ -104,6 +104,11 @@ describe("write routes", () => {
       const response = await (await route.load())(request(route, "{not json"))
       expect(response.status).toBe(400)
     })
+
+    it(`${route.name}: refuses JSON that fails its schema with 400`, async () => {
+      const response = await (await route.load())(request(route, "[]"))
+      expect(response.status).toBe(400)
+    })
   }
 
   it("covers every route file that handles a write, and each one uses readWriteRequest", () => {

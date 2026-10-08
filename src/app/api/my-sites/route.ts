@@ -3,16 +3,10 @@ import { NextResponse } from "next/server"
 import { getSessionEmail } from "@/server/auth-session.mjs"
 import { countClaimsByEmail, listClaimsByEmail } from "@/server/db.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
-import { z } from "zod"
 import { readWriteRequest } from "@/server/write-route"
+import { MySitesBody } from "@/server/write-schemas"
 
 export const runtime = "nodejs"
-
-const MySitesBody = z.object({
-  query: z.string().max(200).optional(),
-  limit: z.number().optional(),
-  offset: z.number().optional(),
-})
 
 export async function POST(request: Request) {
   const read = await readWriteRequest(request, MySitesBody)

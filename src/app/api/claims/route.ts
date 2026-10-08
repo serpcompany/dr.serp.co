@@ -4,12 +4,10 @@ import { getSessionEmail } from "@/server/auth-session.mjs"
 import { normalizeTarget } from "@/server/dr-providers.mjs"
 import { clearClaimEmail, getClaim, setClaimEmail } from "@/server/db.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
-import { z } from "zod"
 import { readWriteRequest } from "@/server/write-route"
+import { DomainBody } from "@/server/write-schemas"
 
 export const runtime = "nodejs"
-
-const DomainBody = z.object({ domain: z.string({ message: "Valid domain required" }).max(2048) })
 
 function authRequired() {
   return NextResponse.json({ error: "Sign in required.", code: "auth_required" }, { status: 401 })

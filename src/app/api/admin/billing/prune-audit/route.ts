@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 
 import { countPrunableBillingAudit, pruneBillingAudit } from "@/server/db.mjs"
 import { checkAdminToken } from "@/server/admin-auth.mjs"
-import { z } from "zod"
 import { readWriteRequest } from "@/server/write-route"
+import { PruneAuditBody } from "@/server/write-schemas"
 
 export const runtime = "nodejs"
 
@@ -11,11 +11,6 @@ function parseRetentionDays(value: unknown) {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? Math.max(1, Math.floor(parsed)) : null
 }
-
-const PruneAuditBody = z.object({
-  olderThanDays: z.number().nullable().optional(),
-  dryRun: z.boolean().optional(),
-})
 
 export async function POST(request: Request) {
   const denied = checkAdminToken(request)

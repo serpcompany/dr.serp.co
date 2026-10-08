@@ -2,16 +2,14 @@ import { NextResponse } from "next/server"
 
 import { createOtp } from "@/server/otp-store.mjs"
 import { createOtpToken } from "@/server/otp-token.mjs"
-import { z } from "zod"
 import { readWriteRequest } from "@/server/write-route"
+import { RequestOtpBody } from "@/server/write-schemas"
 
 function isValidEmail(email: string) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
 }
 
 export const runtime = "nodejs"
-
-const RequestOtpBody = z.object({ email: z.string({ message: "Valid email required" }).max(320) })
 
 export async function POST(request: Request) {
   const read = await readWriteRequest(request, RequestOtpBody)

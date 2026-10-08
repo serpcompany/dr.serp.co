@@ -3,8 +3,8 @@ import { NextResponse } from "next/server"
 import { countSites, listSites, setClaimSiteMetadata } from "@/server/db.mjs"
 import { resolveSitePresentation } from "@/server/site-presentation.mjs"
 import { checkAdminToken } from "@/server/admin-auth.mjs"
-import { z } from "zod"
 import { readWriteRequest } from "@/server/write-route"
+import { BackfillBody } from "@/server/write-schemas"
 
 export const runtime = "nodejs"
 
@@ -35,13 +35,6 @@ function asOffset(value: unknown) {
 function hasPresentationMetadata(site: SiteRow) {
   return Boolean(site.site_title || site.meta_description || site.site_url || site.screenshot_url)
 }
-
-const BackfillBody = z.object({
-  dryRun: z.boolean().optional(),
-  limit: z.number().nullable().optional(),
-  offset: z.number().nullable().optional(),
-  query: z.string().max(200).optional(),
-})
 
 export async function POST(request: Request) {
   const denied = checkAdminToken(request)

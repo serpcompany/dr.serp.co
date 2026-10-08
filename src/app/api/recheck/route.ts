@@ -6,8 +6,8 @@ import { resolveEntitlement } from "@/server/entitlements.mjs"
 import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 import { formatRecheckCadenceError, resolveRecheckCadence } from "@/server/recheck-cadence.mjs"
 import { isSpamSite } from "@/server/site-spam.mjs"
-import { z } from "zod"
 import { readWriteRequest } from "@/server/write-route"
+import { DomainBody } from "@/server/write-schemas"
 
 export const runtime = "nodejs"
 const RATE_LIMIT_POINTS = Number(process.env.RECHECK_RATE_LIMIT_POINTS ?? 10)
@@ -17,10 +17,8 @@ function hasStoredRating(value: unknown) {
   return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value))
 }
 
-const RecheckBody = z.object({ domain: z.string({ message: "Valid domain required" }).max(2048) })
-
 export async function POST(request: Request) {
-  const read = await readWriteRequest(request, RecheckBody)
+  const read = await readWriteRequest(request, DomainBody)
   if (!read.ok) return read.response
 
   const domain = normalizeTarget(read.data.domain)

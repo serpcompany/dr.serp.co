@@ -6,17 +6,12 @@ import { getPriceId } from "@/lib/stripe-pricing"
 import type { BillingPeriod } from "@/lib/pricing"
 import { getSessionEmail } from "@/server/auth-session.mjs"
 import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
-import { z } from "zod"
 import { readWriteRequest } from "@/server/write-route"
+import { CheckoutBody } from "@/server/write-schemas"
 
 const ALLOWED_DOMAINS = [12, 25, 50, 100] as const
 const RATE_LIMIT_POINTS = Number(process.env.CHECKOUT_RATE_LIMIT_POINTS ?? 20)
 const RATE_LIMIT_DURATION = Number(process.env.CHECKOUT_RATE_LIMIT_DURATION ?? 60)
-
-const CheckoutBody = z.object({
-  domains: z.number({ message: "Invalid domain tier." }),
-  billing: z.string({ message: "Invalid billing period." }),
-})
 
 export async function POST(request: Request) {
   const read = await readWriteRequest(request, CheckoutBody)

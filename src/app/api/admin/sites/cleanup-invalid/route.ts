@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 
 import { purgeInvalidSiteDomains } from "@/server/db.mjs"
 import { checkAdminToken } from "@/server/admin-auth.mjs"
-import { z } from "zod"
 import { readWriteRequest } from "@/server/write-route"
+import { CleanupBody } from "@/server/write-schemas"
 
 export const runtime = "nodejs"
 
@@ -31,8 +31,6 @@ const KNOWN_INVALID_SITE_DOMAINS = [
   "wordpress",
   "database.sql",
 ]
-
-const CleanupBody = z.object({ dryRun: z.boolean().optional(), scanAll: z.boolean().optional() })
 
 export async function POST(request: Request) {
   const denied = checkAdminToken(request)

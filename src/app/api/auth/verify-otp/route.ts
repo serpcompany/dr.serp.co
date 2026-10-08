@@ -3,8 +3,8 @@ import { NextResponse } from "next/server"
 import { SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS, createSessionToken } from "@/server/auth-session.mjs"
 import { verifyOtpToken } from "@/server/otp-token.mjs"
 import { checkRateLimit } from "@/server/rate-limit.mjs"
-import { z } from "zod"
 import { readWriteRequest } from "@/server/write-route"
+import { VerifyOtpBody } from "@/server/write-schemas"
 
 function isValidEmail(email: string) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
@@ -13,12 +13,6 @@ function isValidEmail(email: string) {
 export const runtime = "nodejs"
 const RATE_LIMIT_POINTS = Number(process.env.VERIFY_OTP_RATE_LIMIT_POINTS ?? 10)
 const RATE_LIMIT_DURATION = Number(process.env.VERIFY_OTP_RATE_LIMIT_DURATION ?? 600)
-
-const VerifyOtpBody = z.object({
-  email: z.string({ message: "Email, code, and token required" }).max(320),
-  code: z.string({ message: "Email, code, and token required" }).max(20),
-  token: z.string({ message: "Email, code, and token required" }).max(2048),
-})
 
 export async function POST(request: Request) {
   const read = await readWriteRequest(request, VerifyOtpBody)
