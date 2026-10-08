@@ -1,0 +1,70 @@
+name: Web
+
+# Checks the site in apps/web: `pnpm check` (Biome, TypeScript, Vitest, cf:audit, the OpenNext
+# build and docs:check), then a Wrangler dry run of the Staging and Production configuration on
+# that build. Runs on pull requests that touch the site, once they're ready for review, and by
+# hand from Actions. It never deploys, and it doesn't run on pushes to main yet: the owner holds
+# CI deploys and the staging base branch until the end of the #36 refactor (#100), which adds both.
+# Standards: serpcompany/serp docs/engineering/standards/ci-workflows.md.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    # Not a required check yet, so a workflow-level filter is fine; docs.yml checks doc-only PRs.
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    working-directory: apps/web
+
+jobs:
+  check:
+    name: pnpm check
+    # Drafts skip it; marking the PR ready runs it.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: apps/web/package.json
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: apps/web/.nvmrc
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Cache the Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: next-${{ hashFiles('apps/web/pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: next-${{ hashFiles('apps/web/pnpm-lock.yaml') }}-
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Run pnpm check
+        run: pnpm check
+
+      # Bundles the build pnpm check made with each environment's bindings and vars, without
+      # deploying or signing in.
+      - name: Dry-run Staging and Production
+        run: |
+          pnpm exec wrangler deploy --env staging --dry-run
+          pnpm exec wrangler deploy --env production --dry-run
