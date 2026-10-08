@@ -183,3 +183,119 @@ describe('sitemap sites on workerd D1', () => {
     ])
   })
 })
+
+// Moved from db-d1.test.ts, whose fake D1 matches SQL strings and can't run Drizzle's queries.
+describe('sites and checks on workerd D1', () => {
+  it('filters invalid site domains before pagination and count', async () => {
+    const db = await import('./db.mjs')
+
+    await db.recordDrCheck({
+      domain: 'phpinfo.php',
+      domainRating: 99,
+      checkedAt: new Date('2026-01-03T00:00:00Z')
+    })
+    await db.recordDrCheck({
+      domain: 'valid-a.com',
+      domainRating: 80,
+      checkedAt: new Date('2026-01-02T00:00:00Z')
+    })
+    await db.recordDrCheck({
+      domain: 'valid-b.com',
+      domainRating: 70,
+      checkedAt: new Date('2026-01-01T00:00:00Z')
+    })
+
+    const firstPage = await db.listSites({ limit: 1, offset: 0, sort: 'dr' })
+    const count = await db.countSites()
+
+    expect(firstPage).toEqual([
+      expect.objectContaining({ domain: 'valid-a.com', domain_rating: 80 })
+    ])
+    expect(count).toBe(2)
+  })
+
+  it('hides spam sites from listings and purges them only while unclaimed', async () => {
+    const db = await import('./db.mjs')
+
+    await db.recordDrCheck({
+      domain: 'legit.com',
+      domainRating: 40,
+      checkedAt: new Date('2026-01-01T00:00:00Z')
+    })
+    await db.recordDrCheck({
+      domain: 'bestcasinos.com',
+      domainRating: 60,
+      checkedAt: new Date('2026-01-01T00:00:00Z')
+    })
+    await db.recordDrCheck({
+      domain: 'hijacked.org',
+      domainRating: 50,
+      checkedAt: new Date('2026-01-01T00:00:00Z')
+    })
+    await db.setClaimSiteMetadata({
+      domain: 'hijacked.org',
+      siteTitle: 'Best UK Non GamStop Casinos for 2026'
+    })
+    await db.recordDrCheck({
+      domain: 'claimed-spam.com',
+      domainRating: 30,
+      checkedAt: new Date('2026-01-01T00:00:00Z')
+    })
+    await db.setClaimSiteMetadata({ domain: 'claimed-spam.com', siteTitle: 'Slot Gacor Online' })
+    await db.setClaimEmail({ domain: 'claimed-spam.com', email: 'owner@example.com' })
+    await db.recordDrCheck({
+      domain: 'config.php.save',
+      domainRating: 6,
+      checkedAt: new Date('2026-01-01T00:00:00Z')
+    })
+
+    const rows = await db.listSites({ limit: 10, offset: 0, sort: 'dr' })
+    expect(rows.map((row: { domain: string }) => row.domain)).toEqual(['legit.com'])
+    expect(await db.countSites()).toBe(1)
+
+    const dryRun = await db.purgeInvalidSiteDomains({ dryRun: true })
+    expect(dryRun.domains.sort()).toEqual(['bestcasinos.com', 'config.php.save', 'hijacked.org'])
+
+    await db.purgeInvalidSiteDomains({ dryRun: false })
+    expect(await db.getClaim('hijacked.org')).toBeNull()
+    expect(await db.getClaim('claimed-spam.com')).toMatchObject({ email: 'owner@example.com' })
+    expect(await db.getDrChecks('bestcasinos.com')).toEqual([])
+    expect(await db.getDrChecks('legit.com')).toHaveLength(1)
+  })
+
+  it('replaces duplicate historical checks for null and non-null providers', async () => {
+    const db = await import('./db.mjs')
+    const domain = 'history.example.com'
+
+    await db.recordDrHistoryChecks({
+      domain,
+      provider: null,
+      points: [{ checkedAt: '2026-01-01', domainRating: 10 }]
+    })
+    await db.recordDrHistoryChecks({
+      domain,
+      provider: null,
+      points: [{ checkedAt: '2026-01-01', domainRating: 12 }]
+    })
+    await db.recordDrHistoryChecks({
+      domain,
+      provider: 'ahrefs-history',
+      points: [{ checkedAt: '2026-01-01', domainRating: 30 }]
+    })
+    await db.recordDrHistoryChecks({
+      domain,
+      provider: 'ahrefs-history',
+      points: [{ checkedAt: '2026-01-01', domainRating: 32 }]
+    })
+
+    const checks = await db.getDrChecks(domain, { limit: 10 })
+
+    expect(checks).toHaveLength(2)
+    expect(checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ domain_rating: 12, provider: null }),
+        expect.objectContaining({ domain_rating: 32, provider: 'ahrefs-history' })
+      ])
+    )
+  })
+})

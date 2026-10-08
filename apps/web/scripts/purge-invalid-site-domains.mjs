@@ -1,13 +1,11 @@
-import { callAdminApi, hasAdminApi, loadAdminEnv, parseFlagArgs } from './_admin-api.mjs'
-import { loadProjectEnv } from './_load-env.mjs'
+import { callAdminApi, parseFlagArgs, requireAdminApi } from './_admin-api.mjs'
 
 function printHelp() {
   console.log(`Usage: node scripts/purge-invalid-site-domains.mjs [options]
 
 Counts or purges invalid site domains and unclaimed spam sites (gambling,
-escort, darknet, pharma; see src/server/site-spam.mjs) through the Worker admin API when
-DR_ADMIN_BASE_URL/DR_PUBLIC_BASE_URL and DR_ADMIN_TOKEN are configured.
-Falls back to the project DB API for local development.
+escort, darknet, pharma; see src/server/site-spam.mjs) through the Worker admin API.
+Requires DR_ADMIN_TOKEN and DR_ADMIN_BASE_URL (or DR_PUBLIC_BASE_URL).
 
 Options:
   --apply                Delete invalid rows. Default is dry run.
@@ -23,17 +21,10 @@ if (flags.has('help') || flags.has('h')) {
 
 const dryRun = !(flags.has('apply') || values.has('apply'))
 const scanAll = true
-const adminEnv = loadAdminEnv()
+const adminEnv = requireAdminApi()
 
-if (hasAdminApi(adminEnv)) {
-  const payload = await callAdminApi('/api/admin/sites/cleanup-invalid', {
-    env: adminEnv,
-    body: { dryRun, scanAll }
-  })
-  console.log(JSON.stringify(payload, null, 2))
-} else {
-  loadProjectEnv()
-  const { purgeInvalidSiteDomains } = await import('../src/server/db.mjs')
-  const result = await purgeInvalidSiteDomains({ dryRun })
-  console.log(JSON.stringify({ ok: true, ...result }, null, 2))
-}
+const payload = await callAdminApi('/api/admin/sites/cleanup-invalid', {
+  env: adminEnv,
+  body: { dryRun, scanAll }
+})
+console.log(JSON.stringify(payload, null, 2))

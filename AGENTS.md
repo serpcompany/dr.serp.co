@@ -45,12 +45,12 @@ only carry the block `next dev` keeps.
 - `src/app/`: pages and route handlers. Writes a visitor asks for are route handlers under
   `src/app/api/`; there are no Server Actions. Rendering a site page and the badge route also
   write to D1 ([Architecture](docs/architecture.md#layers)).
-- `src/server/`: server-only logic: data access (`db.mjs`, the only place with SQL), DR providers,
+- `src/server/`: server-only logic: data access (`db.mjs`, moving to `src/db/`), DR providers,
   domain validation, the spam filter, sign-in tokens and sessions, entitlements and rate limits.
 - `src/lib/`: pricing tiers, the Stripe client and shared helpers.
 - `src/components/ui/`: stock shadcn components (`new-york` on Radix until #50).
 - `worker.ts`: the Worker entry, wrapping OpenNext; its concerns live in `src/lib/`.
-- `src/db/`: the Drizzle schema (`schema.ts`); `drizzle/`: its migrations. Queries move here in #48.
+- `src/db/`: the data layer: Drizzle schema and typed queries; `drizzle/`: its migrations.
 - `scripts/`: operator and build scripts.
 - `wrangler.jsonc`: Worker environments and bindings.
 

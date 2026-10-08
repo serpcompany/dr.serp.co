@@ -111,9 +111,8 @@ afterwards. `pnpm db:migrations:list:<env>` shows what a database has applied.
 
 These four call the admin API at `DR_ADMIN_BASE_URL`, or else at `DR_PUBLIC_BASE_URL`, when
 `DR_ADMIN_TOKEN` is set. `.dev.vars.example` points `DR_PUBLIC_BASE_URL` at the local dev server,
-so only setting `DR_ADMIN_BASE_URL` reaches a deployed Worker. Without a base URL or token they run
-against the local fallback store. Neither local target proves anything about a deployed
-environment:
+so only setting `DR_ADMIN_BASE_URL` reaches a deployed Worker. Without a base URL or token they stop
+with an error. A local target proves nothing about a deployed environment:
 
 - `pnpm sites:purge-invalid`: invalid and unclaimed spam domains ([DR lookups](dr-lookups.md)).
 - `pnpm sites:backfill-metadata`: missing site titles, descriptions and screenshots.

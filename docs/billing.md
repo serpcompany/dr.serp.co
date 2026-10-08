@@ -113,8 +113,8 @@ endpoint's version can change payloads again; check the handler and its tests fi
 
 These scripts call the admin API at `DR_ADMIN_BASE_URL`, or else at `DR_PUBLIC_BASE_URL` (the
 local dev server in `.dev.vars.example`), when `DR_ADMIN_TOKEN` is set. Only `DR_ADMIN_BASE_URL`
-reaches Production. Without a base URL or token they run against the local fallback store.
-Neither local target proves anything about production.
+reaches Production. Without a base URL or token they stop with an error. A local target proves
+nothing about production.
 
 - `pnpm billing:reconcile` compares Stripe's subscriptions with `dr_subscriptions`.
 - `pnpm billing:prune-audit --days 180` reports audit rows older than 180 days, and deletes

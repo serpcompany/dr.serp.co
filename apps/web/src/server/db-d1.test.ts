@@ -58,10 +58,8 @@ function compareDrDesc(a: Row, b: Row) {
 function createMockD1() {
   const state = {
     claims: new Map<string, Row>(),
-    checks: [] as Row[],
     subscriptions: new Map<string, Row>(),
     billingAudit: [] as Row[],
-    nextCheckId: 1,
     nextBillingId: 1
   }
   const calls: Row[] = []
@@ -79,59 +77,6 @@ function createMockD1() {
       claimed_at: now,
       updated_at: now
     }
-  }
-
-  function allSiteRows(pattern: Param, sort: Param) {
-    const domains = new Set([
-      ...Array.from(state.claims.keys()),
-      ...state.checks.map(row => row.domain)
-    ])
-
-    const rows = Array.from(domains)
-      .filter(domain => likeDomain(domain, pattern))
-      .map(domain => {
-        const claim = state.claims.get(domain) || null
-        const latestCheck =
-          state.checks
-            .filter(row => row.domain === domain)
-            .sort((a, b) => {
-              const dateDiff = compareIsoDesc(a.checked_at, b.checked_at)
-              if (dateDiff) return dateDiff
-              return b.id - a.id
-            })[0] || null
-        const updatedAt =
-          latestCheck?.checked_at && claim?.updated_at
-            ? latestCheck.checked_at > claim.updated_at
-              ? latestCheck.checked_at
-              : claim.updated_at
-            : (latestCheck?.checked_at ?? claim?.updated_at ?? null)
-
-        return {
-          domain,
-          domain_rating: latestCheck?.domain_rating ?? claim?.domain_rating ?? null,
-          site_title: claim?.site_title ?? null,
-          meta_description: claim?.meta_description ?? null,
-          site_url: claim?.site_url ?? null,
-          screenshot_url: claim?.screenshot_url ?? null,
-          updated_at: updatedAt
-        }
-      })
-
-    rows.sort((a, b) => {
-      if (sort === 'updated') {
-        const dateDiff = compareIsoDesc(a.updated_at, b.updated_at)
-        if (dateDiff) return dateDiff
-        return a.domain.localeCompare(b.domain)
-      }
-
-      const drDiff = compareDrDesc(a, b)
-      if (drDiff) return drDiff
-      const dateDiff = compareIsoDesc(a.updated_at, b.updated_at)
-      if (dateDiff) return dateDiff
-      return a.domain.localeCompare(b.domain)
-    })
-
-    return rows
   }
 
   function execute(sql: string, params: Param[]): { rows: Row[]; changes: number } {
@@ -260,105 +205,6 @@ function createMockD1() {
           return a.domain.localeCompare(b.domain)
         })
       return { rows: rows.slice(offset, offset + limit), changes: 0 }
-    }
-
-    if (text.startsWith('INSERT INTO dr_checks')) {
-      const [domain, domainRating, provider, checkedAt] = params
-      const row = {
-        id: state.nextCheckId++,
-        domain,
-        domain_rating: domainRating,
-        provider,
-        checked_at: checkedAt
-      }
-      state.checks.push(row)
-      return { rows: [copyRow(row)], changes: 1 }
-    }
-
-    if (text.startsWith('DELETE FROM dr_checks')) {
-      const before = state.checks.length
-      if (params.length === 4) {
-        const [domain, nullProvider, provider, checkedAt] = params
-        state.checks = state.checks.filter(
-          row =>
-            !(
-              row.domain === domain &&
-              row.checked_at === checkedAt &&
-              ((row.provider === null && nullProvider === null) || row.provider === provider)
-            )
-        )
-      } else {
-        const [domain] = params
-        state.checks = state.checks.filter(row => row.domain !== domain)
-      }
-      return { rows: [], changes: before - state.checks.length }
-    }
-
-    if (text.startsWith('SELECT domain_rating, provider, checked_at FROM dr_checks')) {
-      const [domain, limit] = params
-      const rows = state.checks
-        .filter(row => row.domain === domain)
-        .sort((a, b) => compareIsoDesc(a.checked_at, b.checked_at))
-        .slice(0, limit)
-        .map(row => ({
-          domain_rating: row.domain_rating,
-          provider: row.provider,
-          checked_at: row.checked_at
-        }))
-      return { rows, changes: 0 }
-    }
-
-    if (text.startsWith('SELECT COUNT(*) AS count FROM dr_checks WHERE domain = ?')) {
-      const [domain] = params
-      return {
-        rows: [{ count: state.checks.filter(row => row.domain === domain).length }],
-        changes: 0
-      }
-    }
-
-    if (text.startsWith('WITH domains AS')) {
-      const [pattern] = params
-      const sort = text.includes('ORDER BY updated_at') ? 'updated' : 'dr'
-      return { rows: allSiteRows(pattern, sort), changes: 0 }
-    }
-
-    if (
-      text.startsWith(
-        'SELECT d.domain, cl.site_title FROM ( SELECT domain FROM dr_claims UNION SELECT domain FROM dr_checks'
-      )
-    ) {
-      const [pattern] = params
-      const domains = new Set([
-        ...Array.from(state.claims.keys()),
-        ...state.checks.map(row => row.domain)
-      ])
-      const rows = Array.from(domains)
-        .filter(domain => likeDomain(domain, pattern))
-        .map(domain => ({ domain, site_title: state.claims.get(domain)?.site_title ?? null }))
-      return { rows, changes: 0 }
-    }
-
-    if (
-      text.startsWith(
-        'SELECT d.domain, cl.site_title, cl.email FROM ( SELECT domain FROM dr_claims UNION SELECT domain FROM dr_checks'
-      )
-    ) {
-      const domains = new Set([
-        ...Array.from(state.claims.keys()),
-        ...state.checks.map(row => row.domain)
-      ])
-      const rows = Array.from(domains).map(domain => ({
-        domain,
-        site_title: state.claims.get(domain)?.site_title ?? null,
-        email: state.claims.get(domain)?.email ?? null
-      }))
-      return { rows, changes: 0 }
-    }
-
-    if (text.startsWith('DELETE FROM dr_claims')) {
-      const [domain] = params
-      const existed = state.claims.delete(domain)
-      return { rows: [], changes: existed ? 1 : 0 }
     }
 
     if (text.startsWith('INSERT INTO dr_subscriptions')) {
@@ -593,120 +439,6 @@ describe('D1 database boundary', () => {
       provider: 'moz'
     })
     expect(d1.calls.some(call => call.method === 'first')).toBe(true)
-  })
-
-  it('filters invalid site domains before pagination and count', async () => {
-    const { db } = await importDbWithD1()
-
-    await db.recordDrCheck({
-      domain: 'phpinfo.php',
-      domainRating: 99,
-      checkedAt: new Date('2026-01-03T00:00:00Z')
-    })
-    await db.recordDrCheck({
-      domain: 'valid-a.com',
-      domainRating: 80,
-      checkedAt: new Date('2026-01-02T00:00:00Z')
-    })
-    await db.recordDrCheck({
-      domain: 'valid-b.com',
-      domainRating: 70,
-      checkedAt: new Date('2026-01-01T00:00:00Z')
-    })
-
-    const firstPage = await db.listSites({ limit: 1, offset: 0, sort: 'dr' })
-    const count = await db.countSites()
-
-    expect(firstPage).toEqual([
-      expect.objectContaining({ domain: 'valid-a.com', domain_rating: 80 })
-    ])
-    expect(count).toBe(2)
-  })
-
-  it('hides spam sites from listings and purges them only while unclaimed', async () => {
-    const { db } = await importDbWithD1()
-
-    await db.recordDrCheck({
-      domain: 'legit.com',
-      domainRating: 40,
-      checkedAt: new Date('2026-01-01T00:00:00Z')
-    })
-    await db.recordDrCheck({
-      domain: 'bestcasinos.com',
-      domainRating: 60,
-      checkedAt: new Date('2026-01-01T00:00:00Z')
-    })
-    await db.recordDrCheck({
-      domain: 'hijacked.org',
-      domainRating: 50,
-      checkedAt: new Date('2026-01-01T00:00:00Z')
-    })
-    await db.setClaimSiteMetadata({
-      domain: 'hijacked.org',
-      siteTitle: 'Best UK Non GamStop Casinos for 2026'
-    })
-    await db.recordDrCheck({
-      domain: 'claimed-spam.com',
-      domainRating: 30,
-      checkedAt: new Date('2026-01-01T00:00:00Z')
-    })
-    await db.setClaimSiteMetadata({ domain: 'claimed-spam.com', siteTitle: 'Slot Gacor Online' })
-    await db.setClaimEmail({ domain: 'claimed-spam.com', email: 'owner@example.com' })
-    await db.recordDrCheck({
-      domain: 'config.php.save',
-      domainRating: 6,
-      checkedAt: new Date('2026-01-01T00:00:00Z')
-    })
-
-    const rows = await db.listSites({ limit: 10, offset: 0, sort: 'dr' })
-    expect(rows.map((row: { domain: string }) => row.domain)).toEqual(['legit.com'])
-    expect(await db.countSites()).toBe(1)
-
-    const dryRun = await db.purgeInvalidSiteDomains({ dryRun: true })
-    expect(dryRun.domains.sort()).toEqual(['bestcasinos.com', 'config.php.save', 'hijacked.org'])
-
-    await db.purgeInvalidSiteDomains({ dryRun: false })
-    expect(await db.getClaim('hijacked.org')).toBeNull()
-    expect(await db.getClaim('claimed-spam.com')).toMatchObject({ email: 'owner@example.com' })
-    expect(await db.getDrChecks('bestcasinos.com')).toEqual([])
-    expect(await db.getDrChecks('legit.com')).toHaveLength(1)
-  })
-
-  it('replaces duplicate historical checks for null and non-null providers', async () => {
-    const { db, d1 } = await importDbWithD1()
-    const domain = 'history.example.com'
-
-    await db.recordDrHistoryChecks({
-      domain,
-      provider: null,
-      points: [{ checkedAt: '2026-01-01', domainRating: 10 }]
-    })
-    await db.recordDrHistoryChecks({
-      domain,
-      provider: null,
-      points: [{ checkedAt: '2026-01-01', domainRating: 12 }]
-    })
-    await db.recordDrHistoryChecks({
-      domain,
-      provider: 'ahrefs-history',
-      points: [{ checkedAt: '2026-01-01', domainRating: 30 }]
-    })
-    await db.recordDrHistoryChecks({
-      domain,
-      provider: 'ahrefs-history',
-      points: [{ checkedAt: '2026-01-01', domainRating: 32 }]
-    })
-
-    const checks = await db.getDrChecks(domain, { limit: 10 })
-
-    expect(checks).toHaveLength(2)
-    expect(checks).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ domain_rating: 12, provider: null }),
-        expect.objectContaining({ domain_rating: 32, provider: 'ahrefs-history' })
-      ])
-    )
-    expect(d1.calls.some(call => call.method === 'batch')).toBe(true)
   })
 
   it('upserts subscriptions and normalizes D1 boolean fields on active/latest reads', async () => {
