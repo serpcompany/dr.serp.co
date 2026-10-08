@@ -28,7 +28,8 @@ logic lives in `src/server/`, and each part has tests next to it.
   Client components are for interaction only and call route handlers with `fetch`.
 - **Route handlers** (`src/app/api/**/route.ts`) do every write a visitor asks for. There are no
   Server Actions. Two reads also write: rendering `/sites/<domain>` stores a lookup while the
-  domain has no DR and metadata while any is missing, on every visit until they're found, and
+  domain has no DR, and metadata while its title, description or URL is missing, on every visit
+  until they're found, and
   `GET /badge/<domain>` copies the latest `dr_checks` reading into `dr_claims` when that row has no
   DR.
 - **`src/server/`** holds the domain logic and is server-only: data access, DR providers, site

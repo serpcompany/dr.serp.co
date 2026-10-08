@@ -82,4 +82,5 @@ only deletes with `-- --apply`, after the owner approves
 `resolveSitePresentation` in `src/server/site-presentation.mjs` fetches a site's title,
 description and a homepage screenshot from Microlink, and falls back to fetching the page's HTML.
 It runs on every visit to a page whose title, description or URL is still missing, and stores the
-result in `dr_claims`, so a site whose metadata resolves isn't fetched again. `npm run sites:backfill-metadata` fills in older rows.
+result in `dr_claims`, so a site whose metadata resolves isn't fetched again.
+`npm run sites:backfill-metadata` fills in older rows.

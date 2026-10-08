@@ -32,7 +32,8 @@ database. After changing bindings or vars, run `npm run cf:types` to regenerate
 - **Local:** `.dev.vars`, copied from `.dev.vars.example` and never committed. Never `.env*`: the
   OpenNext build copies those files into the Worker bundle, and `scripts/check-bundle-env.mjs`
   fails the build when it finds any.
-- **Rotating `USESEND_OTP_SECRET`** signs everyone out ([Accounts and claims](accounts-and-claims.md)).
+- **Rotating `USESEND_OTP_SECRET`** signs everyone out ([Accounts and
+  claims](accounts-and-claims.md)).
 
 ## Deploys
 
@@ -48,7 +49,8 @@ npm run deploy:production
 Each `deploy:*` script builds for its environment, runs the bundle check, then runs
 `opennextjs-cloudflare deploy --env <env>`. Never deploy with a bare `wrangler deploy`: in this
 project Wrangler hands it to `opennextjs-cloudflare deploy`, but skips the build and the bundle
-check, so it ships whatever build is sitting in `.open-next/`. `npm run cf:deploy:dry-run` builds and validates without deploying.
+check, so it ships whatever build is sitting in `.open-next/`. `npm run cf:deploy:dry-run` builds
+and validates without deploying.
 
 After a deploy, check that Wrangler reported `dr.serp.co (custom domain)`, then smoke-test:
 
