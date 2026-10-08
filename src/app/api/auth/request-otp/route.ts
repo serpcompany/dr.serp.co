@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   if (!ok) {
     return NextResponse.json(
       { error: "Please wait before requesting another code", retryAfterMs },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+      { status: 429, headers: { "Retry-After": String(Math.ceil((retryAfterMs ?? 0) / 1000)) } }
     )
   }
 
