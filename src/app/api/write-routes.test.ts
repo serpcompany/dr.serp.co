@@ -30,6 +30,12 @@ const ROUTES: Route[] = [
   },
   { name: "portal", method: "POST", path: "/api/stripe/portal", load: async () => (await import("./stripe/portal/route")).POST },
   {
+    name: "change plan",
+    method: "POST",
+    path: "/api/stripe/change-plan",
+    load: async () => (await import("./stripe/change-plan/route")).POST,
+  },
+  {
     name: "request a code",
     method: "POST",
     path: "/api/auth/request-otp",

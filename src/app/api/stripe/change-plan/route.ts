@@ -5,7 +5,7 @@ import { getStripe } from "@/lib/stripe"
 import { getPriceId, getTierForPriceId } from "@/lib/stripe-pricing"
 import { getSessionEmail } from "@/server/auth-session.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
-import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
+import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 import { readWriteRequest } from "@/server/write-route"
 import { CheckoutBody } from "@/server/write-schemas"
 
@@ -32,6 +32,9 @@ export async function POST(request: Request) {
     points: RATE_LIMIT_POINTS,
     duration: RATE_LIMIT_DURATION,
   })
+  if (rate.unavailable) {
+    return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
+  }
   if (!rate.allowed) {
     return NextResponse.json(
       { error: "Too many plan changes. Please try again shortly." },

@@ -19,6 +19,10 @@ vi.mock("@/server/auth-session.mjs", () => ({
   getSessionEmail: () => "owner@example.com",
 }))
 
+const resolveEntitlement = vi.hoisted(() => vi.fn())
+
+vi.mock("@/server/entitlements.mjs", () => ({ resolveEntitlement }))
+
 vi.mock("@/server/db.mjs", () => ({
   getLatestSubscriptionByEmail: async () => ({ stripe_customer_id: "cus_1" }),
 }))
@@ -45,6 +49,7 @@ describe("Stripe return URLs", () => {
     vi.stubEnv("DR_PUBLIC_BASE_URL", "https://staging.dr.example/")
     vi.stubEnv("STRIPE_PORTAL_RETURN_URL", "")
     vi.stubEnv("STRIPE_PORTAL_CONFIGURATION_ID", "")
+    resolveEntitlement.mockReset().mockResolvedValue({ canAccessPaidFeatures: false, subscription: null })
     createCheckoutSession.mockReset().mockResolvedValue({ url: "https://checkout.stripe.com/c/1" })
     createPortalSession.mockReset().mockResolvedValue({ url: "https://billing.stripe.com/p/1" })
   })
@@ -119,5 +124,18 @@ describe("Stripe return URLs", () => {
     expect(portalResponse.status).toBe(503)
     expect(createCheckoutSession).not.toHaveBeenCalled()
     expect(createPortalSession).not.toHaveBeenCalled()
+  })
+
+  it("refuses a second checkout for a subscriber, naming their plan", async () => {
+    resolveEntitlement.mockResolvedValue({
+      canAccessPaidFeatures: true,
+      subscription: { stripeSubscriptionId: "sub_1", domainsLimit: 12, billingInterval: "monthly" },
+    })
+    const { POST } = await import("./checkout/route")
+    const response = await POST(siteRequest("/api/stripe/checkout", { domains: 25, billing: "monthly" }))
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ code: "has_plan", plan: { domains: 12, billing: "monthly" } })
+    expect(createCheckoutSession).not.toHaveBeenCalled()
   })
 })
