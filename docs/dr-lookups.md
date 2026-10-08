@@ -39,9 +39,10 @@ A new call site must be rate-limited, must record its result in `dr_checks`, and
 a domain that is invalid or spam.
 
 The first lookup can take a while; `/sites/[target]/loading.tsx` shows a loading state meanwhile.
-Provider errors can name internal env vars, so the site page logs them on the server and never
-shows them. `/api/recheck` still returns a failed history import's raw message as
-`historyWarning`; [#46](https://github.com/serpcompany/dr.serp.co/issues/46) removes it.
+Provider errors can name internal env vars, so the site page and `/api/recheck` log them on the
+server and never return them. A failed history import during a recheck returns the fixed
+`historyWarning` "History temporarily unavailable". The badge route, which never calls a provider,
+logs its database errors the same way ([Badges](badges.md)).
 
 ## Valid domains
 

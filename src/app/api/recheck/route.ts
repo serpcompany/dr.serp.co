@@ -104,7 +104,9 @@ export async function POST(request: Request) {
         })
         historyPointCount = recorded.length
       } catch (error) {
-        historyWarning = error instanceof Error ? error.message : "History temporarily unavailable"
+        // Provider errors can name internal env vars; log them and return a fixed message.
+        console.error("recheck: DR history import failed", error)
+        historyWarning = "History temporarily unavailable"
       }
     }
 
