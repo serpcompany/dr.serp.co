@@ -3,9 +3,10 @@
 #
 # <base-url> is the environment's canonical host or its workers.dev URL. Every request below sends
 # the smoke-test header, which lets CI test through workers.dev (worker.ts skips the host redirect
-# for it). It checks pages, the badge and the API, the robots rule for the environment, that the
-# workers.dev host redirects to the canonical host without the header, and that a write route
-# refuses a request with no Origin. Standards: environment-configuration.md (Verification).
+# for it). It checks pages, the badge, the API and the sitemaps; robots.txt and the robots header
+# for the environment; that the workers.dev host redirects to the canonical host without the
+# header; and that a write route refuses a request with no Origin. Standards:
+# environment-configuration.md (Verification).
 #
 # /sites/example.com is stored in both environments, so the page never calls Ahrefs.
 set -uo pipefail
@@ -61,6 +62,8 @@ expect_status /pricing 200 text/html
 expect_status /sites/example.com 200 text/html
 expect_status /badge/example.com 200 image/svg+xml
 expect_status '/api/sites?limit=1' 200 application/json
+expect_status /sitemap-index.xml 200 application/xml
+expect_status /sitemap-sites.xml 200 application/xml
 
 # Robots: Staging sends noindex on every response; Production never does.
 if ! headers=$(curl_ -D - -o /dev/null -H "$header" "$base/pricing"); then
@@ -77,6 +80,20 @@ elif [ "$env" = production ] && [ -n "$robots" ]; then
   fail "Production must not send X-Robots-Tag (got '${robots}')"
 else
   pass "robots header for $env: '${robots}'"
+fi
+
+# robots.txt: Production lets crawlers in and lists the sitemap index; Staging shuts them out.
+robots_txt=$(curl_ -H "$header" "$base/robots.txt") || robots_txt=""
+if [ "$env" = production ]; then
+  if [[ "$robots_txt" == *"Allow: /"* && "$robots_txt" == *"Sitemap: $canonical/sitemap-index.xml"* ]]; then
+    pass "robots.txt allows crawling and lists the sitemap index"
+  else
+    fail "Production robots.txt must allow crawling and list $canonical/sitemap-index.xml"
+  fi
+elif [[ "$robots_txt" == *"Disallow: /"* && "$robots_txt" != *"Allow: /"* ]]; then
+  pass "robots.txt disallows crawling"
+else
+  fail "Staging robots.txt must disallow crawling"
 fi
 
 # The platform host redirects to the canonical host without the header. A new version can take a

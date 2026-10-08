@@ -181,3 +181,29 @@ describe('site search on workerd D1', () => {
     expect(await db.listClaimsByEmail({ email: 'owner@example.com', offset: 1e20 })).toEqual([])
   })
 })
+
+describe('sitemap sites on workerd D1', () => {
+  it('lists each listable site once, with its latest change', async () => {
+    await insertClaim('example.com', { rating: 70 })
+    await insertClaim('best-casino.com', { rating: 90 })
+    await insertClaim('phpinfo.php', { rating: 80 })
+    await d1
+      .prepare(
+        'INSERT INTO dr_checks (domain, domain_rating, provider, checked_at) VALUES (?, ?, ?, ?)'
+      )
+      .bind('example.com', 71, 'ahrefs', '2026-10-05T00:00:00.000Z')
+      .run()
+    await d1
+      .prepare(
+        'INSERT INTO dr_checks (domain, domain_rating, provider, checked_at) VALUES (?, ?, ?, ?)'
+      )
+      .bind('checked-only.org', 40, 'ahrefs', '2026-09-01T00:00:00.000Z')
+      .run()
+    const db = await import('./db.mjs')
+
+    expect(await db.listSitemapSites()).toEqual([
+      { domain: 'checked-only.org', updated_at: '2026-09-01T00:00:00.000Z' },
+      { domain: 'example.com', updated_at: '2026-10-05T00:00:00.000Z' }
+    ])
+  })
+})
