@@ -70,6 +70,15 @@ Cloudflare context outside production, which is `next dev`, it uses an in-memory
 local D1 in `.wrangler/`. In production, a missing binding throws. Replacing the fallback with
 local D1 and moving to Drizzle is [#48](https://github.com/serpcompany/dr.serp.co/issues/48).
 
+Site search matches the domain with `instr()`, never `LIKE`, because D1 refuses a `LIKE` pattern
+over 50 bytes ([D1 limits](https://github.com/serpcompany/serp/blob/main/docs/engineering/technology/cloudflare-d1-limits.md)).
+`normalizeSearchQuery` collapses whitespace, keeps 100 characters and folds only ASCII case, as
+SQLite's `lower()` does. `src/server/sql-patterns.test.ts` fails on a bound `LIKE` or `GLOB`
+pattern, and `src/server/db-workerd.test.ts` runs search on D1 in workerd, which enforces the
+limit. The listable filter runs in JavaScript, so `listSites` reads the rows up to the requested
+page plus 200, and reads further (doubling) only when unlistable rows leave the page short. A
+page past offset 100,000 is empty. `countSites` still reads each matching domain and title; #75 moves both into SQL.
+
 ## Rate limits
 
 `checkRateLimit` in `src/server/rate-limit.mjs` keeps a fixed-window counter per key in the

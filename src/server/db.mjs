@@ -315,6 +315,40 @@ function filterListableSiteRows(rows) {
   return rows.filter(isListableSiteRow)
 }
 
+const MAX_SEARCH_LENGTH = 100
+// Deeper pages answer empty, so an unbounded offset never reaches SQL, where D1 refuses a value
+// past 64 bits.
+const MAX_LIST_OFFSET = 100_000
+// Rows past the requested page that listSites reads first, so a page stays full when some stored
+// rows are unlistable (invalid or spam). When more than that precede the page, it reads further.
+const LISTABLE_SCAN_SLACK = 200
+
+function clampOffset(value) {
+  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
+}
+
+// SQLite's lower() folds only ASCII, so fold only ASCII here too.
+function asciiLower(value) {
+  return String(value ?? "").replace(/[A-Z]/g, (char) => char.toLowerCase())
+}
+
+/**
+ * Normalize a site search: collapse whitespace, keep at most 100 characters, fold ASCII case.
+ * Queries match with instr(), never LIKE: D1 refuses LIKE patterns over 50 bytes.
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+export function normalizeSearchQuery(value) {
+  const collapsed = String(value ?? "").replace(/\s+/g, " ").trim()
+  if (!collapsed) return null
+  const capped = Array.from(collapsed).slice(0, MAX_SEARCH_LENGTH).join("").trim()
+  return asciiLower(capped)
+}
+
+function domainMatches(domain, q) {
+  return !q || asciiLower(domain).includes(q)
+}
+
 // Invalid domains are always purged; spam is purged only while unclaimed so a claim is never silently deleted.
 function isPurgeableSiteRow(row) {
   const domain = String(row?.domain ?? "").trim().toLowerCase()
@@ -875,9 +909,9 @@ export async function listClaims(opts = {}) {
   const d1 = getD1Database()
   if (d1) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
-    const q = String(opts.query ?? "").trim()
-    const pattern = q ? `%${q}%` : null
+    const offset = clampOffset(opts.offset)
+    if (offset > MAX_LIST_OFFSET) return []
+    const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
     return d1Rows(
@@ -886,7 +920,7 @@ export async function listClaims(opts = {}) {
         ? `
             SELECT domain, domain_rating, updated_at, site_title, meta_description, site_url, screenshot_url
             FROM dr_claims
-            WHERE (? IS NULL OR lower(domain) LIKE lower(?))
+            WHERE (? IS NULL OR instr(lower(domain), ?) > 0)
             ORDER BY updated_at IS NULL ASC, updated_at DESC, domain ASC
             LIMIT ?
             OFFSET ?
@@ -894,23 +928,24 @@ export async function listClaims(opts = {}) {
         : `
             SELECT domain, domain_rating, updated_at, site_title, meta_description, site_url, screenshot_url
             FROM dr_claims
-            WHERE (? IS NULL OR lower(domain) LIKE lower(?))
+            WHERE (? IS NULL OR instr(lower(domain), ?) > 0)
             ORDER BY domain_rating IS NULL ASC, domain_rating DESC, updated_at IS NULL ASC, updated_at DESC, domain ASC
             LIMIT ?
             OFFSET ?
           `,
-      [pattern, pattern, limit, offset]
+      [q, q, limit, offset]
     )
   }
 
   if (canUseFallbackStore()) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
-    const q = String(opts.query ?? "").trim().toLowerCase()
+    const offset = clampOffset(opts.offset)
+    if (offset > MAX_LIST_OFFSET) return []
+    const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
     const filtered = Array.from(fallbackClaims.values()).filter((row) =>
-      q ? row.domain.toLowerCase().includes(q) : true
+      domainMatches(row.domain, q)
     )
 
     const rows = filtered.sort((a, b) => {
@@ -953,26 +988,25 @@ export async function listClaims(opts = {}) {
 export async function countClaims(opts = {}) {
   const d1 = getD1Database()
   if (d1) {
-    const q = String(opts.query ?? "").trim()
-    const pattern = q ? `%${q}%` : null
+    const q = normalizeSearchQuery(opts.query)
     const row = await d1First(
       d1,
       `
         SELECT COUNT(*) AS count
         FROM dr_claims
-        WHERE (? IS NULL OR lower(domain) LIKE lower(?))
+        WHERE (? IS NULL OR instr(lower(domain), ?) > 0)
       `,
-      [pattern, pattern]
+      [q, q]
     )
     return Number(row?.count) || 0
   }
 
   if (canUseFallbackStore()) {
-    const q = String(opts.query ?? "").trim().toLowerCase()
+    const q = normalizeSearchQuery(opts.query)
     if (!q) return fallbackClaims.size
     let count = 0
     for (const row of fallbackClaims.values()) {
-      if (row.domain.toLowerCase().includes(q)) count += 1
+      if (domainMatches(row.domain, q)) count += 1
     }
     return count
   }
@@ -1046,9 +1080,9 @@ export async function listClaimsByEmail(opts) {
   const d1 = getD1Database()
   if (d1) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
-    const q = String(opts.query ?? "").trim()
-    const pattern = q ? `%${q}%` : null
+    const offset = clampOffset(opts.offset)
+    if (offset > MAX_LIST_OFFSET) return []
+    const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
     return d1Rows(
@@ -1057,7 +1091,7 @@ export async function listClaimsByEmail(opts) {
         ? `
             SELECT domain, domain_rating, updated_at, site_title, meta_description, site_url, screenshot_url
             FROM dr_claims
-            WHERE email = ? AND (? IS NULL OR lower(domain) LIKE lower(?))
+            WHERE email = ? AND (? IS NULL OR instr(lower(domain), ?) > 0)
             ORDER BY updated_at IS NULL ASC, updated_at DESC, domain ASC
             LIMIT ?
             OFFSET ?
@@ -1065,24 +1099,25 @@ export async function listClaimsByEmail(opts) {
         : `
             SELECT domain, domain_rating, updated_at, site_title, meta_description, site_url, screenshot_url
             FROM dr_claims
-            WHERE email = ? AND (? IS NULL OR lower(domain) LIKE lower(?))
+            WHERE email = ? AND (? IS NULL OR instr(lower(domain), ?) > 0)
             ORDER BY domain_rating IS NULL ASC, domain_rating DESC, updated_at IS NULL ASC, updated_at DESC, domain ASC
             LIMIT ?
             OFFSET ?
           `,
-      [email, pattern, pattern, limit, offset]
+      [email, q, q, limit, offset]
     )
   }
 
   if (canUseFallbackStore()) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
-    const q = String(opts.query ?? "").trim().toLowerCase()
+    const offset = clampOffset(opts.offset)
+    if (offset > MAX_LIST_OFFSET) return []
+    const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
     const filtered = Array.from(fallbackClaims.values()).filter((row) => {
       if (String(row.email ?? "").trim().toLowerCase() !== email) return false
-      return q ? String(row.domain).toLowerCase().includes(q) : true
+      return domainMatches(row.domain, q)
     })
 
     filtered.sort((a, b) => {
@@ -1128,26 +1163,25 @@ export async function countClaimsByEmail(opts) {
 
   const d1 = getD1Database()
   if (d1) {
-    const q = String(opts.query ?? "").trim()
-    const pattern = q ? `%${q}%` : null
+    const q = normalizeSearchQuery(opts.query)
     const row = await d1First(
       d1,
       `
         SELECT COUNT(*) AS count
         FROM dr_claims
-        WHERE email = ? AND (? IS NULL OR lower(domain) LIKE lower(?))
+        WHERE email = ? AND (? IS NULL OR instr(lower(domain), ?) > 0)
       `,
-      [email, pattern, pattern]
+      [email, q, q]
     )
     return Number(row?.count) || 0
   }
 
   if (canUseFallbackStore()) {
-    const q = String(opts.query ?? "").trim().toLowerCase()
+    const q = normalizeSearchQuery(opts.query)
     let count = 0
     for (const row of fallbackClaims.values()) {
       if (String(row.email ?? "").trim().toLowerCase() !== email) continue
-      if (q && !String(row.domain).toLowerCase().includes(q)) continue
+      if (!domainMatches(row.domain, q)) continue
       count += 1
     }
     return count
@@ -1163,11 +1197,12 @@ export async function countClaimsByEmail(opts) {
 export async function listSites(opts = {}) {
   const d1 = getD1Database()
   if (d1) {
-    const q = String(opts.query ?? "").trim()
-    const pattern = q ? `%${q}%` : null
+    const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
-    const rawRows = await d1Rows(
-      d1,
+    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
+    const offset = clampOffset(opts.offset)
+    if (offset > MAX_LIST_OFFSET) return []
+    const sql =
       sort === "updated"
         ? `
             WITH domains AS (
@@ -1205,11 +1240,12 @@ export async function listSites(opts = {}) {
               FROM domains d
               LEFT JOIN latest_checks c ON c.domain = d.domain
               LEFT JOIN dr_claims cl ON cl.domain = d.domain
-              WHERE (? IS NULL OR lower(d.domain) LIKE lower(?))
+              WHERE (? IS NULL OR instr(lower(d.domain), ?) > 0)
             )
             SELECT domain, domain_rating, site_title, meta_description, site_url, screenshot_url, updated_at
             FROM site_rows
             ORDER BY updated_at IS NULL ASC, updated_at DESC, domain ASC
+            LIMIT ?
           `
         : `
             WITH domains AS (
@@ -1247,24 +1283,32 @@ export async function listSites(opts = {}) {
               FROM domains d
               LEFT JOIN latest_checks c ON c.domain = d.domain
               LEFT JOIN dr_claims cl ON cl.domain = d.domain
-              WHERE (? IS NULL OR lower(d.domain) LIKE lower(?))
+              WHERE (? IS NULL OR instr(lower(d.domain), ?) > 0)
             )
             SELECT domain, domain_rating, site_title, meta_description, site_url, screenshot_url, updated_at
             FROM site_rows
             ORDER BY domain_rating IS NULL ASC, domain_rating DESC, updated_at IS NULL ASC, updated_at DESC, domain ASC
-          `,
-      [pattern, pattern]
-    )
-    const rows = filterListableSiteRows(rawRows)
-    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
-    return rows.slice(offset, offset + limit)
+            LIMIT ?
+          `
+    // Listability uses JavaScript rules (domain validation and the spam filter), so it runs on a
+    // bounded read: the rows up to the page plus slack, read further only when unlistable rows
+    // leave the page short and more rows remain.
+    let scan = offset + limit + LISTABLE_SCAN_SLACK
+    for (;;) {
+      const rawRows = await d1Rows(d1, sql, [q, q, scan])
+      const rows = filterListableSiteRows(rawRows)
+      const shortfall = offset + limit - rows.length
+      if (shortfall <= 0 || rawRows.length < scan) return rows.slice(offset, offset + limit)
+      // Grow geometrically, so a search whose matches are mostly unlistable costs a few queries.
+      scan = Math.max(scan * 2, scan + shortfall + LISTABLE_SCAN_SLACK)
+    }
   }
 
   if (canUseFallbackStore()) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
-    const q = String(opts.query ?? "").trim().toLowerCase()
+    const offset = clampOffset(opts.offset)
+    if (offset > MAX_LIST_OFFSET) return []
+    const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
     const domains = new Set([...fallbackChecks.keys(), ...fallbackClaims.keys()])
@@ -1296,7 +1340,7 @@ export async function listSites(opts = {}) {
       }
     })
 
-    const filtered = filterListableSiteRows(rows).filter((row) => (q ? row.domain.toLowerCase().includes(q) : true))
+    const filtered = filterListableSiteRows(rows).filter((row) => (domainMatches(row.domain, q)))
     filtered.sort((a, b) => {
       if (sort === "updated") {
         const at = a.updated_at ? Date.parse(a.updated_at) : -Infinity
@@ -1331,8 +1375,7 @@ export async function listSites(opts = {}) {
 export async function countSites(opts = {}) {
   const d1 = getD1Database()
   if (d1) {
-    const q = String(opts.query ?? "").trim()
-    const pattern = q ? `%${q}%` : null
+    const q = normalizeSearchQuery(opts.query)
     const rows = await d1Rows(
       d1,
       `
@@ -1343,22 +1386,22 @@ export async function countSites(opts = {}) {
           SELECT domain FROM dr_checks
         ) d
         LEFT JOIN dr_claims cl ON cl.domain = d.domain
-        WHERE (? IS NULL OR lower(d.domain) LIKE lower(?))
+        WHERE (? IS NULL OR instr(lower(d.domain), ?) > 0)
       `,
-      [pattern, pattern]
+      [q, q]
     )
     return filterListableSiteRows(rows).length
   }
 
   if (canUseFallbackStore()) {
-    const q = String(opts.query ?? "").trim().toLowerCase()
+    const q = normalizeSearchQuery(opts.query)
     const domains = Array.from(new Set([...fallbackChecks.keys(), ...fallbackClaims.keys()])).filter((domain) =>
       isListableSiteRow({ domain, site_title: fallbackClaims.get(domain)?.site_title })
     )
     if (!q) return domains.length
     let count = 0
     for (const domain of domains) {
-      if (domain.toLowerCase().includes(q)) count += 1
+      if (domainMatches(domain, q)) count += 1
     }
     return count
   }
