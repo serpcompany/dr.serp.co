@@ -1853,7 +1853,7 @@ export async function insertBillingAudit({
             cancel_at_period_end = COALESCE(excluded.cancel_at_period_end, dr_billing_audit.cancel_at_period_end),
             event_created_at = COALESCE(excluded.event_created_at, dr_billing_audit.event_created_at),
             success = COALESCE(excluded.success, dr_billing_audit.success),
-            error = COALESCE(excluded.error, dr_billing_audit.error),
+            error = excluded.error,
             created_at = excluded.created_at
           RETURNING
             stripe_event_id,

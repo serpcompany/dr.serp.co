@@ -35,6 +35,27 @@ function toDate(value: Date | string | null | undefined) {
   return Number.isFinite(parsed.getTime()) ? parsed : null
 }
 
+// Webhook payloads follow the endpoint's API version (2025-06-30.basil), not the SDK's
+// (2023-10-16), so read fields that basil moved from either place.
+type InvoiceShapes = {
+  subscription?: string | null
+  parent?: { subscription_details?: { subscription?: string | null } | null } | null
+}
+type PeriodEnd = { current_period_end?: number | null }
+
+function invoiceSubscriptionId(invoice: Stripe.Invoice) {
+  const shapes = invoice as unknown as InvoiceShapes
+  const value = shapes.subscription ?? shapes.parent?.subscription_details?.subscription
+  return typeof value === "string" ? value : null
+}
+
+function subscriptionPeriodEnd(subscription: Stripe.Subscription) {
+  const legacy = (subscription as unknown as PeriodEnd).current_period_end
+  const basil = (subscription.items?.data?.[0] as unknown as PeriodEnd | undefined)?.current_period_end
+  const seconds = legacy ?? basil ?? null
+  return seconds ? new Date(seconds * 1000) : null
+}
+
 async function resolveCustomerEmail(stripe: Stripe, customerId?: string | null) {
   if (!customerId) return null
   const customer = await stripe.customers.retrieve(customerId)
@@ -66,9 +87,7 @@ async function buildSubscriptionSnapshot(
 
   const billingInterval = tier?.billing ?? billingFromInterval(price?.recurring?.interval ?? null)
   const domainsLimit = tier?.domains ?? null
-  const currentPeriodEnd = subscription.current_period_end
-    ? new Date(subscription.current_period_end * 1000)
-    : null
+  const currentPeriodEnd = subscriptionPeriodEnd(subscription)
 
   return {
     email: email || null,
@@ -199,7 +218,7 @@ export async function POST(request: Request) {
       case "invoice.paid":
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice
-        const subscriptionId = typeof invoice.subscription === "string" ? invoice.subscription : null
+        const subscriptionId = invoiceSubscriptionId(invoice)
         if (!subscriptionId) {
           await insertBillingAudit({
             stripeEventId: event.id,
