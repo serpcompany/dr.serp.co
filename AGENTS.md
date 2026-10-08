@@ -38,8 +38,9 @@ of their issue.
 ## Where things live
 
 The site is in `apps/web/`, with its own `package.json` and pnpm lockfile. Code paths here and in
-`docs/` are relative to it. The root holds the docs (`AGENTS.md`, `CLAUDE.md`, `README.md`,
-`docs/`), `.archive/` and `.github/`, and paths starting with those are from the root.
+`docs/` are relative to it, except paths starting with a root entry: the docs (`AGENTS.md`,
+`CLAUDE.md`, `README.md`, `docs/`), `.archive/` and `.github/`. `apps/web/AGENTS.md` and `CLAUDE.md`
+only carry the block `next dev` keeps.
 
 - `src/app/`: pages and route handlers. Writes a visitor asks for are route handlers under
   `src/app/api/`; there are no Server Actions. Rendering a site page and the badge route also
@@ -111,9 +112,8 @@ Agents never merge. The owner merges every pull request.
 - **URLs:** pages have no trailing slash, and the Worker strips one. Whether to adopt the SERP
   rule is [#51](https://github.com/serpcompany/dr.serp.co/issues/51); don't change slash
   behavior before it's decided.
-- **Layout:** `AGENTS.md`, `CLAUDE.md` and `docs/` stay at the repository root rather than in
-  `apps/web/` (`standards/web-stack/repository-layout.md`), because `apps/web` is the only surface
-  and #42 kept them there.
+- **Layout:** the map and `docs/` stay at the repository root rather than in `apps/web/`
+  (`standards/web-stack/repository-layout.md`), because `apps/web` is the only surface (#42).
 - **Rate limits** use a Durable Object (`RATE_LIMITER`), not D1.
 - **Resource names:** Staging keeps `serp-dr-preview` (Worker and D1), Production `serp-dr` and
   `serp-dr-prod` (#43: new Workers would need every secret set again; D1 can't be renamed).

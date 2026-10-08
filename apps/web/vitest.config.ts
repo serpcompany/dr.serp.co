@@ -5,8 +5,6 @@ import { configDefaults, defineConfig } from 'vitest/config'
 const domTests = 'src/**/*.dom.test.tsx'
 
 export default defineConfig({
-  // tsconfig.json keeps JSX for Next.js (`jsx: preserve`); tests compile it with React's runtime.
-  oxc: { jsx: { runtime: 'automatic' } },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

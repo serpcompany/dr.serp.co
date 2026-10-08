@@ -45,7 +45,7 @@ function getD1Database() {
 }
 
 // In dev/local runs, a database is often not configured. Keep a global in-memory fallback so
-// checked domains still appear on /sites during the session (even across webpack bundles).
+// checked domains still appear on /sites during the session (even across module instances).
 const fallbackStoreKey = '__dr_serp_fallback_store__'
 const globalStore = /** @type {any} */ (globalThis)
 if (!globalStore[fallbackStoreKey]) {

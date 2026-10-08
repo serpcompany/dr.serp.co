@@ -8,7 +8,7 @@
     "node": "^22.12.0"
   },
   "scripts": {
-    "predev": "node scripts/clean-next.mjs",
+    "predev": "node scripts/check-node.mjs",
     "dev": "node scripts/dev.mjs",
     "build": "next build",
     "lint": "biome check",
@@ -33,11 +33,11 @@
     "r2:replace-badges": "node scripts/replace-r2-badge-assets.mjs",
     "sites:purge-invalid": "node scripts/purge-invalid-site-domains.mjs",
     "sites:backfill-metadata": "node scripts/backfill-site-metadata.mjs",
-    "docs:check": "node ../../.github/scripts/check-docs.mjs && remark \"../../*.md\" \"../../docs/**/*.md\" --frail --quiet --use remark-validate-links",
+    "docs:check": "node ../../.github/scripts/check-docs.mjs && remark \"../../*.md\" \"../../docs/**/*.md\" AGENTS.md --frail --quiet --use remark-validate-links",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm cf:audit --strict --pretty && pnpm cf:build && pnpm docs:check"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "^1.19.11",
+    "@opennextjs/cloudflare": "^1.20.6",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-aspect-ratio": "^1.1.2",
@@ -71,11 +71,11 @@
     "embla-carousel-react": "^8.5.2",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.484.0",
-    "next": "^15.5.0",
+    "next": "^16.3.6",
     "next-themes": "^0.4.6",
-    "react": "^19.0.0",
+    "react": "^19.2.8",
     "react-day-picker": "^9.6.7",
-    "react-dom": "^19.0.0",
+    "react-dom": "^19.2.8",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.1",
     "sonner": "^2.0.7",
@@ -91,8 +91,8 @@
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
     "@types/node": "^22.10.0",
-    "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "19.2.3",
     "happy-dom": "20.14.5",
     "remark-cli": "^12.0.1",
     "remark-validate-links": "^13.1.0",
@@ -100,7 +100,7 @@
     "typescript": "~5.7.2",
     "vite": "8.3.0",
     "vitest": "5.0.1",
-    "wrangler": "^4.103.0"
+    "wrangler": "^4.139.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

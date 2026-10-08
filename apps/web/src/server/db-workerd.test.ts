@@ -1,9 +1,11 @@
-// Runs the data layer against D1 on workerd (Miniflare), which enforces limits that the mock in
-// db-d1.test.ts can't, such as D1's 50-byte LIKE pattern limit.
+// Runs the data layer's real SQL against D1 on workerd (SQLite semantics, instr(), window
+// functions, byte lengths), which the mock in db-d1.test.ts can't. Local workerd doesn't enforce
+// D1's 50-byte LIKE limit; sql-patterns.test.ts guards that in the source. The binding comes from
+// Wrangler's getPlatformProxy and wrangler.jsonc's local configuration, in memory.
 import { readdirSync, readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
 import path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { getPlatformProxy } from 'wrangler'
 
 const binding = vi.hoisted(() => ({ db: null as unknown }))
 
@@ -16,13 +18,7 @@ type D1 = {
   batch: (statements: unknown[]) => Promise<unknown>
 }
 
-// The Miniflare that Wrangler itself runs, so these tests use the same workerd as preview and deploys.
-const requireFromWrangler = createRequire(
-  createRequire(import.meta.url).resolve('wrangler/package.json')
-)
-type Miniflare = { getD1Database(name: string): Promise<unknown>; dispose(): Promise<void> }
-
-let mf: Miniflare
+let dispose: (() => Promise<void>) | undefined
 let d1: D1
 
 async function applyMigrations() {
@@ -51,19 +47,16 @@ async function insertClaim(domain: string, { email = null as string | null, rati
 }
 
 beforeAll(async () => {
-  const { Miniflare } = await import(requireFromWrangler.resolve('miniflare'))
-  mf = new Miniflare({
-    modules: true,
-    script: "export default { fetch() { return new Response('') } }",
-    d1Databases: ['DB']
-  })
-  d1 = (await mf.getD1Database('DB')) as unknown as D1
+  // persist: false keeps the database in memory, apart from any local .wrangler state.
+  const proxy = await getPlatformProxy<{ DB: unknown }>({ persist: false })
+  dispose = proxy.dispose
+  d1 = proxy.env.DB as D1
   binding.db = d1
   await applyMigrations()
 }, 30_000)
 
 afterAll(async () => {
-  await mf?.dispose()
+  await dispose?.()
 })
 
 beforeEach(async () => {
