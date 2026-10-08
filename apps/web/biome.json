@@ -34,7 +34,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "preset": "recommended"
     },
     "domains": {
       "next": "recommended",
@@ -75,7 +75,16 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["@/components", "@/components/**", "@/app", "@/app/**"],
+                    "group": [
+                      "@/components",
+                      "@/components/**",
+                      "@/app",
+                      "@/app/**",
+                      "**/../components",
+                      "**/../components/**",
+                      "**/../app",
+                      "**/../app/**"
+                    ],
                     "message": "src/lib and src/server hold logic that components (src/components) and routes (src/app) build on, so they never import those (AGENTS.md, Where things live). Move what both sides need into src/lib or src/server."
                   }
                 ]
@@ -95,7 +104,7 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["@/app", "@/app/**"],
+                    "group": ["@/app", "@/app/**", "**/../app", "**/../app/**"],
                     "message": "Routes (src/app) import components, never the reverse. Pass what a component needs as a prop, or move shared code into src/lib."
                   }
                 ]
