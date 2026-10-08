@@ -77,6 +77,8 @@ describe("POST /api/stripe/checkout", () => {
     const payload = await response.json()
 
     expect(response.status).toBe(500)
-    expect(payload.error).toBe("STRIPE_SECRET_KEY is required")
+    // The config error stays in the log; the visitor sees a fixed message.
+    expect(payload.error).toBe("Checkout is unavailable right now. Please try again later.")
+    expect(JSON.stringify(payload)).not.toContain("STRIPE_SECRET_KEY")
   })
 })

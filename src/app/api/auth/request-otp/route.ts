@@ -27,7 +27,9 @@ export async function POST(request: Request) {
 
   const apiKey = process.env.USESEND_API_KEY
   if (!apiKey) {
-    return NextResponse.json({ error: "Missing USESEND_API_KEY" }, { status: 500 })
+    // Config and useSend errors stay in the log; the visitor sees a fixed message.
+    console.error("auth.request-otp: USESEND_API_KEY is not set")
+    return NextResponse.json({ error: "Sign-in is unavailable right now. Please try again later." }, { status: 500 })
   }
 
   const otpSecret = process.env.USESEND_OTP_SECRET || apiKey
@@ -48,10 +50,8 @@ export async function POST(request: Request) {
 
   if (!response.ok) {
     const details = await response.text().catch(() => "")
-    return NextResponse.json(
-      { error: "Failed to send OTP email", details },
-      { status: 502 }
-    )
+    console.error("auth.request-otp: useSend refused the email", { status: response.status, details })
+    return NextResponse.json({ error: "Failed to send OTP email" }, { status: 502 })
   }
 
   const token = createOtpToken({ email, code, expiresAt, secret: otpSecret })

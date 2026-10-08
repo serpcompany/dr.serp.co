@@ -35,7 +35,8 @@ export async function POST(request: Request) {
 
   const secret = process.env.USESEND_OTP_SECRET || process.env.USESEND_API_KEY
   if (!secret) {
-    return NextResponse.json({ error: "Missing USESEND_OTP_SECRET" }, { status: 500 })
+    console.error("auth.verify-otp: USESEND_OTP_SECRET and USESEND_API_KEY are not set")
+    return NextResponse.json({ error: "Sign-in is unavailable right now. Please try again later." }, { status: 500 })
   }
 
   const result = verifyOtpToken({ token, email, code, secret })

@@ -148,9 +148,10 @@ export async function POST(request: Request) {
     const body = Buffer.from(await request.arrayBuffer())
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
   } catch (error) {
+    // The request isn't verified yet, so the caller gets no detail; the log keeps it.
     const message = error instanceof Error ? error.message : "Invalid signature."
     console.error("stripe.webhook: signature verification failed", message)
-    return NextResponse.json({ error: message }, { status: 400 })
+    return NextResponse.json({ error: "Invalid signature." }, { status: 400 })
   }
 
   const eventCreatedAt = event.created ? new Date(event.created * 1000) : null
@@ -269,7 +270,8 @@ export async function POST(request: Request) {
       success: false,
       error: message,
     })
-    return NextResponse.json({ error: message }, { status: 500 })
+    // The audit row keeps the message; the 500 makes Stripe retry.
+    return NextResponse.json({ error: "Webhook handler failed." }, { status: 500 })
   }
 
   return NextResponse.json({ received: true })

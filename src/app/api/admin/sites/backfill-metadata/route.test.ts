@@ -118,4 +118,31 @@ describe("POST /api/admin/sites/backfill-metadata", () => {
       screenshotUrl: null,
     })
   })
+
+  it("logs a failed lookup and returns a fixed message", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    countSites.mockResolvedValue(1)
+    listSites.mockResolvedValue([{ domain: "missing.example" }])
+    const lookupError = new Error("Microlink 401: MICROLINK_API_KEY is invalid")
+    resolveSitePresentation.mockRejectedValue(lookupError)
+
+    const { POST } = await import("./route")
+    const response = await POST(
+      new Request("http://localhost/api/admin/sites/backfill-metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": "admin-secret" },
+        body: JSON.stringify({ dryRun: false }),
+      })
+    )
+    const payload = await response.json()
+
+    expect(JSON.stringify(payload)).not.toContain("MICROLINK_API_KEY")
+    expect(payload.results).toEqual([
+      { domain: "missing.example", status: "failed", error: "Metadata lookup failed; see the Worker logs." },
+    ])
+    expect(consoleError).toHaveBeenCalledWith("admin.backfill-metadata: metadata lookup failed", {
+      domain: "missing.example",
+      error: lookupError,
+    })
+  })
 })

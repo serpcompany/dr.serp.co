@@ -63,8 +63,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url })
   } catch (error) {
+    // Stripe's and the config's messages stay in the log; the visitor sees a fixed one.
     console.error("stripe.checkout: session creation failed", error)
-    const message = error instanceof Error ? error.message : "Unexpected error."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: "Checkout is unavailable right now. Please try again later." }, { status: 500 })
   }
 }

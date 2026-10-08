@@ -119,7 +119,7 @@ describe("POST /api/stripe/webhook", () => {
     const payload = await response.json()
 
     expect(response.status).toBe(400)
-    expect(payload.error).toBeTruthy()
+    expect(payload).toEqual({ error: "Invalid signature." })
   })
 })
 
@@ -245,6 +245,26 @@ describe("POST /api/stripe/webhook payload shapes", () => {
     expect(response.status).toBe(200)
     expect(upsertSubscription).toHaveBeenCalledWith(
       expect.objectContaining({ stripeSubscriptionId: "sub_1", currentPeriodEnd: new Date(1794000000 * 1000) })
+    )
+  })
+
+  it("records a handler error in the audit row and returns a fixed 500", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    retrieveSubscription.mockRejectedValue(new Error("D1_ERROR: no such table: dr_subscriptions"))
+
+    const { POST } = await import("./route")
+    const response = await POST(
+      signedRequest({
+        id: "evt_handler_error",
+        type: "invoice.paid",
+        data: { object: { id: "in_4", object: "invoice", subscription: "sub_1" } },
+      })
+    )
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: "Webhook handler failed." })
+    expect(insertBillingAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ stripeEventId: "evt_handler_error", success: false, error: "D1_ERROR: no such table: dr_subscriptions" })
     )
   })
 })

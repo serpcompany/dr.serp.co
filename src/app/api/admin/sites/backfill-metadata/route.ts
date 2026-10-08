@@ -76,11 +76,8 @@ export async function POST(request: Request) {
         screenshot: Boolean(resolved.screenshotUrl),
       })
     } catch (error) {
-      results.push({
-        domain: site.domain,
-        status: "failed",
-        error: error instanceof Error ? error.message : String(error),
-      })
+      console.error("admin.backfill-metadata: metadata lookup failed", { domain: site.domain, error })
+      results.push({ domain: site.domain, status: "failed", error: "Metadata lookup failed; see the Worker logs." })
     }
   }
 
