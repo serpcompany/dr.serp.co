@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { readJsonRecord } from '@/lib/read-json'
+
 const countSites = vi.fn()
 const listSites = vi.fn()
 const setClaimSiteMetadata = vi.fn()
@@ -44,7 +46,7 @@ describe('POST /api/admin/sites/backfill-metadata', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(401)
     expect(payload.error).toBe('Unauthorized.')
@@ -81,7 +83,7 @@ describe('POST /api/admin/sites/backfill-metadata', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(200)
     expect(payload.ok).toBe(true)
@@ -123,7 +125,7 @@ describe('POST /api/admin/sites/backfill-metadata', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(200)
     expect(payload.updated).toBe(1)
@@ -151,7 +153,7 @@ describe('POST /api/admin/sites/backfill-metadata', () => {
         body: JSON.stringify({ dryRun: false })
       })
     )
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(JSON.stringify(payload)).not.toContain('MICROLINK_API_KEY')
     expect(payload.results).toEqual([

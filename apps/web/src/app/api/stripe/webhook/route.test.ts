@@ -1,6 +1,8 @@
 import Stripe from 'stripe'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { readJsonRecord } from '@/lib/read-json'
+
 let headerStore = new Headers()
 
 vi.mock('next/headers', () => ({
@@ -93,7 +95,7 @@ describe('POST /api/stripe/webhook', () => {
     })
 
     const response = await POST(request)
-    const body = await response.json()
+    const body = await readJsonRecord(response)
 
     expect(response.status).toBe(200)
     expect(body.received).toBe(true)
@@ -113,7 +115,7 @@ describe('POST /api/stripe/webhook', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(400)
     expect(payload).toEqual({ error: 'Invalid signature.' })

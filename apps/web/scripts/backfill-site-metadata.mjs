@@ -46,6 +46,7 @@ if (hasAdminApi(adminEnv)) {
     skipped: 0,
     updated: 0,
     failed: 0,
+    /** @type {any[]} */
     failures: []
   }
 

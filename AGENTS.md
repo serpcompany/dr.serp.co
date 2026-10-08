@@ -75,15 +75,15 @@ Run them from `apps/web/`. Inner loop, while editing:
 - `pnpm exec vitest related --run <changed files>`: the tests for what you changed.
   Component tests that click and type are `*.dom.test.tsx`, run in happy-dom.
 - `pnpm dev`: `next dev` with local values from `.dev.vars`. `pnpm format` formats with Biome.
-- Type errors in app code surface in `pnpm build`. `pnpm exec tsc --noEmit` also checks test files,
-  which have known errors until #93.
+- `pnpm typecheck`: TypeScript, tests included, then the `.mjs` modules and scripts through
+  `tsconfig.js.json` (`checkJs`; implicit `any` allowed there until #48 moves data access to TS).
 
-Finish gate, once per finished state: `pnpm lint && pnpm test &&
-pnpm cf:audit --strict --pretty && pnpm cf:build && pnpm docs:check`.
+Finish gate, once per finished state: `pnpm check` (lint, typecheck, tests, `cf:audit`, the
+OpenNext build and `docs:check`). It writes no source files.
 
 Evidence beyond the finish gate:
 
-- **Worker entry, redirects, headers or `wrangler.jsonc`:** a run on `pnpm cf:preview`.
+- **Worker entry, redirects, headers or `wrangler.jsonc`:** a run on `pnpm preview`.
 - **Visible UI:** one local run with a screenshot at 1440 px and 390 px wide.
 
 ## Rules

@@ -21,7 +21,7 @@ them. They do inherit other keys, including `main`, `compatibility_date`, `compa
 level changes Preview and Production too. Every remote command passes `--env`; without it
 Wrangler uses the local configuration.
 `pnpm cf:audit --strict --pretty` fails when the top level points at a deployed Worker or
-database. After changing bindings or vars, run `pnpm cf:types` to regenerate
+database. After changing bindings or vars, run `pnpm cf-typegen` to regenerate
 `cloudflare-env.d.ts`.
 
 ## Secrets and local values
@@ -40,8 +40,7 @@ database. After changing bindings or vars, run `pnpm cf:types` to regenerate
 The owner deploys from a clean, intended commit on `main`, in `apps/web/`:
 
 ```sh
-pnpm test
-pnpm cf:audit --strict --pretty
+pnpm check
 pnpm deploy:preview
 pnpm deploy:production
 ```

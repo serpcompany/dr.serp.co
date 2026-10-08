@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { readJsonRecord } from '@/lib/read-json'
+
 const purgeInvalidSiteDomains = vi.fn()
 
 vi.mock('@/server/db.mjs', () => ({
@@ -32,7 +34,7 @@ describe('POST /api/admin/sites/cleanup-invalid', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(401)
     expect(payload.error).toBe('Unauthorized.')
@@ -75,7 +77,7 @@ describe('POST /api/admin/sites/cleanup-invalid', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(200)
     expect(payload.ok).toBe(true)

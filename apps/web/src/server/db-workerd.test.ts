@@ -124,10 +124,12 @@ describe('site search on workerd D1', () => {
     await insertClaim('example.org', { rating: 60 })
     const db = await import('./db.mjs')
 
-    expect((await db.listSites({ limit: 1 })).map(row => row.domain)).toEqual(['example.com'])
-    expect((await db.listSites({ limit: 1, offset: 1 })).map(row => row.domain)).toEqual([
-      'example.org'
-    ])
+    expect((await db.listSites({ limit: 1 })).map((row: { domain: string }) => row.domain)).toEqual(
+      ['example.com']
+    )
+    expect(
+      (await db.listSites({ limit: 1, offset: 1 })).map((row: { domain: string }) => row.domain)
+    ).toEqual(['example.org'])
     expect(await db.countSites({})).toBe(2)
   })
 
@@ -142,10 +144,12 @@ describe('site search on workerd D1', () => {
     await insertClaim('example.org', { rating: 60 })
     const db = await import('./db.mjs')
 
-    expect((await db.listSites({ limit: 1 })).map(row => row.domain)).toEqual(['example.com'])
-    expect((await db.listSites({ limit: 1, offset: 1 })).map(row => row.domain)).toEqual([
-      'example.org'
-    ])
+    expect((await db.listSites({ limit: 1 })).map((row: { domain: string }) => row.domain)).toEqual(
+      ['example.com']
+    )
+    expect(
+      (await db.listSites({ limit: 1, offset: 1 })).map((row: { domain: string }) => row.domain)
+    ).toEqual(['example.org'])
     expect(await db.listSites({ limit: 1, offset: 2 })).toEqual([])
     expect(await db.countSites({})).toBe(2)
   })
