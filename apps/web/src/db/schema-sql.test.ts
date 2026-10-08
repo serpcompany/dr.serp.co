@@ -8,15 +8,23 @@ import { describe, expect, it } from 'vitest'
 import production from './production-schema.json'
 import * as schema from './schema'
 
-// Lowercase, no quoting, no table qualifiers, single spaces, none around punctuation.
+// Lowercase, no quoting, no table qualifiers, single spaces, none around punctuation. String
+// literals ('…') are kept exactly, so 'Active' and 'active' still differ.
 function normalize(sql: string) {
   return sql
-    .toLowerCase()
     .replace(/;$/, '')
-    .replace(/[`"]/g, '')
-    .replace(/\bdr_\w+\.(?=\w)/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/\s*([(),])\s*/g, '$1')
+    .split(/('(?:[^']|'')*')/)
+    .map((part, index) =>
+      index % 2 === 1
+        ? part
+        : part
+            .toLowerCase()
+            .replace(/[`"]/g, '')
+            .replace(/\bdr_\w+\.(?=\w)/g, '')
+            .replace(/\s+/g, ' ')
+            .replace(/\s*([(),])\s*/g, '$1')
+    )
+    .join('')
     .trim()
 }
 
@@ -64,5 +72,14 @@ describe('schema.ts against Production SQL', () => {
       expect(declared, table.name).toBeDefined()
       expect(checks(declared ?? ''), table.name).toEqual(checks(table.sql))
     }
+  })
+})
+
+describe('normalize', () => {
+  it('ignores quoting, qualifiers and spacing but keeps string literals', () => {
+    expect(normalize('CREATE INDEX `a` ON `t` ("x" desc);')).toBe(
+      normalize('CREATE INDEX a\n  ON t (x DESC)')
+    )
+    expect(normalize("WHERE status = 'Active'")).not.toBe(normalize("WHERE status = 'active'"))
   })
 })
