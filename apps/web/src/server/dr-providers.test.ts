@@ -15,7 +15,7 @@ describe('fetchDomainRating', () => {
     const previousApiKey = process.env.AHREFS_API_KEY
     process.env.AHREFS_API_KEY = 'test_api_key'
 
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) => {
       return new Response(
         JSON.stringify({
           domain_rating: {
@@ -49,10 +49,12 @@ describe('fetchDomainRating', () => {
       expect(requestedUrl.searchParams.get('date')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
       expect(requestedUrl.searchParams.get('protocol')).toBe('both')
       expect(requestedUrl.searchParams.get('output')).toBe('json')
-      expect(fetchMock.mock.calls[0][1]?.headers?.authorization).toBe('Bearer test_api_key')
+      expect((fetchMock.mock.calls[0][1]?.headers as Record<string, string>)?.authorization).toBe(
+        'Bearer test_api_key'
+      )
     } finally {
       if (previousApiKey === undefined) {
-        delete process.env.AHREFS_API_KEY
+        Reflect.deleteProperty(process.env, 'AHREFS_API_KEY')
       } else {
         process.env.AHREFS_API_KEY = previousApiKey
       }
@@ -63,7 +65,7 @@ describe('fetchDomainRating', () => {
     const previousApiKey = process.env.AHREFS_API_KEY
     process.env.AHREFS_API_KEY = 'test_api_key'
 
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) => {
       return new Response(
         JSON.stringify({
           domain_rating: {
@@ -86,7 +88,7 @@ describe('fetchDomainRating', () => {
       expect(requestedUrl.searchParams.get('date')).toBe('2026-05-28')
     } finally {
       if (previousApiKey === undefined) {
-        delete process.env.AHREFS_API_KEY
+        Reflect.deleteProperty(process.env, 'AHREFS_API_KEY')
       } else {
         process.env.AHREFS_API_KEY = previousApiKey
       }
@@ -99,7 +101,7 @@ describe('fetchDomainRating', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-28T12:00:00.000Z'))
 
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) => {
       return new Response(
         JSON.stringify({
           domain_ratings: [
@@ -137,11 +139,13 @@ describe('fetchDomainRating', () => {
       expect(requestedUrl.searchParams.get('history_grouping')).toBe('monthly')
       expect(requestedUrl.searchParams.get('protocol')).toBe('both')
       expect(requestedUrl.searchParams.get('output')).toBe('json')
-      expect(fetchMock.mock.calls[0][1]?.headers?.authorization).toBe('Bearer test_api_key')
+      expect((fetchMock.mock.calls[0][1]?.headers as Record<string, string>)?.authorization).toBe(
+        'Bearer test_api_key'
+      )
     } finally {
       vi.useRealTimers()
       if (previousApiKey === undefined) {
-        delete process.env.AHREFS_API_KEY
+        Reflect.deleteProperty(process.env, 'AHREFS_API_KEY')
       } else {
         process.env.AHREFS_API_KEY = previousApiKey
       }
@@ -152,7 +156,7 @@ describe('fetchDomainRating', () => {
     const previousApiKey = process.env.AHREFS_API_KEY
     process.env.AHREFS_API_KEY = 'test_api_key'
 
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) => {
       return new Response(
         JSON.stringify({
           error: {
@@ -174,7 +178,7 @@ describe('fetchDomainRating', () => {
       ).rejects.toThrow('Not enough API units')
     } finally {
       if (previousApiKey === undefined) {
-        delete process.env.AHREFS_API_KEY
+        Reflect.deleteProperty(process.env, 'AHREFS_API_KEY')
       } else {
         process.env.AHREFS_API_KEY = previousApiKey
       }
@@ -183,7 +187,7 @@ describe('fetchDomainRating', () => {
 
   it('normalizes targets before selecting a provider', async () => {
     const previousApiKey = process.env.AHREFS_API_KEY
-    delete process.env.AHREFS_API_KEY
+    Reflect.deleteProperty(process.env, 'AHREFS_API_KEY')
 
     try {
       await expect(
@@ -191,7 +195,7 @@ describe('fetchDomainRating', () => {
       ).rejects.toThrow('All providers unavailable')
     } finally {
       if (previousApiKey === undefined) {
-        delete process.env.AHREFS_API_KEY
+        Reflect.deleteProperty(process.env, 'AHREFS_API_KEY')
       } else {
         process.env.AHREFS_API_KEY = previousApiKey
       }

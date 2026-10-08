@@ -21,8 +21,8 @@ describe('site listing filters invalid domains', () => {
     const rows = await db.listSites({ limit: 100, offset: 0, sort: 'updated' })
     const count = await db.countSites()
 
-    expect(rows.some(row => row.domain === validDomain)).toBe(true)
-    expect(rows.some(row => row.domain === invalidDomain)).toBe(false)
+    expect(rows.some((row: { domain: string }) => row.domain === validDomain)).toBe(true)
+    expect(rows.some((row: { domain: string }) => row.domain === invalidDomain)).toBe(false)
     expect(count).toBe(rows.length)
 
     await db.purgeInvalidSiteDomains({ domains: [invalidDomain], dryRun: false })
@@ -43,7 +43,7 @@ describe('site listing filters invalid domains', () => {
 
     const claim = await db.getClaim(domain)
     const rows = await db.listSites({ limit: 100, offset: 0, sort: 'updated' })
-    const row = rows.find(entry => entry.domain === domain)
+    const row = rows.find((entry: { domain: string }) => entry.domain === domain)
 
     expect(claim?.site_title).toBe('Meta Example')
     expect(claim?.meta_description).toBe('Example description')

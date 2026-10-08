@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { readJsonRecord } from '@/lib/read-json'
+
 const countPrunableBillingAudit = vi.fn()
 const pruneBillingAudit = vi.fn()
 
@@ -35,7 +37,7 @@ describe('POST /api/admin/billing/prune-audit', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(401)
     expect(payload.error).toBe('Unauthorized.')
@@ -60,7 +62,7 @@ describe('POST /api/admin/billing/prune-audit', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(200)
     expect(payload).toEqual({
@@ -91,7 +93,7 @@ describe('POST /api/admin/billing/prune-audit', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(200)
     expect(payload).toEqual({

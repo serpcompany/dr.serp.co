@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "checkJs": true,
+    "noImplicitAny": false,
+    "incremental": false
+  },
+  "include": ["cloudflare-env.d.ts", "src/**/*.mjs", "scripts/**/*.mjs"],
+  "exclude": ["node_modules", "**/*.test.*"]
+}

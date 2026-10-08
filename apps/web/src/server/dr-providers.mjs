@@ -13,6 +13,10 @@ function cookieHeaderFromResponse(response) {
     .join('; ')
 }
 
+/**
+ * @param {string} url
+ * @param {{ cookieHeader?: string, headers?: Record<string, string>, method?: string, body?: BodyInit }} [options]
+ */
 async function fetchText(url, { cookieHeader = '', headers = {}, method = 'GET', body } = {}) {
   const res = await fetch(url, {
     method,
@@ -75,6 +79,7 @@ function extractApiError(payload, fallback) {
   return fallback
 }
 
+/** @param {{ target?: (string|null), date?: string }} [input] */
 export async function fetchDrFromAhrefsApi({ target, date = getAhrefsApiDate() } = {}) {
   const normalizedTarget = normalizeTarget(target)
   if (!normalizedTarget) throw new Error('Missing "target"')
@@ -202,6 +207,7 @@ export async function fetchDomainRatingHistory({
   }
 }
 
+/** @param {{ target?: (string|null), captchaAnswer?: string, captchaHash?: string }} [input] */
 export async function fetchDrFromRhinoRank({ target, captchaAnswer, captchaHash } = {}) {
   const normalizedTarget = normalizeTarget(target)
   if (!normalizedTarget) throw new Error('Missing "target"')
@@ -281,6 +287,7 @@ export async function fetchDrFromRhinoRank({ target, captchaAnswer, captchaHash 
   throw new Error(typeof message === 'string' ? message : 'RhinoRank lookup failed')
 }
 
+/** @param {{ target?: (string|null) }} [input] */
 export async function fetchDrFromEditorialLink({ target } = {}) {
   const normalizedTarget = normalizeTarget(target)
   if (!normalizedTarget) throw new Error('Missing "target"')
@@ -338,6 +345,9 @@ export async function fetchDrFromEditorialLink({ target } = {}) {
   }
 }
 
+/**
+ * @param {{ target?: (string|null), provider?: (string|null), captchaAnswer?: string, captchaHash?: string, date?: string }} [input]
+ */
 export async function fetchDomainRating({
   target,
   provider,

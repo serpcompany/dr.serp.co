@@ -16,10 +16,10 @@ const requiredFiles = [
 
 const requiredPackageScripts = [
   'cf:build',
-  'cf:preview',
+  'preview',
   'cf:preview:dry-run',
   'cf:deploy:dry-run',
-  'cf:types',
+  'cf-typegen',
   'routes:manifest',
   'routes:parity',
   'billing:prune-audit',

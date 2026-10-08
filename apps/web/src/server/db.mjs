@@ -4,6 +4,15 @@ import { isSpamSite } from './site-spam.mjs'
 
 const D1_BINDING_NAME = 'SERP_DR_DB'
 
+/**
+ * Number.isFinite, as a type guard.
+ * @param {unknown} value
+ * @returns {value is number}
+ */
+function isFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
 function canUseFallbackStore() {
   return process.env.NODE_ENV !== 'production'
 }
@@ -265,6 +274,10 @@ function coerceDate(value) {
   return null
 }
 
+/**
+ * @param {unknown} value
+ * @param {string|null} [fallback]
+ */
 function isoText(value, fallback = null) {
   const date = coerceDate(value)
   return date ? date.toISOString() : fallback
@@ -846,7 +859,7 @@ export async function recordDrHistoryChecks({ domain, points, provider = 'ahrefs
 export async function getDrChecks(domain, opts = {}) {
   const d1 = getD1Database()
   if (d1) {
-    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
+    const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
     const rows = await d1Rows(
       d1,
       `
@@ -863,7 +876,7 @@ export async function getDrChecks(domain, opts = {}) {
 
   if (canUseFallbackStore()) {
     const list = fallbackChecks.get(domain) || []
-    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
+    const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
     const sorted = list.slice().sort((a, b) => a.checked_at.getTime() - b.checked_at.getTime())
     return sorted.slice(Math.max(0, sorted.length - limit))
   }
@@ -877,8 +890,8 @@ export async function getDrChecks(domain, opts = {}) {
  */
 export async function listDrChecks(opts = {}) {
   const domain = String(opts?.domain ?? '').trim() || null
-  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(1000, opts.limit)) : 500
-  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+  const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(1000, opts.limit)) : 500
+  const offset = isFiniteNumber(opts.offset) ? Math.max(0, opts.offset) : 0
 
   const d1 = getD1Database()
   if (d1) {
@@ -927,7 +940,7 @@ export async function listDrChecks(opts = {}) {
 export async function listClaims(opts = {}) {
   const d1 = getD1Database()
   if (d1) {
-    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
+    const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = clampOffset(opts.offset)
     if (offset > MAX_LIST_OFFSET) return []
     const q = normalizeSearchQuery(opts.query)
@@ -957,7 +970,7 @@ export async function listClaims(opts = {}) {
   }
 
   if (canUseFallbackStore()) {
-    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
+    const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = clampOffset(opts.offset)
     if (offset > MAX_LIST_OFFSET) return []
     const q = normalizeSearchQuery(opts.query)
@@ -1036,8 +1049,8 @@ export async function countClaims(opts = {}) {
  * @param {{ limit?: number, offset?: number }} [opts]
  */
 export async function listClaimRows(opts = {}) {
-  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(1000, opts.limit)) : 500
-  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+  const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(1000, opts.limit)) : 500
+  const offset = isFiniteNumber(opts.offset) ? Math.max(0, opts.offset) : 0
 
   const d1 = getD1Database()
   if (d1) {
@@ -1098,7 +1111,7 @@ export async function listClaimsByEmail(opts) {
 
   const d1 = getD1Database()
   if (d1) {
-    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
+    const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = clampOffset(opts.offset)
     if (offset > MAX_LIST_OFFSET) return []
     const q = normalizeSearchQuery(opts.query)
@@ -1128,7 +1141,7 @@ export async function listClaimsByEmail(opts) {
   }
 
   if (canUseFallbackStore()) {
-    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
+    const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = clampOffset(opts.offset)
     if (offset > MAX_LIST_OFFSET) return []
     const q = normalizeSearchQuery(opts.query)
@@ -1230,7 +1243,7 @@ export async function listSites(opts = {}) {
   if (d1) {
     const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === 'updated' ? 'updated' : 'dr'
-    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
+    const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = clampOffset(opts.offset)
     if (offset > MAX_LIST_OFFSET) return []
     const sql =
@@ -1336,7 +1349,7 @@ export async function listSites(opts = {}) {
   }
 
   if (canUseFallbackStore()) {
-    const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
+    const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = clampOffset(opts.offset)
     if (offset > MAX_LIST_OFFSET) return []
     const q = normalizeSearchQuery(opts.query)
@@ -1826,8 +1839,8 @@ export async function getLatestSubscriptionByEmail(email) {
  */
 export async function listSubscriptions(opts = {}) {
   const email = opts?.email ? normalizeEmail(opts.email) : null
-  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(200, opts.limit)) : 100
-  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+  const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(200, opts.limit)) : 100
+  const offset = isFiniteNumber(opts.offset) ? Math.max(0, opts.offset) : 0
 
   const d1 = getD1Database()
   if (d1) {
@@ -2076,8 +2089,8 @@ export async function getLatestBillingAuditFailure() {
  */
 export async function listBillingAudit(opts = {}) {
   const success = typeof opts?.success === 'boolean' ? opts.success : null
-  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(1000, opts.limit)) : 500
-  const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+  const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(1000, opts.limit)) : 500
+  const offset = isFiniteNumber(opts.offset) ? Math.max(0, opts.offset) : 0
 
   const d1 = getD1Database()
   if (d1) {
@@ -2140,7 +2153,7 @@ export async function listBillingAudit(opts = {}) {
  * @param {{ olderThanDays?: number }} [opts]
  */
 function billingAuditCutoff(opts = {}) {
-  const days = Number.isFinite(opts?.olderThanDays)
+  const days = isFiniteNumber(opts?.olderThanDays)
     ? Math.max(1, Math.floor(opts.olderThanDays))
     : 180
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)

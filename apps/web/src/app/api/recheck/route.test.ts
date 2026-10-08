@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { readJsonRecord } from '@/lib/read-json'
+
 const fetchDomainRating = vi.fn()
 const fetchDomainRatingHistory = vi.fn()
 const getClaim = vi.fn()
@@ -69,7 +71,7 @@ describe('POST /api/recheck', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(400)
     expect(payload.error).toBe('Valid domain required')
@@ -91,7 +93,7 @@ describe('POST /api/recheck', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(429)
     expect(response.headers.get('Retry-After')).toBe('9')
@@ -116,7 +118,7 @@ describe('POST /api/recheck', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(404)
     expect(payload).toEqual({
@@ -175,7 +177,7 @@ describe('POST /api/recheck', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(404)
     expect(payload).toEqual({ error: 'Domain not found' })
@@ -199,7 +201,7 @@ describe('POST /api/recheck', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(404)
     expect(payload).toEqual({ error: 'Domain not found' })
@@ -220,7 +222,7 @@ describe('POST /api/recheck', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(429)
     expect(response.headers.get('Retry-After')).toBe(String(11 * 24 * 60 * 60))
@@ -249,7 +251,7 @@ describe('POST /api/recheck', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(429)
     expect(response.headers.get('Retry-After')).toBe(String(3 * 24 * 60 * 60))
@@ -303,7 +305,7 @@ describe('POST /api/recheck', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(200)
     expect(fetchDomainRating).toHaveBeenCalledWith({ target: 'example.com' })
@@ -365,7 +367,7 @@ describe('POST /api/recheck', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
     vi.unstubAllEnvs()
 
     expect(response.status).toBe(200)
@@ -393,7 +395,7 @@ describe('POST /api/recheck', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(200)
     expect(recordDrCheck).toHaveBeenCalled()
@@ -419,7 +421,7 @@ describe('POST /api/recheck', () => {
     })
 
     const response = await POST(request)
-    const payload = await response.json()
+    const payload = await readJsonRecord(response)
 
     expect(response.status).toBe(503)
     expect(payload).toEqual({

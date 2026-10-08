@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+// The mock's rows are plain records whose columns vary by table.
+// biome-ignore lint/suspicious/noExplicitAny: test rows hold any column value
+type Row = Record<string, any>
+// biome-ignore lint/suspicious/noExplicitAny: bound SQL values, read back per statement
+type Param = any
+
 const cloudflareMocks = vi.hoisted(() => {
-  const state = { db: null }
+  const state: { db: unknown } = { db: null }
   return {
     state,
     getCloudflareContext: vi.fn(() => ({ env: { SERP_DR_DB: state.db } }))
@@ -12,32 +18,34 @@ vi.mock('@opennextjs/cloudflare', () => ({
   getCloudflareContext: cloudflareMocks.getCloudflareContext
 }))
 
-function normalizeSql(sql) {
+function normalizeSql(sql: string) {
   return String(sql).replace(/\s+/g, ' ').trim()
 }
 
-function copyRow(row) {
+function copyRow(row: Row): Row
+function copyRow(row: Row | null | undefined): Row | null
+function copyRow(row: Row | null | undefined) {
   return row ? { ...row } : null
 }
 
-function likeDomain(domain, pattern) {
+function likeDomain(domain: string, pattern: Param) {
   if (pattern === null || pattern === undefined) return true
   const needle = String(pattern).replaceAll('%', '').toLowerCase()
   return String(domain).toLowerCase().includes(needle)
 }
 
-function coalesce(next, previous) {
+function coalesce(next: unknown, previous: unknown) {
   return next ?? previous ?? null
 }
 
-function compareIsoDesc(a, b) {
+function compareIsoDesc(a: string | null | undefined, b: string | null | undefined) {
   if (a === b) return 0
   if (!a) return 1
   if (!b) return -1
   return a > b ? -1 : 1
 }
 
-function compareDrDesc(a, b) {
+function compareDrDesc(a: Row, b: Row) {
   const adr = a.domain_rating
   const bdr = b.domain_rating
   const aHas = typeof adr === 'number' && Number.isFinite(adr)
@@ -49,16 +57,16 @@ function compareDrDesc(a, b) {
 
 function createMockD1() {
   const state = {
-    claims: new Map(),
-    checks: [],
-    subscriptions: new Map(),
-    billingAudit: [],
+    claims: new Map<string, Row>(),
+    checks: [] as Row[],
+    subscriptions: new Map<string, Row>(),
+    billingAudit: [] as Row[],
     nextCheckId: 1,
     nextBillingId: 1
   }
-  const calls = []
+  const calls: Row[] = []
 
-  function claimDefaults(domain, now) {
+  function claimDefaults(domain: string, now: string) {
     return {
       domain,
       email: null,
@@ -73,7 +81,7 @@ function createMockD1() {
     }
   }
 
-  function allSiteRows(pattern, sort) {
+  function allSiteRows(pattern: Param, sort: Param) {
     const domains = new Set([
       ...Array.from(state.claims.keys()),
       ...state.checks.map(row => row.domain)
@@ -126,12 +134,15 @@ function createMockD1() {
     return rows
   }
 
-  function execute(sql, params) {
+  function execute(sql: string, params: Param[]): { rows: Row[]; changes: number } {
     const text = normalizeSql(sql)
 
     if (text.startsWith('SELECT domain, email, domain_rating, provider')) {
       const [domain] = params
-      return { rows: [copyRow(state.claims.get(domain))].filter(Boolean), changes: 0 }
+      return {
+        rows: [copyRow(state.claims.get(domain))].filter((row): row is Row => row !== null),
+        changes: 0
+      }
     }
 
     if (text.startsWith('INSERT INTO dr_claims (domain, email, domain_rating, provider')) {
@@ -394,7 +405,7 @@ function createMockD1() {
             (row.current_period_end === null || row.current_period_end > now)
         )
         .sort((a, b) => compareIsoDesc(a.updated_at, b.updated_at))
-      return { rows: rows.slice(0, 1).map(copyRow), changes: 0 }
+      return { rows: rows.slice(0, 1).map(row => copyRow(row)), changes: 0 }
     }
 
     if (text.includes('FROM dr_subscriptions') && text.includes('WHERE email = ?')) {
@@ -402,7 +413,7 @@ function createMockD1() {
       const rows = Array.from(state.subscriptions.values())
         .filter(row => row.email === email)
         .sort((a, b) => compareIsoDesc(a.updated_at, b.updated_at))
-      return { rows: rows.slice(0, 1).map(copyRow), changes: 0 }
+      return { rows: rows.slice(0, 1).map(row => copyRow(row)), changes: 0 }
     }
 
     if (text.includes('FROM dr_subscriptions') && text.includes('WHERE (? IS NULL OR email = ?)')) {
@@ -410,7 +421,7 @@ function createMockD1() {
       const rows = Array.from(state.subscriptions.values())
         .filter(row => email === null || row.email === email)
         .sort((a, b) => compareIsoDesc(a.updated_at, b.updated_at))
-      return { rows: rows.slice(offset, offset + limit).map(copyRow), changes: 0 }
+      return { rows: rows.slice(offset, offset + limit).map(row => copyRow(row)), changes: 0 }
     }
 
     if (text.startsWith('INSERT INTO dr_billing_audit')) {
@@ -469,7 +480,7 @@ function createMockD1() {
       const rows = state.billingAudit
         .filter(row => success === null || row.success === success)
         .sort((a, b) => compareIsoDesc(a.created_at, b.created_at))
-      return { rows: rows.slice(0, 1).map(copyRow), changes: 0 }
+      return { rows: rows.slice(0, 1).map(row => copyRow(row)), changes: 0 }
     }
 
     if (text.startsWith('SELECT COUNT(*) AS count FROM dr_billing_audit')) {
@@ -490,7 +501,13 @@ function createMockD1() {
     throw new Error(`Unhandled D1 SQL in test mock: ${text}`)
   }
 
-  function statement(sql, params = []) {
+  type Statement = {
+    bind: (...nextParams: Param[]) => Statement
+    run: () => Promise<{ success: boolean; results: Row[]; meta: { changes: number } }>
+    first: () => Promise<Row | null>
+  }
+
+  function statement(sql: string, params: Param[] = []): Statement {
     return {
       bind: (...nextParams) => statement(sql, nextParams),
       async run() {
@@ -509,13 +526,13 @@ function createMockD1() {
   return {
     state,
     calls,
-    prepare(sql) {
+    prepare(sql: string) {
       calls.push({ method: 'prepare', sql: normalizeSql(sql) })
       return statement(sql)
     },
-    async batch(statements) {
+    async batch(statements: Statement[]) {
       calls.push({ method: 'batch', count: statements.length })
-      const results = []
+      const results: Awaited<ReturnType<Statement['run']>>[] = []
       for (const item of statements) {
         results.push(await item.run())
       }
@@ -774,7 +791,7 @@ describe('D1 database boundary', () => {
       stripeEventType: 'customer.subscription.updated',
       success: true
     })
-    d1.state.billingAudit.find(row => row.stripe_event_id === 'evt_old').created_at =
+    d1.state.billingAudit.find(row => row.stripe_event_id === 'evt_old')!.created_at =
       '2000-01-01T00:00:00.000Z'
 
     const dryRun = await db.countPrunableBillingAudit({ olderThanDays: 30 })
