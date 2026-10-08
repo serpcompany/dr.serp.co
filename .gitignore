@@ -44,4 +44,12 @@ spark.meta.json
 
 .cache
 .env*.local
-*.envtsconfig.tsbuildinfo
+*.env
+*.tsbuildinfo
+
+# Local only: Wrangler variables, agent config and scratch files
+.dev.vars*
+!.dev.vars.example
+.codex/
+.claude/settings.local.json
+tmp/
