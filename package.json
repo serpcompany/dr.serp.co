@@ -27,7 +27,8 @@
     "webhook:health": "node scripts/check-webhook-health.mjs",
     "r2:replace-badges": "node scripts/replace-r2-badge-assets.mjs",
     "sites:purge-invalid": "node scripts/purge-invalid-site-domains.mjs",
-    "sites:backfill-metadata": "node scripts/backfill-site-metadata.mjs"
+    "sites:backfill-metadata": "node scripts/backfill-site-metadata.mjs",
+    "docs:check": "node .github/scripts/check-docs.mjs && remark \"*.md\" \"docs/**/*.md\" --frail --quiet --use remark-validate-links"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.19.11",
@@ -91,6 +92,8 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
+    "remark-cli": "^12.0.1",
+    "remark-validate-links": "^13.1.0",
     "tailwindcss": "^4.1.11",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.38.0",
