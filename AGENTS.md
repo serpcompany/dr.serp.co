@@ -76,7 +76,7 @@ Run them from `apps/web/`. Inner loop, while editing:
   Component tests that click and type are `*.dom.test.tsx`, run in happy-dom.
 - `pnpm dev`: `next dev` with local values from `.dev.vars`. `pnpm format` formats with Biome.
 - `pnpm typecheck`: TypeScript, tests included, then the `.mjs` modules and scripts through
-  `tsconfig.js.json` (`checkJs`; implicit `any` allowed there until #48 moves data access to TS).
+  `tsconfig.js.json` (`checkJs`, with implicit `any` allowed there until #98).
 
 Finish gate, once per finished state: `pnpm check` (lint, typecheck, tests, `cf:audit`, the
 OpenNext build and `docs:check`). It writes no source files.

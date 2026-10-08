@@ -52,7 +52,7 @@ describe('readWriteRequest', () => {
     expect(result.ok ? 200 : result.response.status).toBe(403)
   })
 
-  it('accepts the origin the request was sent to, as on a local cf:preview', () => {
+  it('accepts the origin the request was sent to, as on a local pnpm preview', () => {
     const request = post(
       '{}',
       { Origin: 'http://localhost:8787' },

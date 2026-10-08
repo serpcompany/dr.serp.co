@@ -23,7 +23,7 @@ function refuse(status: number, error: string): Refusal {
 
 /**
  * True when the request's Origin is the site's canonical origin (`DR_PUBLIC_BASE_URL`) or the
- * origin the request was sent to, which covers a local `cf:preview` on localhost. A request
+ * origin the request was sent to, which covers a local `pnpm preview` on localhost. A request
  * with no Origin is refused: browsers send one with every POST and DELETE.
  */
 export function isTrustedOrigin(request: Request) {
