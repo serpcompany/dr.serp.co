@@ -16,26 +16,26 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-// Comments are dropped, then each whole file is searched, so a pattern split across lines counts.
-// SQL in this repo is uppercase, so the operator form is matched in uppercase (prose says "like");
-// the function form like(…) or glob(…) is matched in any case.
-function stripComments(source: string) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, " "))
-    .replace(/(^|[^:"'`])\/\/[^\n]*/g, "$1")
-    .replace(/--[^\n]*/g, "")
+// Whole-line comments are dropped (and SQL comments in .sql files), then each whole file is
+// searched, so a pattern split across lines counts. Comments after code stay, so they can't hide
+// a real LIKE. SQL in this repo is uppercase, so the operator form is matched in uppercase (prose
+// says "like"); the function form like(…) or glob(…) is matched in any case.
+function stripComments(source: string, file: string) {
+  const blank = (text: string) => text.replace(/[^\n]/g, " ")
+  const code = source.replace(/^\s*\/\*[\s\S]*?\*\//gm, blank).replace(/^\s*\/\/[^\n]*/gm, blank)
+  return file.endsWith(".sql") ? code.replace(/--[^\n]*/g, blank) : code
 }
 
 // Every LIKE or GLOB operator must take one whole string literal as its pattern; anything else (a
 // bound parameter, lower(?), a concatenation, a template) can carry user input past D1's limit.
 const UNSAFE = [
-  /\b(?:LIKE|GLOB)\b(?!\s*'[^']*'(?!\s*\|\|))/g,
+  /\b(?:LIKE|GLOB)\b(?!\s*'[^'$"`]*'(?!\s*\|\|))/g,
   /\b(?:like|glob)\s*\(/gi,
   /`%\$\{/g,
 ]
 
-function findBoundPatterns(source: string) {
-  const code = stripComments(source)
+function findBoundPatterns(source: string, file = "source.ts") {
+  const code = stripComments(source, file)
   const lines = new Set<number>()
   for (const pattern of UNSAFE) {
     for (const match of code.matchAll(pattern)) {
@@ -48,7 +48,7 @@ function findBoundPatterns(source: string) {
 describe("SQL patterns", () => {
   it("never binds a value into a LIKE or GLOB pattern", () => {
     const offenders = ROOTS.flatMap((root) => sourceFiles(path.join(process.cwd(), root))).flatMap((file) =>
-      findBoundPatterns(readFileSync(file, "utf8")).map((line) => `${path.relative(process.cwd(), file)}:${line}`)
+      findBoundPatterns(readFileSync(file, "utf8"), file).map((line) => `${path.relative(process.cwd(), file)}:${line}`)
     )
     expect(offenders).toEqual([])
   })
@@ -64,6 +64,13 @@ describe("SQL patterns", () => {
     expect(findBoundPatterns("WHERE domain LIKE\n  ?")).toEqual([1])
     expect(findBoundPatterns("WHERE instr(lower(domain), ?) > 0")).toEqual([])
     expect(findBoundPatterns("WHERE status LIKE 'active%'")).toEqual([])
+    expect(findBoundPatterns("const sql = `WHERE domain LIKE '%${q}%'`")).toEqual([1])
+    expect(findBoundPatterns(`const sql = "WHERE domain LIKE '" + q + "'"`)).toEqual([1])
+    expect(findBoundPatterns("run('--flag', `WHERE domain LIKE ?`)")).toEqual([1])
+    expect(findBoundPatterns("const glob = 'image/*'\nconst sql = `WHERE domain LIKE ?`")).toEqual([2])
     expect(findBoundPatterns("// never LIKE: D1 refuses long patterns")).toEqual([])
+    expect(findBoundPatterns(" * Queries match with instr(), never LIKE.")).toEqual([1])
+    expect(findBoundPatterns("/**\n * Queries match with instr(), never LIKE.\n */")).toEqual([])
+    expect(findBoundPatterns("-- never LIKE ?", "0002.sql")).toEqual([])
   })
 })

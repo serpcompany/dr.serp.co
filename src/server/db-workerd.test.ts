@@ -132,9 +132,25 @@ describe("site search on workerd D1", () => {
     expect(await db.countSites({})).toBe(2)
   })
 
-  it("answers an empty page for an offset past the clamp", async () => {
+  it("answers an empty page for an offset past the cap, never the capped page", async () => {
     await insertClaim("example.com", { email: "owner@example.com" })
     const db = await import("./db.mjs")
+
+    // 100,000 is the last offset served. Past it the page is empty without a query, rather than
+    // the page at 100,000.
+    // Miniflare's binding can't be spied on, so count queries through a wrapper.
+    const prepare = vi.fn((sql: string) => d1.prepare(sql))
+    binding.db = { prepare, batch: (statements: unknown[]) => d1.batch(statements) }
+    try {
+      expect(await db.listSites({ offset: 100_001 })).toEqual([])
+      expect(await db.listClaims({ offset: 100_001 })).toEqual([])
+      expect(await db.listClaimsByEmail({ email: "owner@example.com", offset: 100_001 })).toEqual([])
+      expect(prepare).not.toHaveBeenCalled()
+      expect(await db.listSites({ offset: 100_000 })).toEqual([])
+      expect(prepare).toHaveBeenCalled()
+    } finally {
+      binding.db = d1
+    }
 
     expect(await db.listSites({ offset: 1e20 })).toEqual([])
     expect(await db.listClaims({ offset: 1e20 })).toEqual([])

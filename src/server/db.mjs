@@ -316,14 +316,15 @@ function filterListableSiteRows(rows) {
 }
 
 const MAX_SEARCH_LENGTH = 100
-// Deeper pages answer empty. An unbounded offset reaches SQL, where D1 refuses a value past 64 bits.
+// Deeper pages answer empty, so an unbounded offset never reaches SQL, where D1 refuses a value
+// past 64 bits.
 const MAX_LIST_OFFSET = 100_000
 // Rows past the requested page that listSites reads first, so a page stays full when some stored
 // rows are unlistable (invalid or spam). When more than that precede the page, it reads further.
 const LISTABLE_SCAN_SLACK = 200
 
 function clampOffset(value) {
-  return Number.isFinite(value) ? Math.min(MAX_LIST_OFFSET, Math.max(0, Math.floor(value))) : 0
+  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
 }
 
 // SQLite's lower() folds only ASCII, so fold only ASCII here too.
@@ -909,6 +910,7 @@ export async function listClaims(opts = {}) {
   if (d1) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = clampOffset(opts.offset)
+    if (offset > MAX_LIST_OFFSET) return []
     const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
@@ -938,6 +940,7 @@ export async function listClaims(opts = {}) {
   if (canUseFallbackStore()) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = clampOffset(opts.offset)
+    if (offset > MAX_LIST_OFFSET) return []
     const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
@@ -1078,6 +1081,7 @@ export async function listClaimsByEmail(opts) {
   if (d1) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = clampOffset(opts.offset)
+    if (offset > MAX_LIST_OFFSET) return []
     const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
@@ -1107,6 +1111,7 @@ export async function listClaimsByEmail(opts) {
   if (canUseFallbackStore()) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = clampOffset(opts.offset)
+    if (offset > MAX_LIST_OFFSET) return []
     const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
@@ -1196,6 +1201,7 @@ export async function listSites(opts = {}) {
     const sort = opts.sort === "updated" ? "updated" : "dr"
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = clampOffset(opts.offset)
+    if (offset > MAX_LIST_OFFSET) return []
     const sql =
       sort === "updated"
         ? `
@@ -1293,13 +1299,15 @@ export async function listSites(opts = {}) {
       const rows = filterListableSiteRows(rawRows)
       const shortfall = offset + limit - rows.length
       if (shortfall <= 0 || rawRows.length < scan) return rows.slice(offset, offset + limit)
-      scan += shortfall + LISTABLE_SCAN_SLACK
+      // Grow geometrically, so a search whose matches are mostly unlistable costs a few queries.
+      scan = Math.max(scan * 2, scan + shortfall + LISTABLE_SCAN_SLACK)
     }
   }
 
   if (canUseFallbackStore()) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
     const offset = clampOffset(opts.offset)
+    if (offset > MAX_LIST_OFFSET) return []
     const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 

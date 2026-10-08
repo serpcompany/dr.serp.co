@@ -76,8 +76,8 @@ over 50 bytes ([D1 limits](https://github.com/serpcompany/serp/blob/main/docs/en
 SQLite's `lower()` does. `src/server/sql-patterns.test.ts` fails on a bound `LIKE` or `GLOB`
 pattern, and `src/server/db-workerd.test.ts` runs search on D1 in workerd, which enforces the
 limit. The listable filter runs in JavaScript, so `listSites` reads the rows up to the requested
-page plus 200, and further only when unlistable rows leave the page short; offsets stop at
-100,000. `countSites` still reads each matching domain and title; #75 moves both into SQL.
+page plus 200, and reads further (doubling) only when unlistable rows leave the page short. A
+page past offset 100,000 is empty. `countSites` still reads each matching domain and title; #75 moves both into SQL.
 
 ## Rate limits
 
