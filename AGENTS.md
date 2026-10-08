@@ -73,6 +73,7 @@ The site is in `apps/web/`, with its own `package.json` and pnpm lockfile. Code 
 Run them from `apps/web/`. Inner loop, while editing:
 
 - `pnpm exec vitest related --run <changed files>`: the tests for what you changed.
+  Component tests that click and type are `*.dom.test.tsx`, run in happy-dom.
 - `pnpm dev`: `next dev` with local values from `.dev.vars`. `pnpm format` formats with Biome.
 - Type errors in app code surface in `pnpm build`. `pnpm exec tsc --noEmit` also checks test files,
   which have known errors until #93.
