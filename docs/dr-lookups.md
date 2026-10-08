@@ -38,8 +38,9 @@ A new call site must be rate-limited, must record its result in `dr_checks`, and
 a domain that is invalid or spam.
 
 The first lookup can take a while; `/sites/[target]/loading.tsx` shows a loading state meanwhile.
-Provider errors can name internal env vars, so they're logged on the server and
-never shown to visitors.
+Provider errors can name internal env vars, so the site page logs them on the server and never
+shows them. `/api/recheck` still returns a failed history import's raw message as
+`historyWarning`; [#46](https://github.com/serpcompany/dr.serp.co/issues/46) removes it.
 
 ## Valid domains
 
