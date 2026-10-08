@@ -38,7 +38,7 @@ their issue.
 ## Where things live
 
 The site is in `apps/web/`, with its own `package.json` and pnpm lockfile. Code paths here and in
-`docs/` are relative to it; the root holds only `AGENTS.md`, `README.md`, `docs/` and `.github/`.
+`docs/` are relative to it; the root holds the agent and repository docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/`) and `.github/`.
 
 - `src/app/`: pages and route handlers. Writes a visitor asks for are route handlers under
   `src/app/api/`; there are no Server Actions. Rendering a site page and the badge route also
@@ -109,6 +109,9 @@ Agents never merge. The owner merges every pull request.
 - **URLs:** pages have no trailing slash, and the Worker strips one. Whether to adopt the SERP
   rule is [#51](https://github.com/serpcompany/dr.serp.co/issues/51); don't change slash
   behavior before it's decided.
+- **Layout:** `AGENTS.md`, `CLAUDE.md` and `docs/` stay at the repository root rather than in
+  `apps/web/` (`standards/web-stack/repository-layout.md`), because `apps/web` is the only surface
+  and #42 kept them there.
 - **Rate limits** use a Durable Object (`RATE_LIMITER`), not D1.
 - **Environments** are named `preview` and `production`, with `serp-dr*` resource names, until
   [#43](https://github.com/serpcompany/dr.serp.co/issues/43).

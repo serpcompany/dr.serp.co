@@ -192,9 +192,6 @@ importers:
       globals:
         specifier: ^16.0.0
         version: 16.5.0
-      miniflare:
-        specifier: 4.20260617.1
-        version: 4.20260617.1
       remark-cli:
         specifier: ^12.0.1
         version: 12.0.1

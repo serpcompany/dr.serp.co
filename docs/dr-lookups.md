@@ -74,7 +74,7 @@ Validation stops new junk but doesn't remove old rows. `POST /api/admin/sites/cl
 (with `x-admin-token`) dry-runs or purges them. By default it checks a fixed list of known junk
 domains; with `scanAll: true` it scans every row for invalid domains and unclaimed spam sites.
 Claimed rows are never purged by the spam rule. `pnpm sites:purge-invalid` sends `scanAll`, and
-only deletes with `-- --apply`, after the owner approves
+only deletes with `--apply`, after the owner approves
 ([Operations](operations.md#operator-scripts)).
 
 ## Site metadata
