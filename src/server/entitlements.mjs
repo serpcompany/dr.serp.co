@@ -81,7 +81,9 @@ export async function resolveEntitlement({ email, now = new Date() }) {
   const billingInterval = subscription?.billing_interval ?? tier?.billing ?? null
 
   const remaining = Math.max(0, domainsLimit - domainsUsed)
-  const canAccessPaidFeatures = access.canAccessPaid
+  // The Stripe account also sells other SERP products: a row whose price isn't a dr.serp.co tier
+  // grants nothing here.
+  const canAccessPaidFeatures = access.canAccessPaid && tier !== null
   const canClaim = canAccessPaidFeatures && domainsLimit > 0 && domainsUsed < domainsLimit
 
   return {

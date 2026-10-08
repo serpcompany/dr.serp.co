@@ -267,4 +267,62 @@ describe("POST /api/stripe/webhook payload shapes", () => {
       expect.objectContaining({ stripeEventId: "evt_handler_error", success: false, error: "D1_ERROR: no such table: dr_subscriptions" })
     )
   })
+
+  it("ignores another product's invoice.paid: no subscription row, a successful ignored audit row", async () => {
+    retrieveSubscription.mockResolvedValue({
+      ...retrievedSubscription,
+      id: "sub_lists",
+      items: { data: [{ price: { id: "price_1SsjeTCt1irzGjqBfVd0YRM9", recurring: { interval: "month" } } }] },
+    })
+
+    const { POST } = await import("./route")
+    const response = await POST(
+      signedRequest({
+        id: "evt_lists_invoice",
+        type: "invoice.paid",
+        data: {
+          object: {
+            id: "in_lists",
+            object: "invoice",
+            parent: { type: "subscription_details", subscription_details: { subscription: "sub_lists" } },
+          },
+        },
+      })
+    )
+
+    expect(response.status).toBe(200)
+    expect(upsertSubscription).not.toHaveBeenCalled()
+    expect(insertBillingAudit).toHaveBeenCalledWith({
+      stripeEventId: "evt_lists_invoice",
+      stripeEventType: "invoice.paid",
+      eventCreatedAt: expect.any(Date),
+      stripeSubscriptionId: "sub_lists",
+      stripePriceId: "price_1SsjeTCt1irzGjqBfVd0YRM9",
+      success: true,
+      error: "Ignored: not a dr.serp.co price.",
+    })
+  })
+
+  it("ignores another product's customer.subscription.updated", async () => {
+    const { POST } = await import("./route")
+    const response = await POST(
+      signedRequest({
+        id: "evt_lists_sub",
+        type: "customer.subscription.updated",
+        data: {
+          object: {
+            id: "sub_lists",
+            object: "subscription",
+            customer: "cus_1",
+            status: "active",
+            items: { data: [{ current_period_end: 1794000000, price: { id: "price_1SsjeTCt1irzGjqBfVd0YRM9" } }] },
+          },
+        },
+      })
+    )
+
+    expect(response.status).toBe(200)
+    expect(upsertSubscription).not.toHaveBeenCalled()
+    expect(insertBillingAudit).toHaveBeenCalledWith(expect.objectContaining({ success: true, error: "Ignored: not a dr.serp.co price." }))
+  })
 })
