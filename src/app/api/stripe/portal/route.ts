@@ -49,8 +49,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url })
   } catch (error) {
+    // Stripe's message stays in the log; the visitor sees a fixed one.
     console.error("stripe.portal: session creation failed", error)
-    const message = error instanceof Error ? error.message : "Unable to create portal session."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: "Unable to create portal session." }, { status: 500 })
   }
 }

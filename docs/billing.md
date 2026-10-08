@@ -98,6 +98,9 @@ Neither local target proves anything about production.
 
 ## Replaying a failed event
 
+The webhook answers a failed event with a fixed message, so Stripe's Dashboard doesn't show why it
+failed. The reason is in the event's `dr_billing_audit.error` and in the Worker logs.
+
 1. In the Stripe Dashboard, open **Developers → Webhooks**, choose the `dr.serp.co` endpoint, find
    the event under **Events** and choose **Replay**. With the CLI:
    `stripe events resend <event-id> --webhook-endpoint <endpoint-id>`.

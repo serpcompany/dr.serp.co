@@ -61,4 +61,17 @@ describe("POST /api/auth/verify-otp", () => {
     expect(checkRateLimit).toHaveBeenCalledWith(expect.objectContaining({ key: "verify-otp:user@example.com" }))
     expect(response.headers.get("set-cookie")).toBeNull()
   })
+
+  it("names no env var when the OTP secret is missing", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    vi.stubEnv("USESEND_OTP_SECRET", "")
+    vi.stubEnv("USESEND_API_KEY", "")
+    const { POST } = await import("./route")
+
+    const response = await POST(verifyRequest({ email: "user@example.com", code: "482913", token: token() }))
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: "Sign-in is unavailable right now. Please try again later." })
+    expect(consoleError).toHaveBeenCalledWith("auth.verify-otp: USESEND_OTP_SECRET and USESEND_API_KEY are not set")
+  })
 })

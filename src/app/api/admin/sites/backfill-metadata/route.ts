@@ -76,11 +76,12 @@ export async function POST(request: Request) {
         screenshot: Boolean(resolved.screenshotUrl),
       })
     } catch (error) {
-      results.push({
+      // Log the message itself: a nested Error object can reach the Worker logs as {}.
+      console.error("admin.backfill-metadata: metadata lookup failed", {
         domain: site.domain,
-        status: "failed",
         error: error instanceof Error ? error.message : String(error),
       })
+      results.push({ domain: site.domain, status: "failed", error: "Metadata lookup failed; see the Worker logs." })
     }
   }
 

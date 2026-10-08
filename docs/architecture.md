@@ -31,7 +31,8 @@ logic lives in `src/server/`, and each part has tests next to it.
   domain has no DR, and metadata while its title, description or URL is missing, within the
   new-lookup caps for a domain with no DR ([DR lookups](dr-lookups.md#when-ahrefs-is-called)), and
   `GET /badge/<domain>` copies the latest `dr_checks` reading into `dr_claims` when that row has no
-  DR.
+  DR. A handler logs an error's message on the server and returns a fixed one: errors from Stripe,
+  useSend, Ahrefs, D1 or missing config can name internal details.
 - **`src/server/`** holds the domain logic and is server-only: data access, DR providers, site
   metadata, domain validation, the spam filter, sign-in tokens and sessions, entitlements and rate
   limits. It never imports pages, route handlers or components. `src/server/db.mjs` is the only

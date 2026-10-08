@@ -70,4 +70,15 @@ describe("Stripe return URLs", () => {
       expect.objectContaining({ customer: "cus_1", return_url: "https://staging.dr.example/billing" })
     )
   })
+
+  it("the portal returns a fixed message when Stripe fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    createPortalSession.mockRejectedValue(new Error("No such customer: 'cus_1'; a similar object exists in live mode"))
+
+    const { POST } = await import("./portal/route")
+    const response = await POST(forgedRequest("/api/stripe/portal", {}))
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: "Unable to create portal session." })
+  })
 })
