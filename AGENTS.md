@@ -38,7 +38,8 @@ their issue.
 ## Where things live
 
 The site is in `apps/web/`, with its own `package.json` and pnpm lockfile. Code paths here and in
-`docs/` are relative to it; the root holds the agent and repository docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/`) and `.github/`.
+`docs/` are relative to it. The root holds the docs (`AGENTS.md`, `CLAUDE.md`, `README.md`,
+`docs/`), `.archive/` and `.github/`, and paths starting with those are from the root.
 
 - `src/app/`: pages and route handlers. Writes a visitor asks for are route handlers under
   `src/app/api/`; there are no Server Actions. Rendering a site page and the badge route also
