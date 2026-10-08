@@ -6,17 +6,20 @@ import { getSessionEmail } from "@/server/auth-session.mjs"
 import { getLatestSubscriptionByEmail } from "@/server/db.mjs"
 import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 import { EMPTY_BODY, readWriteRequest } from "@/server/write-route"
+import { readNumberEnv } from "@/lib/env"
 
 export const runtime = "nodejs"
-const RATE_LIMIT_POINTS = Number(process.env.BILLING_PORTAL_RATE_LIMIT_POINTS ?? 10)
-const RATE_LIMIT_DURATION = Number(process.env.BILLING_PORTAL_RATE_LIMIT_DURATION ?? 60)
 
 export async function POST(request: Request) {
   const read = await readWriteRequest(request, EMPTY_BODY)
   if (!read.ok) return read.response
 
   const rateKey = getRateLimitKey(request, "stripe-portal")
-  const rate = await checkRateLimit({ key: rateKey, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
+  const rate = await checkRateLimit({
+    key: rateKey,
+    points: readNumberEnv("BILLING_PORTAL_RATE_LIMIT_POINTS", 10),
+    duration: readNumberEnv("BILLING_PORTAL_RATE_LIMIT_DURATION", 60),
+  })
   if (rate.unavailable) {
     return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
   }

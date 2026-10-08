@@ -5,14 +5,13 @@ import { verifyOtpToken } from "@/server/otp-token.mjs"
 import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit } from "@/server/rate-limit.mjs"
 import { readWriteRequest } from "@/server/write-route"
 import { VerifyOtpBody } from "@/server/write-schemas"
+import { readNumberEnv } from "@/lib/env"
 
 function isValidEmail(email: string) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
 }
 
 export const runtime = "nodejs"
-const RATE_LIMIT_POINTS = Number(process.env.VERIFY_OTP_RATE_LIMIT_POINTS ?? 10)
-const RATE_LIMIT_DURATION = Number(process.env.VERIFY_OTP_RATE_LIMIT_DURATION ?? 600)
 
 export async function POST(request: Request) {
   const read = await readWriteRequest(request, VerifyOtpBody)
@@ -27,7 +26,11 @@ export async function POST(request: Request) {
   }
 
   // Limit guesses per email so a 6-digit code can't be brute forced within its 10-minute lifetime.
-  const rate = await checkRateLimit({ key: `verify-otp:${email}`, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
+  const rate = await checkRateLimit({
+    key: `verify-otp:${email}`,
+    points: readNumberEnv("VERIFY_OTP_RATE_LIMIT_POINTS", 10),
+    duration: readNumberEnv("VERIFY_OTP_RATE_LIMIT_DURATION", 600),
+  })
   if (rate.unavailable) {
     return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
   }

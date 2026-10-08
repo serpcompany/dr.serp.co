@@ -24,7 +24,6 @@ function restoreEnv() {
 
 describe("POST /api/admin/sites/backfill-metadata", () => {
   beforeEach(() => {
-    vi.resetModules()
     countSites.mockReset()
     listSites.mockReset()
     setClaimSiteMetadata.mockReset()

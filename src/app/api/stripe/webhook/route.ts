@@ -11,13 +11,9 @@ import {
   upsertSubscription,
 } from "@/server/db.mjs"
 import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
+import { readNumberEnv } from "@/lib/env"
 
 export const runtime = "nodejs"
-
-const RATE_LIMIT_POINTS = Number(process.env.STRIPE_WEBHOOK_RATE_LIMIT_POINTS ?? 120)
-const RATE_LIMIT_DURATION = Number(process.env.STRIPE_WEBHOOK_RATE_LIMIT_DURATION ?? 60)
-const HEALTH_STALE_HOURS = Number(process.env.STRIPE_WEBHOOK_STALE_HOURS ?? 24)
-const HEALTH_FAILURE_WINDOW_MINUTES = Number(process.env.STRIPE_WEBHOOK_FAILURE_WINDOW_MINUTES ?? 60)
 
 function normalizeEmail(value: string | null | undefined) {
   return String(value ?? "").trim().toLowerCase()
@@ -154,7 +150,11 @@ function auditFields(synced: Awaited<ReturnType<typeof syncSubscription>>) {
 
 export async function POST(request: Request) {
   const rateKey = getRateLimitKey(request, "stripe-webhook")
-  const rate = await checkRateLimit({ key: rateKey, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
+  const rate = await checkRateLimit({
+    key: rateKey,
+    points: readNumberEnv("STRIPE_WEBHOOK_RATE_LIMIT_POINTS", 120),
+    duration: readNumberEnv("STRIPE_WEBHOOK_RATE_LIMIT_DURATION", 60),
+  })
   if (rate.unavailable) {
     return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
   }
@@ -292,14 +292,16 @@ export async function GET() {
   const lastEventAt = toDate(latest?.created_at ?? null)
   const lastFailureAt = toDate(latestFailure?.created_at ?? null)
 
+  const staleHours = readNumberEnv("STRIPE_WEBHOOK_STALE_HOURS", 24)
+  const failureWindowMinutes = readNumberEnv("STRIPE_WEBHOOK_FAILURE_WINDOW_MINUTES", 60)
   let status = "ok"
   if (!lastEventAt) {
     status = "missing"
-  } else if (now.getTime() - lastEventAt.getTime() > HEALTH_STALE_HOURS * 60 * 60 * 1000) {
+  } else if (now.getTime() - lastEventAt.getTime() > staleHours * 60 * 60 * 1000) {
     status = "stale"
   } else if (
     lastFailureAt &&
-    now.getTime() - lastFailureAt.getTime() < HEALTH_FAILURE_WINDOW_MINUTES * 60 * 1000
+    now.getTime() - lastFailureAt.getTime() < failureWindowMinutes * 60 * 1000
   ) {
     status = "degraded"
   }

@@ -10,11 +10,9 @@ import { fetchDomainRating, fetchDomainRatingHistory } from "@/server/dr-provide
 import { checkRateLimit } from "@/server/rate-limit.mjs"
 import { resolveSitePresentation } from "@/server/site-presentation.mjs"
 import { isSpamSite } from "@/server/site-spam.mjs"
+import { readNumberEnv } from "@/lib/env"
 
 // First visits to unknown domains trigger paid Ahrefs lookups, so cap them per client and globally.
-const NEW_SITE_LOOKUP_RATE_LIMIT_POINTS = Number(process.env.NEW_SITE_LOOKUP_RATE_LIMIT_POINTS ?? 10)
-const NEW_SITE_LOOKUP_RATE_LIMIT_DURATION = Number(process.env.NEW_SITE_LOOKUP_RATE_LIMIT_DURATION ?? 3600)
-const NEW_SITE_LOOKUP_DAILY_LIMIT = Number(process.env.NEW_SITE_LOOKUP_DAILY_LIMIT ?? 100)
 const NEW_SITE_LOOKUP_LIMITED_MESSAGE = "Too many new site lookups right now. Please try again later."
 const NEW_SITE_LOOKUP_UNAVAILABLE_MESSAGE = "New site lookups are unavailable right now. Please try again shortly."
 
@@ -22,15 +20,15 @@ const NEW_SITE_LOOKUP_UNAVAILABLE_MESSAGE = "New site lookups are unavailable ri
 async function newSiteLookupRefusal(rateLimitKey: string) {
   const perClient = await checkRateLimit({
     key: rateLimitKey,
-    points: NEW_SITE_LOOKUP_RATE_LIMIT_POINTS,
-    duration: NEW_SITE_LOOKUP_RATE_LIMIT_DURATION,
+    points: readNumberEnv("NEW_SITE_LOOKUP_RATE_LIMIT_POINTS", 10),
+    duration: readNumberEnv("NEW_SITE_LOOKUP_RATE_LIMIT_DURATION", 3600),
   })
   if (perClient.unavailable) return NEW_SITE_LOOKUP_UNAVAILABLE_MESSAGE
   if (!perClient.allowed) return NEW_SITE_LOOKUP_LIMITED_MESSAGE
 
   const global = await checkRateLimit({
     key: "new-site-lookup:global",
-    points: NEW_SITE_LOOKUP_DAILY_LIMIT,
+    points: readNumberEnv("NEW_SITE_LOOKUP_DAILY_LIMIT", 100),
     duration: 24 * 60 * 60,
   })
   if (global.unavailable) return NEW_SITE_LOOKUP_UNAVAILABLE_MESSAGE

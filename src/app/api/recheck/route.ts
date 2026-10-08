@@ -8,10 +8,9 @@ import { formatRecheckCadenceError, resolveRecheckCadence } from "@/server/reche
 import { isSpamSite } from "@/server/site-spam.mjs"
 import { readWriteRequest } from "@/server/write-route"
 import { DomainBody } from "@/server/write-schemas"
+import { readNumberEnv } from "@/lib/env"
 
 export const runtime = "nodejs"
-const RATE_LIMIT_POINTS = Number(process.env.RECHECK_RATE_LIMIT_POINTS ?? 10)
-const RATE_LIMIT_DURATION = Number(process.env.RECHECK_RATE_LIMIT_DURATION ?? 60)
 
 function hasStoredRating(value: unknown) {
   return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value))
@@ -30,7 +29,11 @@ export async function POST(request: Request) {
   }
 
   const rateKey = getRateLimitKey(request, "dr-recheck")
-  const rate = await checkRateLimit({ key: rateKey, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
+  const rate = await checkRateLimit({
+    key: rateKey,
+    points: readNumberEnv("RECHECK_RATE_LIMIT_POINTS", 10),
+    duration: readNumberEnv("RECHECK_RATE_LIMIT_DURATION", 60),
+  })
   if (rate.unavailable) {
     return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
   }

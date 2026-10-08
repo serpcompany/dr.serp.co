@@ -8,16 +8,17 @@ type PriceConfig = {
   annual: Record<string, string>
 }
 
-let cachedConfig: PriceConfig | null = null
+// The parsed map for the STRIPE_PRICE_IDS value it came from; the value is read on every call.
+let cachedConfig: { raw: string; config: PriceConfig } | null = null
 
 function parsePriceConfig(): PriceConfig {
-  if (cachedConfig) return cachedConfig
+  const raw = getServerEnv().STRIPE_PRICE_IDS
+  if (cachedConfig?.raw === raw) return cachedConfig.config
 
-  const env = getServerEnv()
   let parsed: PriceConfig
 
   try {
-    parsed = JSON.parse(env.STRIPE_PRICE_IDS) as PriceConfig
+    parsed = JSON.parse(raw) as PriceConfig
   } catch {
     throw new Error("STRIPE_PRICE_IDS must be valid JSON")
   }
@@ -33,12 +34,8 @@ function parsePriceConfig(): PriceConfig {
     }
   }
 
-  cachedConfig = parsed
+  cachedConfig = { raw, config: parsed }
   return parsed
-}
-
-export function resetStripePricingCache() {
-  cachedConfig = null
 }
 
 export function getPriceId(domains: number, billing: BillingPeriod): string {

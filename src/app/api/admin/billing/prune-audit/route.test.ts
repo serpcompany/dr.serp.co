@@ -17,7 +17,6 @@ function restoreEnv() {
 
 describe("POST /api/admin/billing/prune-audit", () => {
   beforeEach(() => {
-    vi.resetModules()
     countPrunableBillingAudit.mockReset()
     pruneBillingAudit.mockReset()
     process.env.DR_ADMIN_TOKEN = "admin-secret"

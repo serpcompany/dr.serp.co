@@ -40,7 +40,6 @@ vi.mock("@/server/dr-providers.mjs", async () => {
 
 describe("POST /api/recheck", () => {
   beforeEach(() => {
-    vi.resetModules()
     fetchDomainRating.mockReset()
     fetchDomainRatingHistory.mockReset()
     getClaim.mockReset()

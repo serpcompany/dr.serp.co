@@ -9,12 +9,11 @@ import { LIVE_SUBSCRIPTION_STATUSES } from "@/server/subscription-status.mjs"
 import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 import { readWriteRequest } from "@/server/write-route"
 import { CheckoutBody } from "@/server/write-schemas"
+import { readNumberEnv } from "@/lib/env"
 
 export const runtime = "nodejs"
 
 const ALLOWED_DOMAINS = [12, 25, 50, 100] as const
-const RATE_LIMIT_POINTS = Number(process.env.CHANGE_PLAN_RATE_LIMIT_POINTS ?? 10)
-const RATE_LIMIT_DURATION = Number(process.env.CHANGE_PLAN_RATE_LIMIT_DURATION ?? 60)
 const NO_PLAN_MESSAGE = "You don't have a plan to change yet."
 
 // Moves a subscriber's existing subscription to another size or billing interval. Stripe's portal
@@ -31,8 +30,8 @@ export async function POST(request: Request) {
 
   const rate = await checkRateLimit({
     key: getRateLimitKey(request, "stripe-change-plan"),
-    points: RATE_LIMIT_POINTS,
-    duration: RATE_LIMIT_DURATION,
+    points: readNumberEnv("CHANGE_PLAN_RATE_LIMIT_POINTS", 10),
+    duration: readNumberEnv("CHANGE_PLAN_RATE_LIMIT_DURATION", 60),
   })
   if (rate.unavailable) {
     return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })

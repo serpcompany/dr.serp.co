@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import Stripe from "stripe"
 
-import { resetServerEnv } from "@/lib/env"
-import { resetStripePricingCache } from "@/lib/stripe-pricing"
-
 let headerStore = new Headers()
 
 vi.mock("next/headers", () => ({
@@ -52,8 +49,6 @@ const envBackup = { ...process.env }
 function restoreEnv() {
   for (const key of Object.keys(process.env)) delete process.env[key]
   Object.assign(process.env, envBackup)
-  resetServerEnv()
-  resetStripePricingCache()
 }
 
 beforeEach(() => {
@@ -63,8 +58,6 @@ beforeEach(() => {
     STRIPE_WEBHOOK_SECRET: "whsec_test_123",
   })
   headerStore = new Headers()
-  resetServerEnv()
-  resetStripePricingCache()
   upsertSubscription.mockReset()
   insertBillingAudit.mockReset()
   retrieveSubscription.mockReset()
@@ -331,8 +324,6 @@ describe("POST /api/stripe/webhook payload shapes", () => {
   it("fails with 500 and a failed audit row when STRIPE_PRICE_IDS is broken, so Stripe retries", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {})
     process.env.STRIPE_PRICE_IDS = "{not json"
-    resetServerEnv()
-    resetStripePricingCache()
     retrieveSubscription.mockResolvedValue(retrievedSubscription)
 
     const { POST } = await import("./route")
