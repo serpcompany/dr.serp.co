@@ -10,7 +10,8 @@ Sign-in is a one-time code sent by email. There are no passwords.
 
 1. `POST /api/auth/request-otp` emails a 6-digit code through useSend and returns a signed token
    that holds a keyed hash of the code, never the code itself. The same email can request a new
-   code once a minute; that cooldown is kept in memory, so each Worker isolate has its own (#46).
+   code once a minute, counted in the `RATE_LIMITER` Durable Object so every Worker isolate
+   shares it (`src/server/otp-store.mjs`).
 2. `POST /api/auth/verify-otp` checks the code against the token, allowing 10 guesses per email
    per 10 minutes (`VERIFY_OTP_RATE_LIMIT_*`). On success it sets the `dr_session` cookie:
    HttpOnly, Secure, `SameSite=Lax`, valid for 30 days.
