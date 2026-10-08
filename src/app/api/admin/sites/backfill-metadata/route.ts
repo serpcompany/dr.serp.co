@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 
-import { readRequestJsonRecord } from "@/lib/read-json"
 import { countSites, listSites, setClaimSiteMetadata } from "@/server/db.mjs"
 import { resolveSitePresentation } from "@/server/site-presentation.mjs"
 import { checkAdminToken } from "@/server/admin-auth.mjs"
+import { readWriteRequest } from "@/server/write-route"
+import { BackfillBody } from "@/server/write-schemas"
 
 export const runtime = "nodejs"
 
@@ -39,7 +40,10 @@ export async function POST(request: Request) {
   const denied = checkAdminToken(request)
   if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status })
 
-  const body = await readRequestJsonRecord(request)
+  // Operator scripts call admin routes with a token, not a browser cookie, so no Origin check.
+  const read = await readWriteRequest(request, BackfillBody, { checkOrigin: false })
+  if (!read.ok) return read.response
+  const body = read.data
   const dryRun = body?.dryRun !== false
   const limit = asInt(body?.limit, 25, 100)
   const offset = asOffset(body?.offset)

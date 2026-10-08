@@ -27,10 +27,12 @@ vi.mock("@/server/rate-limit.mjs", () => ({
   getRateLimitKey: () => "test:127.0.0.1",
 }))
 
-function forgedRequest(path: string, body: unknown) {
+// A same-origin request (the Origin check refuses any other) to a host that isn't the configured
+// one, so the URLs Stripe gets prove they come from DR_PUBLIC_BASE_URL, not from the request.
+function siteRequest(path: string, body: unknown, origin = "https://dr.serp.co") {
   return new Request(`https://dr.serp.co${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Origin: "https://evil.example" },
+    headers: { "Content-Type": "application/json", Origin: origin },
     body: JSON.stringify(body),
   })
 }
@@ -48,9 +50,9 @@ describe("Stripe return URLs", () => {
     vi.unstubAllEnvs()
   })
 
-  it("checkout ignores a forged Origin", async () => {
+  it("checkout builds its URLs from the configured host, not the request", async () => {
     const { POST } = await import("./checkout/route")
-    const response = await POST(forgedRequest("/api/stripe/checkout", { domains: 12, billing: "monthly" }))
+    const response = await POST(siteRequest("/api/stripe/checkout", { domains: 12, billing: "monthly" }))
 
     expect(response.status).toBe(200)
     expect(createCheckoutSession).toHaveBeenCalledWith(
@@ -61,9 +63,9 @@ describe("Stripe return URLs", () => {
     )
   })
 
-  it("the portal ignores a forged Origin", async () => {
+  it("the portal builds its URL from the configured host, not the request", async () => {
     const { POST } = await import("./portal/route")
-    const response = await POST(forgedRequest("/api/stripe/portal", {}))
+    const response = await POST(siteRequest("/api/stripe/portal", {}))
 
     expect(response.status).toBe(200)
     expect(createPortalSession).toHaveBeenCalledWith(
@@ -76,9 +78,17 @@ describe("Stripe return URLs", () => {
     createPortalSession.mockRejectedValue(new Error("No such customer: 'cus_1'; a similar object exists in live mode"))
 
     const { POST } = await import("./portal/route")
-    const response = await POST(forgedRequest("/api/stripe/portal", {}))
+    const response = await POST(siteRequest("/api/stripe/portal", {}))
 
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: "Unable to create portal session." })
+  })
+
+  it("refuses a checkout from a foreign Origin before calling Stripe", async () => {
+    const { POST } = await import("./checkout/route")
+    const response = await POST(siteRequest("/api/stripe/checkout", { domains: 12, billing: "monthly" }, "https://evil.serp.co"))
+
+    expect(response.status).toBe(403)
+    expect(createCheckoutSession).not.toHaveBeenCalled()
   })
 })

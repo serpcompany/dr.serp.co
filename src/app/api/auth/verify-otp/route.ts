@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 
-import { readRequestJsonRecord } from "@/lib/read-json"
 import { SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS, createSessionToken } from "@/server/auth-session.mjs"
 import { verifyOtpToken } from "@/server/otp-token.mjs"
 import { checkRateLimit } from "@/server/rate-limit.mjs"
+import { readWriteRequest } from "@/server/write-route"
+import { VerifyOtpBody } from "@/server/write-schemas"
 
 function isValidEmail(email: string) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
@@ -14,10 +15,12 @@ const RATE_LIMIT_POINTS = Number(process.env.VERIFY_OTP_RATE_LIMIT_POINTS ?? 10)
 const RATE_LIMIT_DURATION = Number(process.env.VERIFY_OTP_RATE_LIMIT_DURATION ?? 600)
 
 export async function POST(request: Request) {
-  const body = await readRequestJsonRecord(request)
-  const email = String(body?.email || "").trim().toLowerCase()
-  const code = String(body?.code || "").trim()
-  const token = String(body?.token || "").trim()
+  const read = await readWriteRequest(request, VerifyOtpBody)
+  if (!read.ok) return read.response
+
+  const email = read.data.email.trim().toLowerCase()
+  const code = read.data.code.trim()
+  const token = read.data.token.trim()
 
   if (!isValidEmail(email) || code.length !== 6 || !token) {
     return NextResponse.json({ error: "Email, code, and token required" }, { status: 400 })
