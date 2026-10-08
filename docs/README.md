@@ -21,7 +21,7 @@ keeps the deployment history.
   `AGENTS.md`.
 - No file-by-file inventories, env-variable tables or route lists that restate the code. Link to
   the file that holds them instead.
-- Name files and folders in kebab-case. Only `README.md`, `AGENTS.md` and `CLAUDE.md` are
+- Name files and folders under `docs/` in kebab-case. Only `README.md` and `AGENTS.md` are
   uppercase.
 - Never put live credentials or secret values in a doc.
 
