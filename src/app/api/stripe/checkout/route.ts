@@ -9,10 +9,9 @@ import { resolveEntitlement } from "@/server/entitlements.mjs"
 import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 import { readWriteRequest } from "@/server/write-route"
 import { CheckoutBody } from "@/server/write-schemas"
+import { readNumberEnv } from "@/lib/env"
 
 const ALLOWED_DOMAINS = [12, 25, 50, 100] as const
-const RATE_LIMIT_POINTS = Number(process.env.CHECKOUT_RATE_LIMIT_POINTS ?? 20)
-const RATE_LIMIT_DURATION = Number(process.env.CHECKOUT_RATE_LIMIT_DURATION ?? 60)
 
 export async function POST(request: Request) {
   const read = await readWriteRequest(request, CheckoutBody)
@@ -20,7 +19,11 @@ export async function POST(request: Request) {
 
   try {
     const rateKey = getRateLimitKey(request, "stripe-checkout")
-    const rate = await checkRateLimit({ key: rateKey, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
+    const rate = await checkRateLimit({
+      key: rateKey,
+      points: readNumberEnv("CHECKOUT_RATE_LIMIT_POINTS", 20),
+      duration: readNumberEnv("CHECKOUT_RATE_LIMIT_DURATION", 60),
+    })
     if (rate.unavailable) {
       return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
     }

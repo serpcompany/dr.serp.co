@@ -98,9 +98,12 @@ memory.
   them.
 - **Local values** are in `.dev.vars` (template: `.dev.vars.example`).
 
-Code reads `process.env`, which OpenNext fills from the Worker's environment on each request.
-Some modules still read it at load time, and `src/lib/env.ts` caches it.
-[#46](https://github.com/serpcompany/dr.serp.co/issues/46) moves every read into the request.
+Code reads `process.env`, which OpenNext fills from the Worker's environment on each request, and
+reads it inside the function that needs it, never into a module-scope constant: an isolate would
+keep the values it loaded with. `src/lib/env.ts` has `getServerEnv()` for the Stripe values and
+`readNumberEnv()` for numeric settings such as rate limits. The Stripe client and the parsed price
+map are reused only while the value they came from is unchanged. `src/lib/env-reads.test.ts` fails
+if a module reads `process.env` outside a function.
 
 ## External services
 
