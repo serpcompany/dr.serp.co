@@ -132,6 +132,14 @@ describe("POST /api/stripe/change-plan", () => {
     expect(mocks.update).not.toHaveBeenCalled()
   })
 
+  it("lets a subscriber over their limit after a lapse change billing at the same size", async () => {
+    mocks.resolveEntitlement.mockResolvedValue({ ...subscriber, domainsUsed: 30 })
+    const { POST } = await import("./route")
+
+    expect((await POST(changePlan({ domains: 12, billing: "annual" }))).status).toBe(200)
+    expect(mocks.update).toHaveBeenCalled()
+  })
+
   it("leaves the plan unchanged and says so when the prorated charge fails", async () => {
     mocks.update.mockRejectedValue(Object.assign(new Error("Your card was declined."), { statusCode: 402 }))
     const { POST } = await import("./route")

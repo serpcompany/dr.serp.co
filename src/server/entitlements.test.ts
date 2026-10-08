@@ -162,6 +162,7 @@ describe("resolveEntitlement", () => {
     ["trialing", "2026-02-01T00:00:00Z", true],
     ["past_due", "2026-02-01T00:00:00Z", true],
     ["past_due", "2025-12-15T00:00:00Z", true],
+    ["unpaid", "2025-12-15T00:00:00Z", true],
     ["canceled", "2026-12-01T00:00:00Z", false],
     ["incomplete_expired", "2026-02-01T00:00:00Z", false],
   ])("counts a %s subscription ending %s as a live plan: %s", async (status, periodEnd, live) => {

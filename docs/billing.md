@@ -44,7 +44,7 @@ need a session; checkout uses the session's email when there is one.
 
 - `POST /api/stripe/checkout` opens a subscription-mode Checkout Session, returning to
   `/pricing?checkout=success` or `/pricing?checkout=cancelled`. A signed-in subscriber with a live
-  plan (`active`, `trialing` or `past_due`, the entitlement's `hasLivePlan`) gets 409 `has_plan`
+  plan (`active`, `trialing`, `past_due` or `unpaid`, the entitlement's `hasLivePlan`) gets 409 `has_plan`
   with their plan instead, because a second checkout would bill twice. A canceled subscription
   still in its paid period doesn't count, so its owner can buy again. A signed-out buyer types
   their email into Stripe, so this can't stop them buying a second plan.
@@ -52,8 +52,8 @@ need a session; checkout uses the session's email when there is one.
   period (`subscriptions.update` with `proration_behavior: "always_invoice"`, so the difference is
   charged or credited at once). With `payment_behavior: "error_if_incomplete"`, a failed charge
   leaves the plan unchanged and answers 402 `payment_failed`. It refuses with 409 `no_plan` when
-  there's no live dr.serp.co subscription in D1 or in Stripe, 409 `too_many_claims` for a size
-  below the domains already claimed, and 400 `same_plan`. A cancellation scheduled in the portal
+  there's no live dr.serp.co subscription in D1 or in Stripe, 409 `too_many_claims` for a smaller
+  size than the domains already claimed, and 400 `same_plan`. A cancellation scheduled in the portal
   stays scheduled. The webhook syncs the new plan. `/pricing` starts on a subscriber's plan and
   shows a "Switch plan" button instead of checkout.
 - `POST /api/stripe/portal` opens the Stripe customer portal for payment details, invoices and

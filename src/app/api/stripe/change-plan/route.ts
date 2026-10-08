@@ -14,7 +14,7 @@ export const runtime = "nodejs"
 const ALLOWED_DOMAINS = [12, 25, 50, 100] as const
 const RATE_LIMIT_POINTS = Number(process.env.CHANGE_PLAN_RATE_LIMIT_POINTS ?? 10)
 const RATE_LIMIT_DURATION = Number(process.env.CHANGE_PLAN_RATE_LIMIT_DURATION ?? 60)
-const LIVE_STATUSES = new Set(["active", "trialing", "past_due"])
+const LIVE_STATUSES = new Set(["active", "trialing", "past_due", "unpaid"])
 const NO_PLAN_MESSAGE = "You don't have a plan to change yet."
 
 // Moves a subscriber's existing subscription to another size or billing interval. Stripe's portal
@@ -58,11 +58,13 @@ export async function POST(request: Request) {
   if (!entitlement?.hasLivePlan || !subscriptionId) {
     return NextResponse.json({ error: NO_PLAN_MESSAGE, code: "no_plan" }, { status: 409 })
   }
-  // A smaller plan can't hold the domains already claimed; the subscriber removes some under My sites first.
-  if (entitlement.domainsUsed > domains) {
+  // A smaller plan can't hold the domains already claimed; the subscriber removes some under Your
+  // sites first. Claims outlive a lapse, so only a size below the current one is refused.
+  const currentDomains = entitlement.subscription?.domainsLimit ?? 0
+  if (domains < currentDomains && entitlement.domainsUsed > domains) {
     return NextResponse.json(
       {
-        error: `You've claimed ${entitlement.domainsUsed} domains. Remove some under My sites before switching to ${domains}.`,
+        error: `You've claimed ${entitlement.domainsUsed} domains. Remove some under Your sites before switching to ${domains}.`,
         code: "too_many_claims",
       },
       { status: 409 }

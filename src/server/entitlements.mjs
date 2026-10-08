@@ -2,9 +2,10 @@ import { getTierForPriceId } from "@/lib/stripe-pricing"
 import { countClaimsByEmail, getLatestSubscriptionByEmail } from "@/server/db.mjs"
 
 const INTERNAL_PRO_EMAILS = new Set(["devin@serp.co", "otp@2faslingshot.com"])
-// Stripe statuses of a subscription that still bills and can change price. A canceled one keeps
-// paid access until its period ends, but it can't be updated, and its owner may buy again.
-const LIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"])
+// Stripe statuses of a subscription that can still bill and change price. An unpaid one restarts
+// once its open invoice is paid, so a second checkout would bill twice. A canceled one keeps paid
+// access until its period ends, but it can't be updated, and its owner may buy again.
+const LIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due", "unpaid"])
 
 function normalizeEmail(value) {
   return String(value ?? "").trim().toLowerCase()
