@@ -1,11 +1,13 @@
-import { getTierForPriceId } from "@/lib/stripe-pricing"
-import { countClaimsByEmail, getLatestSubscriptionByEmail } from "@/server/db.mjs"
-import { LIVE_SUBSCRIPTION_STATUSES } from "@/server/subscription-status.mjs"
+import { getTierForPriceId } from '@/lib/stripe-pricing'
+import { countClaimsByEmail, getLatestSubscriptionByEmail } from '@/server/db.mjs'
+import { LIVE_SUBSCRIPTION_STATUSES } from '@/server/subscription-status.mjs'
 
-const INTERNAL_PRO_EMAILS = new Set(["devin@serp.co", "otp@2faslingshot.com"])
+const INTERNAL_PRO_EMAILS = new Set(['devin@serp.co', 'otp@2faslingshot.com'])
 
 function normalizeEmail(value) {
-  return String(value ?? "").trim().toLowerCase()
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
 }
 
 function isInternalProEmail(email) {
@@ -20,21 +22,21 @@ function toDate(value) {
 }
 
 function resolveAccessStatus(status, currentPeriodEnd, now) {
-  if (!status) return { status: "none", canAccessPaid: false, isGrace: false }
+  if (!status) return { status: 'none', canAccessPaid: false, isGrace: false }
 
-  if (status === "active" || status === "trialing") {
+  if (status === 'active' || status === 'trialing') {
     return { status, canAccessPaid: true, isGrace: false }
   }
 
   const periodActive = currentPeriodEnd && currentPeriodEnd.getTime() > now.getTime()
   if (periodActive) {
-    return { status: "grace", canAccessPaid: true, isGrace: true }
+    return { status: 'grace', canAccessPaid: true, isGrace: true }
   }
 
-  if (status === "past_due") return { status: "past_due", canAccessPaid: false, isGrace: false }
-  if (status === "canceled") return { status: "canceled", canAccessPaid: false, isGrace: false }
+  if (status === 'past_due') return { status: 'past_due', canAccessPaid: false, isGrace: false }
+  if (status === 'canceled') return { status: 'canceled', canAccessPaid: false, isGrace: false }
 
-  return { status: "inactive", canAccessPaid: false, isGrace: false }
+  return { status: 'inactive', canAccessPaid: false, isGrace: false }
 }
 
 function safeTierLookup(priceId) {
@@ -43,7 +45,10 @@ function safeTierLookup(priceId) {
     return getTierForPriceId(priceId)
   } catch (error) {
     // A broken STRIPE_PRICE_IDS: fail closed, but leave a trace.
-    console.error("entitlements: price lookup failed", error instanceof Error ? error.message : error)
+    console.error(
+      'entitlements: price lookup failed',
+      error instanceof Error ? error.message : error
+    )
     return null
   }
 }
@@ -56,7 +61,7 @@ export async function resolveEntitlement({ email, now = new Date() }) {
     const domainsUsed = await countClaimsByEmail({ email: normalizedEmail })
     return {
       email: normalizedEmail,
-      status: "active",
+      status: 'active',
       canAccessPaidFeatures: true,
       canClaim: true,
       domainsLimit: null,
@@ -64,13 +69,13 @@ export async function resolveEntitlement({ email, now = new Date() }) {
       remaining: null,
       isUnlimited: true,
       hasLivePlan: false,
-      subscription: null,
+      subscription: null
     }
   }
 
   const [subscription, domainsUsed] = await Promise.all([
     getLatestSubscriptionByEmail(normalizedEmail),
-    countClaimsByEmail({ email: normalizedEmail }),
+    countClaimsByEmail({ email: normalizedEmail })
   ])
 
   const currentPeriodEnd = toDate(subscription?.current_period_end)
@@ -83,7 +88,7 @@ export async function resolveEntitlement({ email, now = new Date() }) {
 
   const domainsLimitRaw = Number.isFinite(Number(subscription?.domains_limit))
     ? Number(subscription.domains_limit)
-    : tier?.domains ?? 0
+    : (tier?.domains ?? 0)
   const domainsLimit = Math.max(0, domainsLimitRaw || 0)
 
   const billingInterval = subscription?.billing_interval ?? tier?.billing ?? null
@@ -93,7 +98,9 @@ export async function resolveEntitlement({ email, now = new Date() }) {
   const canClaim = canAccessPaidFeatures && domainsLimit > 0 && domainsUsed < domainsLimit
   // A dr.serp.co subscription that a plan change can move; checkout refuses a second one.
   const hasLivePlan = Boolean(
-    tier && subscription?.stripe_subscription_id && LIVE_SUBSCRIPTION_STATUSES.has(subscription.status)
+    tier &&
+      subscription?.stripe_subscription_id &&
+      LIVE_SUBSCRIPTION_STATUSES.has(subscription.status)
   )
 
   return {
@@ -115,8 +122,8 @@ export async function resolveEntitlement({ email, now = new Date() }) {
           domainsLimit,
           status: subscription.status ?? null,
           currentPeriodEnd,
-          cancelAtPeriodEnd: subscription.cancel_at_period_end ?? null,
+          cancelAtPeriodEnd: subscription.cancel_at_period_end ?? null
         }
-      : null,
+      : null
   }
 }

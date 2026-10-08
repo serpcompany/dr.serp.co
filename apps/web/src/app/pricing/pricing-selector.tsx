@@ -1,19 +1,19 @@
-"use client"
+'use client'
 
-import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import Link from 'next/link'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Slider } from "@/components/ui/slider"
-import { Switch } from "@/components/ui/switch"
-import { cn } from "@/lib/utils"
-import { PAID_FEATURES, PRICING_TIERS } from "@/lib/pricing"
-import { readJsonRecord } from "@/lib/read-json"
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Slider } from '@/components/ui/slider'
+import { Switch } from '@/components/ui/switch'
+import { PAID_FEATURES, PRICING_TIERS } from '@/lib/pricing'
+import { readJsonRecord } from '@/lib/read-json'
+import { cn } from '@/lib/utils'
 
 const BILLING_LABELS = {
-  monthly: "Monthly",
-  annual: "Annual",
+  monthly: 'Monthly',
+  annual: 'Annual'
 }
 
 type Billing = keyof typeof BILLING_LABELS
@@ -22,12 +22,13 @@ type CurrentPlan = { domains: number; billing: Billing }
 function readPlan(value: unknown): CurrentPlan | null {
   const plan = value as { domains?: unknown; billing?: unknown } | null
   const domains = Number(plan?.domains)
-  const billing = plan?.billing === "annual" ? "annual" : plan?.billing === "monthly" ? "monthly" : null
+  const billing =
+    plan?.billing === 'annual' ? 'annual' : plan?.billing === 'monthly' ? 'monthly' : null
   return Number.isFinite(domains) && domains > 0 && billing ? { domains, billing } : null
 }
 
 function describePlan(plan: CurrentPlan) {
-  return `${plan.domains} domains, billed ${plan.billing === "annual" ? "yearly" : "monthly"}`
+  return `${plan.domains} domains, billed ${plan.billing === 'annual' ? 'yearly' : 'monthly'}`
 }
 
 export function PricingSelector() {
@@ -42,56 +43,60 @@ export function PricingSelector() {
   const [onHold, setOnHold] = useState(false)
 
   // Start the selector on the subscriber's own plan, so nothing is one click from a downgrade.
-  const showCurrentPlan = (plan: CurrentPlan | null) => {
+  const showCurrentPlan = useCallback((plan: CurrentPlan | null) => {
     if (!plan) return
     setCurrentPlan(plan)
-    const index = PRICING_TIERS.findIndex((item) => item.domains === plan.domains)
+    const index = PRICING_TIERS.findIndex(item => item.domains === plan.domains)
     if (index >= 0) setTierIndex(index)
-    setIsAnnual(plan.billing === "annual")
-  }
+    setIsAnnual(plan.billing === 'annual')
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch("/api/billing/status", { method: "POST", signal: controller.signal })
-      .then(async (response) => {
+    fetch('/api/billing/status', { method: 'POST', signal: controller.signal })
+      .then(async response => {
         if (!response.ok) return
         const payload = await readJsonRecord(response)
         const entitlement = payload?.entitlement
         if (!entitlement?.hasLivePlan || !entitlement?.subscription) return
-        setOnHold(["past_due", "unpaid"].includes(entitlement.subscription.status))
+        setOnHold(['past_due', 'unpaid'].includes(entitlement.subscription.status))
         showCurrentPlan(
-          readPlan({ domains: entitlement.subscription.domainsLimit, billing: entitlement.subscription.billingInterval })
+          readPlan({
+            domains: entitlement.subscription.domainsLimit,
+            billing: entitlement.subscription.billingInterval
+          })
         )
       })
       .catch(() => {})
     return () => controller.abort()
-  }, [])
+  }, [showCurrentPlan])
 
   const tier = PRICING_TIERS[tierIndex]
   const price = isAnnual ? tier.annual : tier.monthly
-  const priceLabel = isAnnual ? "/year" : "/month"
+  const priceLabel = isAnnual ? '/year' : '/month'
 
   const sliderValue = useMemo(() => [tierIndex], [tierIndex])
 
-  const selectedBilling: Billing = isAnnual ? "annual" : "monthly"
-  const isCurrentPlan = currentPlan?.domains === tier.domains && currentPlan?.billing === selectedBilling
+  const selectedBilling: Billing = isAnnual ? 'annual' : 'monthly'
+  const isCurrentPlan =
+    currentPlan?.domains === tier.domains && currentPlan?.billing === selectedBilling
 
   const handleChangePlan = async () => {
     setError(null)
     setIsSubmitting(true)
     try {
-      const response = await fetch("/api/stripe/change-plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domains: tier.domains, billing: selectedBilling }),
+      const response = await fetch('/api/stripe/change-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domains: tier.domains, billing: selectedBilling })
       })
       const payload = await readJsonRecord(response)
-      if (!response.ok) throw new Error(payload?.error ?? "Unable to change your plan.")
+      if (!response.ok) throw new Error(payload?.error ?? 'Unable to change your plan.')
       const plan = { domains: tier.domains, billing: selectedBilling }
       setCurrentPlan(plan)
       setChanged(plan)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to change your plan.")
+      setError(caught instanceof Error ? caught.message : 'Unable to change your plan.')
     } finally {
       setIsSubmitting(false)
     }
@@ -103,41 +108,41 @@ export function PricingSelector() {
 
     try {
       const storedEmail =
-        typeof window !== "undefined"
-          ? window.localStorage.getItem("dr-auth-email")?.trim().toLowerCase()
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem('dr-auth-email')?.trim().toLowerCase()
           : null
 
-      const response = await fetch("/api/stripe/checkout", {
-        method: "POST",
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           domains: tier.domains,
-          billing: isAnnual ? "annual" : "monthly",
-          email: storedEmail || undefined,
-        }),
+          billing: isAnnual ? 'annual' : 'monthly',
+          email: storedEmail || undefined
+        })
       })
 
       if (!response.ok) {
         const payload = await readJsonRecord(response)
         // A subscriber whose plan the page didn't know yet: show it and offer the switch instead.
-        const plan = payload?.code === "has_plan" ? readPlan(payload.plan) : null
+        const plan = payload?.code === 'has_plan' ? readPlan(payload.plan) : null
         if (plan) {
           showCurrentPlan(plan)
           return
         }
-        throw new Error(payload?.error ?? "Unable to start checkout.")
+        throw new Error(payload?.error ?? 'Unable to start checkout.')
       }
 
       const payload = await readJsonRecord(response)
       if (!payload?.url) {
-        throw new Error("Stripe checkout URL not returned.")
+        throw new Error('Stripe checkout URL not returned.')
       }
 
       window.location.href = payload.url
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "Unable to start checkout."
+      const message = caught instanceof Error ? caught.message : 'Unable to start checkout.'
       setError(message)
     } finally {
       setIsSubmitting(false)
@@ -161,8 +166,8 @@ export function PricingSelector() {
           <div className="text-right">
             <p className="text-2xl font-semibold">${price}</p>
             <p className="text-xs text-muted-foreground">
-              {priceLabel} · {BILLING_LABELS[isAnnual ? "annual" : "monthly"]}
-              {isAnnual ? " (2 months free)" : ""}
+              {priceLabel} · {BILLING_LABELS[isAnnual ? 'annual' : 'monthly']}
+              {isAnnual ? ' (2 months free)' : ''}
             </p>
           </div>
         </div>
@@ -173,7 +178,7 @@ export function PricingSelector() {
             max={PRICING_TIERS.length - 1}
             step={1}
             value={sliderValue}
-            onValueChange={(value) => setTierIndex(value[0])}
+            onValueChange={value => setTierIndex(value[0])}
           />
           <div className="grid grid-cols-4 text-center text-xs text-muted-foreground">
             {PRICING_TIERS.map((item, index) => (
@@ -182,8 +187,8 @@ export function PricingSelector() {
                 type="button"
                 onClick={() => setTierIndex(index)}
                 className={cn(
-                  "transition-colors",
-                  index === tierIndex ? "text-foreground font-semibold" : "hover:text-foreground"
+                  'transition-colors',
+                  index === tierIndex ? 'text-foreground font-semibold' : 'hover:text-foreground'
                 )}
               >
                 {item.domains}
@@ -196,7 +201,9 @@ export function PricingSelector() {
         </div>
 
         <div className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm">
-          <span className={cn(!isAnnual ? "font-semibold text-foreground" : "text-muted-foreground")}>
+          <span
+            className={cn(!isAnnual ? 'font-semibold text-foreground' : 'text-muted-foreground')}
+          >
             Monthly
           </span>
           <Switch
@@ -204,7 +211,9 @@ export function PricingSelector() {
             onCheckedChange={setIsAnnual}
             aria-label="Toggle annual billing"
           />
-          <span className={cn(isAnnual ? "font-semibold text-foreground" : "text-muted-foreground")}>
+          <span
+            className={cn(isAnnual ? 'font-semibold text-foreground' : 'text-muted-foreground')}
+          >
             Annual
           </span>
           <span className="text-xs text-muted-foreground">(2 months free)</span>
@@ -213,7 +222,7 @@ export function PricingSelector() {
         <div>
           <p className="text-sm font-medium">Included with every paid tier</p>
           <ul className="mt-3 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-            {PAID_FEATURES.map((feature) => (
+            {PAID_FEATURES.map(feature => (
               <li key={feature}>• {feature}</li>
             ))}
           </ul>
@@ -226,7 +235,7 @@ export function PricingSelector() {
             </p>
             {onHold ? (
               <p className="mt-1 text-xs text-muted-foreground">
-                It has an unpaid invoice. Pay it with Manage billing on the{" "}
+                It has an unpaid invoice. Pay it with Manage billing on the{' '}
                 <Link href="/billing" className="underline underline-offset-4">
                   billing page
                 </Link>
@@ -235,7 +244,7 @@ export function PricingSelector() {
             ) : null}
             <p className="mt-1 text-xs text-muted-foreground">
               {isCurrentPlan
-                ? "Pick another size or billing period to switch."
+                ? 'Pick another size or billing period to switch.'
                 : `Switching to ${describePlan({ domains: tier.domains, billing: selectedBilling })} changes your existing subscription. The difference is prorated and charged or credited now.`}
             </p>
           </div>
@@ -243,23 +252,30 @@ export function PricingSelector() {
 
         {changed ? (
           <p className="text-sm text-muted-foreground">
-            Plan changed to {describePlan(changed)}. It can take a moment to show on your billing page.
+            Plan changed to {describePlan(changed)}. It can take a moment to show on your billing
+            page.
           </p>
         ) : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2">
         {currentPlan ? (
-          <Button onClick={handleChangePlan} disabled={isSubmitting || isCurrentPlan || onHold} className="w-full">
-            {isSubmitting ? "Switching plan..." : isCurrentPlan ? "Current plan" : "Switch plan"}
+          <Button
+            onClick={handleChangePlan}
+            disabled={isSubmitting || isCurrentPlan || onHold}
+            className="w-full"
+          >
+            {isSubmitting ? 'Switching plan...' : isCurrentPlan ? 'Current plan' : 'Switch plan'}
           </Button>
         ) : (
           <Button onClick={handleCheckout} disabled={isSubmitting} className="w-full">
-            {isSubmitting ? "Starting checkout..." : "Start monitoring"}
+            {isSubmitting ? 'Starting checkout...' : 'Start monitoring'}
           </Button>
         )}
         <p className="text-center text-xs text-muted-foreground">
-          {currentPlan ? "Your subscription is managed by Stripe." : "Secure checkout handled by Stripe."}
+          {currentPlan
+            ? 'Your subscription is managed by Stripe.'
+            : 'Secure checkout handled by Stripe.'}
         </p>
       </CardFooter>
     </Card>

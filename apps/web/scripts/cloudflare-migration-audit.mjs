@@ -1,43 +1,43 @@
-import { readFile, stat } from "node:fs/promises"
-import path from "node:path"
+import { readFile, stat } from 'node:fs/promises'
+import path from 'node:path'
 
 const requiredFiles = [
-  "open-next.config.ts",
-  "cloudflare-worker.js",
-  "wrangler.jsonc",
-  "migrations/0001_initial_d1_schema.sql",
-  "src/server/rate-limit-do.mjs",
-  "src/server/db-d1.test.ts",
-  "src/server/rate-limit.test.ts",
-  "scripts/generate-route-manifest.mjs",
-  "scripts/compare-route-parity.mjs",
-  "scripts/d1-migration-data.mjs",
+  'open-next.config.ts',
+  'cloudflare-worker.js',
+  'wrangler.jsonc',
+  'migrations/0001_initial_d1_schema.sql',
+  'src/server/rate-limit-do.mjs',
+  'src/server/db-d1.test.ts',
+  'src/server/rate-limit.test.ts',
+  'scripts/generate-route-manifest.mjs',
+  'scripts/compare-route-parity.mjs',
+  'scripts/d1-migration-data.mjs'
 ]
 
 const requiredPackageScripts = [
-  "cf:build",
-  "cf:preview",
-  "cf:preview:dry-run",
-  "cf:deploy:dry-run",
-  "cf:types",
-  "routes:manifest",
-  "routes:parity",
-  "billing:prune-audit",
-  "billing:reconcile",
-  "webhook:health",
-  "sites:purge-invalid",
-  "sites:backfill-metadata",
+  'cf:build',
+  'cf:preview',
+  'cf:preview:dry-run',
+  'cf:deploy:dry-run',
+  'cf:types',
+  'routes:manifest',
+  'routes:parity',
+  'billing:prune-audit',
+  'billing:reconcile',
+  'webhook:health',
+  'sites:purge-invalid',
+  'sites:backfill-metadata'
 ]
 
 const requiredSecrets = [
-  "AHREFS_API_KEY",
-  "DR_ADMIN_TOKEN",
-  "STRIPE_PRICE_IDS",
-  "STRIPE_SECRET_KEY",
-  "STRIPE_WEBHOOK_SECRET",
-  "USESEND_API_KEY",
-  "USESEND_FROM",
-  "USESEND_OTP_SECRET",
+  'AHREFS_API_KEY',
+  'DR_ADMIN_TOKEN',
+  'STRIPE_PRICE_IDS',
+  'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET',
+  'USESEND_API_KEY',
+  'USESEND_FROM',
+  'USESEND_OTP_SECRET'
 ]
 
 function printHelp() {
@@ -55,9 +55,9 @@ Options:
 function parseArgs(argv) {
   const options = { strict: false, pretty: false, help: false }
   for (const arg of argv) {
-    if (arg === "-h" || arg === "--help") options.help = true
-    else if (arg === "--strict") options.strict = true
-    else if (arg === "--pretty") options.pretty = true
+    if (arg === '-h' || arg === '--help') options.help = true
+    else if (arg === '--strict') options.strict = true
+    else if (arg === '--pretty') options.pretty = true
     else throw new Error(`Unknown argument: ${arg}`)
   }
   return options
@@ -69,11 +69,7 @@ async function fileExists(relativePath) {
 }
 
 function parseJsonc(source) {
-  return JSON.parse(
-    source
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/(^|[^:])\/\/.*$/gm, "$1")
-  )
+  return JSON.parse(source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1'))
 }
 
 function unique(values) {
@@ -81,9 +77,10 @@ function unique(values) {
 }
 
 function collectStrings(value, acc = []) {
-  if (typeof value === "string") acc.push(value)
-  else if (Array.isArray(value)) value.forEach((item) => collectStrings(item, acc))
-  else if (value && typeof value === "object") Object.values(value).forEach((item) => collectStrings(item, acc))
+  if (typeof value === 'string') acc.push(value)
+  else if (Array.isArray(value)) for (const item of value) collectStrings(item, acc)
+  else if (value && typeof value === 'object')
+    for (const item of Object.values(value)) collectStrings(item, acc)
   return acc
 }
 
@@ -99,80 +96,128 @@ try {
 
   for (const relativePath of requiredFiles) {
     if (!(await fileExists(relativePath))) {
-      findings.push({ severity: "error", area: "files", message: `Missing ${relativePath}` })
+      findings.push({ severity: 'error', area: 'files', message: `Missing ${relativePath}` })
     }
   }
 
-  const packageJson = JSON.parse(await readFile("package.json", "utf8"))
+  const packageJson = JSON.parse(await readFile('package.json', 'utf8'))
   for (const scriptName of requiredPackageScripts) {
     if (!packageJson.scripts?.[scriptName]) {
-      findings.push({ severity: "error", area: "package.json", message: `Missing script ${scriptName}` })
+      findings.push({
+        severity: 'error',
+        area: 'package.json',
+        message: `Missing script ${scriptName}`
+      })
     }
   }
 
-  const wranglerSource = await readFile("wrangler.jsonc", "utf8")
+  const wranglerSource = await readFile('wrangler.jsonc', 'utf8')
   const wrangler = parseJsonc(wranglerSource)
   const wranglerStrings = collectStrings(wrangler)
 
-  if (wrangler.main !== "./cloudflare-worker.js") {
-    findings.push({ severity: "error", area: "wrangler", message: "main must point to ./cloudflare-worker.js" })
+  if (wrangler.main !== './cloudflare-worker.js') {
+    findings.push({
+      severity: 'error',
+      area: 'wrangler',
+      message: 'main must point to ./cloudflare-worker.js'
+    })
   }
-  if (!wrangler.compatibility_flags?.includes("nodejs_compat")) {
-    findings.push({ severity: "error", area: "wrangler", message: "nodejs_compat flag is required" })
+  if (!wrangler.compatibility_flags?.includes('nodejs_compat')) {
+    findings.push({
+      severity: 'error',
+      area: 'wrangler',
+      message: 'nodejs_compat flag is required'
+    })
   }
-  if (wrangler.assets?.binding !== "ASSETS") {
-    findings.push({ severity: "error", area: "wrangler", message: "ASSETS binding is required" })
+  if (wrangler.assets?.binding !== 'ASSETS') {
+    findings.push({ severity: 'error', area: 'wrangler', message: 'ASSETS binding is required' })
   }
-  if (!wrangler.d1_databases?.some((entry) => entry.binding === "SERP_DR_DB")) {
-    findings.push({ severity: "error", area: "wrangler", message: "SERP_DR_DB D1 binding is required" })
+  if (!wrangler.d1_databases?.some(entry => entry.binding === 'SERP_DR_DB')) {
+    findings.push({
+      severity: 'error',
+      area: 'wrangler',
+      message: 'SERP_DR_DB D1 binding is required'
+    })
   }
-  if (!wrangler.durable_objects?.bindings?.some((entry) => entry.name === "RATE_LIMITER")) {
-    findings.push({ severity: "error", area: "wrangler", message: "RATE_LIMITER Durable Object binding is required" })
+  if (!wrangler.durable_objects?.bindings?.some(entry => entry.name === 'RATE_LIMITER')) {
+    findings.push({
+      severity: 'error',
+      area: 'wrangler',
+      message: 'RATE_LIMITER Durable Object binding is required'
+    })
   }
   // The top level is local-only; a bare `wrangler` command must never reach a deployed Worker or database.
   const deployedEnvs = Object.values(wrangler.env ?? {})
-  if (deployedEnvs.some((entry) => entry.name === wrangler.name)) {
-    findings.push({ severity: "error", area: "wrangler", message: "Top-level name must be local-only, not a deployed Worker name" })
+  if (deployedEnvs.some(entry => entry.name === wrangler.name)) {
+    findings.push({
+      severity: 'error',
+      area: 'wrangler',
+      message: 'Top-level name must be local-only, not a deployed Worker name'
+    })
   }
   if (wrangler.routes?.length || wrangler.route) {
-    findings.push({ severity: "error", area: "wrangler", message: "Top-level config must not declare routes" })
+    findings.push({
+      severity: 'error',
+      area: 'wrangler',
+      message: 'Top-level config must not declare routes'
+    })
   }
-  const deployedDatabaseIds = deployedEnvs.flatMap((entry) => (entry.d1_databases ?? []).map((db) => db.database_id))
-  if ((wrangler.d1_databases ?? []).some((db) => deployedDatabaseIds.includes(db.database_id))) {
-    findings.push({ severity: "error", area: "wrangler", message: "Top-level D1 binding must not point at a deployed database" })
+  const deployedDatabaseIds = deployedEnvs.flatMap(entry =>
+    (entry.d1_databases ?? []).map(db => db.database_id)
+  )
+  if ((wrangler.d1_databases ?? []).some(db => deployedDatabaseIds.includes(db.database_id))) {
+    findings.push({
+      severity: 'error',
+      area: 'wrangler',
+      message: 'Top-level D1 binding must not point at a deployed database'
+    })
   }
   const productionRoutes = wrangler.env?.production?.routes ?? []
-  if (!productionRoutes.some((entry) => entry.pattern === "dr.serp.co" && entry.custom_domain === true)) {
-    findings.push({ severity: "error", area: "wrangler", message: "Production must attach dr.serp.co as a custom domain" })
+  if (
+    !productionRoutes.some(entry => entry.pattern === 'dr.serp.co' && entry.custom_domain === true)
+  ) {
+    findings.push({
+      severity: 'error',
+      area: 'wrangler',
+      message: 'Production must attach dr.serp.co as a custom domain'
+    })
   }
-  if (productionRoutes.some((entry) => entry.pattern === "dr.serp.co/*")) {
-    findings.push({ severity: "error", area: "wrangler", message: "Production must not use the legacy dr.serp.co/* Worker route" })
+  if (productionRoutes.some(entry => entry.pattern === 'dr.serp.co/*')) {
+    findings.push({
+      severity: 'error',
+      area: 'wrangler',
+      message: 'Production must not use the legacy dr.serp.co/* Worker route'
+    })
   }
 
   const declaredSecrets = unique([
     ...(wrangler.secrets?.required ?? []),
     ...(wrangler.env?.preview?.secrets?.required ?? []),
-    ...(wrangler.env?.production?.secrets?.required ?? []),
+    ...(wrangler.env?.production?.secrets?.required ?? [])
   ])
   for (const secret of requiredSecrets) {
     if (!declaredSecrets.includes(secret)) {
-      findings.push({ severity: "error", area: "wrangler", message: `Missing required secret ${secret}` })
+      findings.push({
+        severity: 'error',
+        area: 'wrangler',
+        message: `Missing required secret ${secret}`
+      })
     }
   }
 
-  const placeholders = unique(wranglerStrings.filter((value) => value.includes("TODO_REPLACE")))
+  const placeholders = unique(wranglerStrings.filter(value => value.includes('TODO_REPLACE')))
   if (placeholders.length) {
     blockers.push({
-      area: "environment",
-      message: "Wrangler placeholders must be replaced before remote migration or deploy",
-      values: placeholders,
+      area: 'environment',
+      message: 'Wrangler placeholders must be replaced before remote migration or deploy',
+      values: placeholders
     })
   }
 
-  const schema = await readFile("migrations/0001_initial_d1_schema.sql", "utf8")
-  for (const table of ["dr_claims", "dr_checks", "dr_subscriptions", "dr_billing_audit"]) {
+  const schema = await readFile('migrations/0001_initial_d1_schema.sql', 'utf8')
+  for (const table of ['dr_claims', 'dr_checks', 'dr_subscriptions', 'dr_billing_audit']) {
     if (!schema.includes(`CREATE TABLE IF NOT EXISTS ${table}`)) {
-      findings.push({ severity: "error", area: "schema", message: `Missing D1 table ${table}` })
+      findings.push({ severity: 'error', area: 'schema', message: `Missing D1 table ${table}` })
     }
   }
 
@@ -185,7 +230,7 @@ try {
     strict: options.strict,
     checkedAt: new Date().toISOString(),
     findings,
-    blockers,
+    blockers
   }
 
   console.log(JSON.stringify(summary, null, options.pretty ? 2 : 0))

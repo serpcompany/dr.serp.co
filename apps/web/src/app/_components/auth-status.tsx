@@ -1,46 +1,49 @@
-"use client"
+'use client'
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
-import { Button } from "@/components/ui/button"
-import { readJsonRecord } from "@/lib/read-json"
+import { Button } from '@/components/ui/button'
+import { readJsonRecord } from '@/lib/read-json'
 
 function readEmail() {
-  return window.localStorage.getItem("dr-auth-email")?.trim().toLowerCase() || ""
+  return window.localStorage.getItem('dr-auth-email')?.trim().toLowerCase() || ''
 }
 
 function clearLocalAuth() {
-  window.localStorage.removeItem("dr-auth-email")
-  window.sessionStorage.removeItem("dr-otp-email")
-  window.sessionStorage.removeItem("dr-otp-token")
+  window.localStorage.removeItem('dr-auth-email')
+  window.sessionStorage.removeItem('dr-otp-email')
+  window.sessionStorage.removeItem('dr-otp-token')
 }
 
 export function AuthStatus() {
   const router = useRouter()
   const pathname = usePathname()
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState('')
 
   useEffect(() => {
     setEmail(readEmail())
 
     const onStorage = (event: StorageEvent) => {
-      if (event.key === "dr-auth-email") setEmail(readEmail())
+      if (event.key === 'dr-auth-email') setEmail(readEmail())
     }
-    window.addEventListener("storage", onStorage)
+    window.addEventListener('storage', onStorage)
 
     // The HttpOnly session cookie is the source of truth; keep the stored display email in sync with it.
     const controller = new AbortController()
     ;(async () => {
       try {
-        const response = await fetch("/api/auth/session", { cache: "no-store", signal: controller.signal })
+        const response = await fetch('/api/auth/session', {
+          cache: 'no-store',
+          signal: controller.signal
+        })
         if (!response.ok) return
         const payload = await readJsonRecord(response)
-        const sessionEmail = typeof payload?.email === "string" ? payload.email : ""
+        const sessionEmail = typeof payload?.email === 'string' ? payload.email : ''
         if (sessionEmail === readEmail()) return
         if (sessionEmail) {
-          window.localStorage.setItem("dr-auth-email", sessionEmail)
+          window.localStorage.setItem('dr-auth-email', sessionEmail)
         } else {
           clearLocalAuth()
         }
@@ -53,16 +56,16 @@ export function AuthStatus() {
 
     return () => {
       controller.abort()
-      window.removeEventListener("storage", onStorage)
+      window.removeEventListener('storage', onStorage)
     }
   }, [])
 
   const logout = async () => {
-    await fetch("/api/auth/session", { method: "DELETE" }).catch(() => null)
+    await fetch('/api/auth/session', { method: 'DELETE' }).catch(() => null)
     clearLocalAuth()
-    setEmail("")
+    setEmail('')
     router.refresh()
-    if (pathname !== "/add") router.push("/add")
+    if (pathname !== '/add') router.push('/add')
   }
 
   if (!email) {
@@ -75,7 +78,9 @@ export function AuthStatus() {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="max-w-[180px] truncate text-xs text-muted-foreground">Signed in as {email}</span>
+      <span className="max-w-[180px] truncate text-xs text-muted-foreground">
+        Signed in as {email}
+      </span>
       <Button variant="ghost" size="sm" onClick={() => void logout()}>
         Log out
       </Button>

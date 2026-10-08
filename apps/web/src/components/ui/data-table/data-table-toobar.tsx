@@ -1,12 +1,12 @@
-"use client"
+'use client'
 
-import type { Table } from "@tanstack/react-table"
-import { X } from "lucide-react"
+import type { Table } from '@tanstack/react-table'
+import { X } from 'lucide-react'
 
-import { Button } from "@/components/ui/button"
-import { DataTableFacetedFilter } from "@/components/ui/data-table/data-table-faceted-filter"
-import { DataTableViewOptions } from "@/components/ui/data-table/data-table-view-options"
-import { Input } from "@/components/ui/input"
+import { Button } from '@/components/ui/button'
+import { DataTableFacetedFilter } from '@/components/ui/data-table/data-table-faceted-filter'
+import { DataTableViewOptions } from '@/components/ui/data-table/data-table-view-options'
+import { Input } from '@/components/ui/input'
 
 export interface DataTableToolbarProps<TData> {
   table: Table<TData>
@@ -20,18 +20,22 @@ export function DataTableToolbar<TData>({ table }: DataTableToolbarProps<TData>)
       <div className="flex flex-1 items-center space-x-2">
         <Input
           placeholder="Filter entries..."
-          value={(table.getColumn("title")?.getFilterValue() as string) ?? ""}
-          onChange={(event) => table.getColumn("title")?.setFilterValue(event.target.value)}
+          value={(table.getColumn('title')?.getFilterValue() as string) ?? ''}
+          onChange={event => table.getColumn('title')?.setFilterValue(event.target.value)}
           className="h-8 w-[150px] lg:w-[250px]"
         />
-        {table.getColumn("status") ? (
-          <DataTableFacetedFilter column={table.getColumn("status")} title="Status" options={[]} />
+        {table.getColumn('status') ? (
+          <DataTableFacetedFilter column={table.getColumn('status')} title="Status" options={[]} />
         ) : null}
-        {table.getColumn("tags") ? (
-          <DataTableFacetedFilter column={table.getColumn("tags")} title="Tags" options={[]} />
+        {table.getColumn('tags') ? (
+          <DataTableFacetedFilter column={table.getColumn('tags')} title="Tags" options={[]} />
         ) : null}
         {isFiltered ? (
-          <Button variant="ghost" onClick={() => table.resetColumnFilters()} className="h-8 px-2 lg:px-3">
+          <Button
+            variant="ghost"
+            onClick={() => table.resetColumnFilters()}
+            className="h-8 px-2 lg:px-3"
+          >
             Reset
             <X />
           </Button>
@@ -41,4 +45,3 @@ export function DataTableToolbar<TData>({ table }: DataTableToolbarProps<TData>)
     </div>
   )
 }
-

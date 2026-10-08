@@ -1,21 +1,10 @@
-import type React from "react"
+import type React from 'react'
+import { Button } from '@/components/ui/button'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/components/ui/input-otp'
+import { cn } from '@/lib/utils'
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSeparator,
-  InputOTPSlot,
-} from "@/components/ui/input-otp"
-
-type OTPFormProps = Omit<React.ComponentProps<"div">, "onSubmit"> & {
+type OTPFormProps = Omit<React.ComponentProps<'div'>, 'onSubmit'> & {
   email: string
   code: string
   loading?: boolean
@@ -37,13 +26,14 @@ export function OTPForm({
   ...props
 }: OTPFormProps) {
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
+    <div className={cn('flex flex-col gap-6', className)} {...props}>
       <form onSubmit={onSubmit}>
         <FieldGroup>
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="text-xl font-bold">Enter verification code</h1>
             <FieldDescription>
-              We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>.
+              We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>
+              .
             </FieldDescription>
           </div>
           <Field>
@@ -80,7 +70,7 @@ export function OTPForm({
           </Field>
           <Field>
             <Button type="submit" disabled={loading || code.length !== 6}>
-              {loading ? "Verifying..." : "Verify"}
+              {loading ? 'Verifying...' : 'Verify'}
             </Button>
           </Field>
           <Field>

@@ -1,19 +1,19 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const cloudflareMocks = vi.hoisted(() => {
   const state = { db: null }
   return {
     state,
-    getCloudflareContext: vi.fn(() => ({ env: { SERP_DR_DB: state.db } })),
+    getCloudflareContext: vi.fn(() => ({ env: { SERP_DR_DB: state.db } }))
   }
 })
 
-vi.mock("@opennextjs/cloudflare", () => ({
-  getCloudflareContext: cloudflareMocks.getCloudflareContext,
+vi.mock('@opennextjs/cloudflare', () => ({
+  getCloudflareContext: cloudflareMocks.getCloudflareContext
 }))
 
 function normalizeSql(sql) {
-  return String(sql).replace(/\s+/g, " ").trim()
+  return String(sql).replace(/\s+/g, ' ').trim()
 }
 
 function copyRow(row) {
@@ -22,7 +22,7 @@ function copyRow(row) {
 
 function likeDomain(domain, pattern) {
   if (pattern === null || pattern === undefined) return true
-  const needle = String(pattern).replaceAll("%", "").toLowerCase()
+  const needle = String(pattern).replaceAll('%', '').toLowerCase()
   return String(domain).toLowerCase().includes(needle)
 }
 
@@ -40,8 +40,8 @@ function compareIsoDesc(a, b) {
 function compareDrDesc(a, b) {
   const adr = a.domain_rating
   const bdr = b.domain_rating
-  const aHas = typeof adr === "number" && Number.isFinite(adr)
-  const bHas = typeof bdr === "number" && Number.isFinite(bdr)
+  const aHas = typeof adr === 'number' && Number.isFinite(adr)
+  const bHas = typeof bdr === 'number' && Number.isFinite(bdr)
   if (aHas && bHas && adr !== bdr) return bdr - adr
   if (aHas !== bHas) return aHas ? -1 : 1
   return 0
@@ -54,7 +54,7 @@ function createMockD1() {
     subscriptions: new Map(),
     billingAudit: [],
     nextCheckId: 1,
-    nextBillingId: 1,
+    nextBillingId: 1
   }
   const calls = []
 
@@ -69,23 +69,23 @@ function createMockD1() {
       site_url: null,
       screenshot_url: null,
       claimed_at: now,
-      updated_at: now,
+      updated_at: now
     }
   }
 
   function allSiteRows(pattern, sort) {
     const domains = new Set([
       ...Array.from(state.claims.keys()),
-      ...state.checks.map((row) => row.domain),
+      ...state.checks.map(row => row.domain)
     ])
 
     const rows = Array.from(domains)
-      .filter((domain) => likeDomain(domain, pattern))
-      .map((domain) => {
+      .filter(domain => likeDomain(domain, pattern))
+      .map(domain => {
         const claim = state.claims.get(domain) || null
         const latestCheck =
           state.checks
-            .filter((row) => row.domain === domain)
+            .filter(row => row.domain === domain)
             .sort((a, b) => {
               const dateDiff = compareIsoDesc(a.checked_at, b.checked_at)
               if (dateDiff) return dateDiff
@@ -96,7 +96,7 @@ function createMockD1() {
             ? latestCheck.checked_at > claim.updated_at
               ? latestCheck.checked_at
               : claim.updated_at
-            : latestCheck?.checked_at ?? claim?.updated_at ?? null
+            : (latestCheck?.checked_at ?? claim?.updated_at ?? null)
 
         return {
           domain,
@@ -105,12 +105,12 @@ function createMockD1() {
           meta_description: claim?.meta_description ?? null,
           site_url: claim?.site_url ?? null,
           screenshot_url: claim?.screenshot_url ?? null,
-          updated_at: updatedAt,
+          updated_at: updatedAt
         }
       })
 
     rows.sort((a, b) => {
-      if (sort === "updated") {
+      if (sort === 'updated') {
         const dateDiff = compareIsoDesc(a.updated_at, b.updated_at)
         if (dateDiff) return dateDiff
         return a.domain.localeCompare(b.domain)
@@ -129,12 +129,12 @@ function createMockD1() {
   function execute(sql, params) {
     const text = normalizeSql(sql)
 
-    if (text.startsWith("SELECT domain, email, domain_rating, provider")) {
+    if (text.startsWith('SELECT domain, email, domain_rating, provider')) {
       const [domain] = params
       return { rows: [copyRow(state.claims.get(domain))].filter(Boolean), changes: 0 }
     }
 
-    if (text.startsWith("INSERT INTO dr_claims (domain, email, domain_rating, provider")) {
+    if (text.startsWith('INSERT INTO dr_claims (domain, email, domain_rating, provider')) {
       const [domain, email, domainRating, provider, updatedAt] = params
       const previous = state.claims.get(domain)
       const next = {
@@ -142,36 +142,36 @@ function createMockD1() {
         email: email ?? previous?.email ?? null,
         domain_rating: domainRating,
         provider,
-        updated_at: updatedAt,
+        updated_at: updatedAt
       }
       state.claims.set(domain, next)
       return { rows: [copyRow(next)], changes: 1 }
     }
 
-    if (text.startsWith("INSERT INTO dr_claims (domain, email, updated_at")) {
+    if (text.startsWith('INSERT INTO dr_claims (domain, email, updated_at')) {
       const [domain, email, updatedAt] = params
       const previous = state.claims.get(domain)
       const next = {
         ...(previous || claimDefaults(domain, updatedAt)),
         email,
-        updated_at: updatedAt,
+        updated_at: updatedAt
       }
       state.claims.set(domain, next)
       return { rows: [copyRow(next)], changes: 1 }
     }
 
-    if (text.startsWith("INSERT INTO dr_claims (domain, updated_at")) {
+    if (text.startsWith('INSERT INTO dr_claims (domain, updated_at')) {
       const [domain, updatedAt] = params
       const previous = state.claims.get(domain)
       const next = {
         ...(previous || claimDefaults(domain, updatedAt)),
-        updated_at: updatedAt,
+        updated_at: updatedAt
       }
       state.claims.set(domain, next)
       return { rows: [copyRow(next)], changes: 1 }
     }
 
-    if (text.startsWith("INSERT INTO dr_claims (domain, site_title")) {
+    if (text.startsWith('INSERT INTO dr_claims (domain, site_title')) {
       const [domain, siteTitle, metaDescription, siteUrl, screenshotUrl, updatedAt] = params
       const previous = state.claims.get(domain)
       const next = {
@@ -180,16 +180,16 @@ function createMockD1() {
         meta_description: metaDescription ?? previous?.meta_description ?? null,
         site_url: siteUrl ?? previous?.site_url ?? null,
         screenshot_url: screenshotUrl ?? previous?.screenshot_url ?? null,
-        updated_at: updatedAt,
+        updated_at: updatedAt
       }
       state.claims.set(domain, next)
       return { rows: [copyRow(next)], changes: 1 }
     }
 
-    if (text.startsWith("UPDATE dr_claims SET email = NULL")) {
+    if (text.startsWith('UPDATE dr_claims SET email = NULL')) {
       const [updatedAt, domain, email] = params
       const previous = state.claims.get(domain)
-      if (!previous || String(previous.email ?? "").toLowerCase() !== email) {
+      if (!previous || String(previous.email ?? '').toLowerCase() !== email) {
         return { rows: [], changes: 0 }
       }
       const next = { ...previous, email: null, updated_at: updatedAt }
@@ -197,45 +197,47 @@ function createMockD1() {
       return { rows: [copyRow(next)], changes: 1 }
     }
 
-    if (text.startsWith("SELECT COUNT(*) AS count FROM dr_claims WHERE email = ?")) {
+    if (text.startsWith('SELECT COUNT(*) AS count FROM dr_claims WHERE email = ?')) {
       const [email, pattern] = params
       const count = Array.from(state.claims.values()).filter(
-        (row) => row.email === email && likeDomain(row.domain, pattern)
+        row => row.email === email && likeDomain(row.domain, pattern)
       ).length
       return { rows: [{ count }], changes: 0 }
     }
 
-    if (text.startsWith("SELECT COUNT(*) AS count FROM dr_claims WHERE domain = ?")) {
+    if (text.startsWith('SELECT COUNT(*) AS count FROM dr_claims WHERE domain = ?')) {
       const [domain] = params
       return { rows: [{ count: state.claims.has(domain) ? 1 : 0 }], changes: 0 }
     }
 
-    if (text.startsWith("SELECT COUNT(*) AS count FROM dr_claims")) {
+    if (text.startsWith('SELECT COUNT(*) AS count FROM dr_claims')) {
       const [pattern] = params
-      const count = Array.from(state.claims.values()).filter((row) => likeDomain(row.domain, pattern)).length
+      const count = Array.from(state.claims.values()).filter(row =>
+        likeDomain(row.domain, pattern)
+      ).length
       return { rows: [{ count }], changes: 0 }
     }
 
-    if (text.startsWith("SELECT domain, domain_rating, updated_at")) {
-      const hasEmail = text.includes("WHERE email = ?")
+    if (text.startsWith('SELECT domain, domain_rating, updated_at')) {
+      const hasEmail = text.includes('WHERE email = ?')
       const email = hasEmail ? params[0] : null
       const pattern = hasEmail ? params[1] : params[0]
       const limit = hasEmail ? params[3] : params[2]
       const offset = hasEmail ? params[4] : params[3]
-      const sort = text.includes("ORDER BY updated_at") ? "updated" : "dr"
+      const sort = text.includes('ORDER BY updated_at') ? 'updated' : 'dr'
       const rows = Array.from(state.claims.values())
-        .filter((row) => (!hasEmail || row.email === email) && likeDomain(row.domain, pattern))
-        .map((row) => ({
+        .filter(row => (!hasEmail || row.email === email) && likeDomain(row.domain, pattern))
+        .map(row => ({
           domain: row.domain,
           domain_rating: row.domain_rating,
           updated_at: row.updated_at,
           site_title: row.site_title,
           meta_description: row.meta_description,
           site_url: row.site_url,
-          screenshot_url: row.screenshot_url,
+          screenshot_url: row.screenshot_url
         }))
         .sort((a, b) => {
-          if (sort === "updated") {
+          if (sort === 'updated') {
             const dateDiff = compareIsoDesc(a.updated_at, b.updated_at)
             if (dateDiff) return dateDiff
             return a.domain.localeCompare(b.domain)
@@ -249,25 +251,25 @@ function createMockD1() {
       return { rows: rows.slice(offset, offset + limit), changes: 0 }
     }
 
-    if (text.startsWith("INSERT INTO dr_checks")) {
+    if (text.startsWith('INSERT INTO dr_checks')) {
       const [domain, domainRating, provider, checkedAt] = params
       const row = {
         id: state.nextCheckId++,
         domain,
         domain_rating: domainRating,
         provider,
-        checked_at: checkedAt,
+        checked_at: checkedAt
       }
       state.checks.push(row)
       return { rows: [copyRow(row)], changes: 1 }
     }
 
-    if (text.startsWith("DELETE FROM dr_checks")) {
+    if (text.startsWith('DELETE FROM dr_checks')) {
       const before = state.checks.length
       if (params.length === 4) {
         const [domain, nullProvider, provider, checkedAt] = params
         state.checks = state.checks.filter(
-          (row) =>
+          row =>
             !(
               row.domain === domain &&
               row.checked_at === checkedAt &&
@@ -276,68 +278,79 @@ function createMockD1() {
         )
       } else {
         const [domain] = params
-        state.checks = state.checks.filter((row) => row.domain !== domain)
+        state.checks = state.checks.filter(row => row.domain !== domain)
       }
       return { rows: [], changes: before - state.checks.length }
     }
 
-    if (text.startsWith("SELECT domain_rating, provider, checked_at FROM dr_checks")) {
+    if (text.startsWith('SELECT domain_rating, provider, checked_at FROM dr_checks')) {
       const [domain, limit] = params
       const rows = state.checks
-        .filter((row) => row.domain === domain)
+        .filter(row => row.domain === domain)
         .sort((a, b) => compareIsoDesc(a.checked_at, b.checked_at))
         .slice(0, limit)
-        .map((row) => ({
+        .map(row => ({
           domain_rating: row.domain_rating,
           provider: row.provider,
-          checked_at: row.checked_at,
+          checked_at: row.checked_at
         }))
       return { rows, changes: 0 }
     }
 
-    if (text.startsWith("SELECT COUNT(*) AS count FROM dr_checks WHERE domain = ?")) {
+    if (text.startsWith('SELECT COUNT(*) AS count FROM dr_checks WHERE domain = ?')) {
       const [domain] = params
-      return { rows: [{ count: state.checks.filter((row) => row.domain === domain).length }], changes: 0 }
+      return {
+        rows: [{ count: state.checks.filter(row => row.domain === domain).length }],
+        changes: 0
+      }
     }
 
-    if (text.startsWith("WITH domains AS")) {
+    if (text.startsWith('WITH domains AS')) {
       const [pattern] = params
-      const sort = text.includes("ORDER BY updated_at") ? "updated" : "dr"
+      const sort = text.includes('ORDER BY updated_at') ? 'updated' : 'dr'
       return { rows: allSiteRows(pattern, sort), changes: 0 }
     }
 
-    if (text.startsWith("SELECT d.domain, cl.site_title FROM ( SELECT domain FROM dr_claims UNION SELECT domain FROM dr_checks")) {
+    if (
+      text.startsWith(
+        'SELECT d.domain, cl.site_title FROM ( SELECT domain FROM dr_claims UNION SELECT domain FROM dr_checks'
+      )
+    ) {
       const [pattern] = params
       const domains = new Set([
         ...Array.from(state.claims.keys()),
-        ...state.checks.map((row) => row.domain),
+        ...state.checks.map(row => row.domain)
       ])
       const rows = Array.from(domains)
-        .filter((domain) => likeDomain(domain, pattern))
-        .map((domain) => ({ domain, site_title: state.claims.get(domain)?.site_title ?? null }))
+        .filter(domain => likeDomain(domain, pattern))
+        .map(domain => ({ domain, site_title: state.claims.get(domain)?.site_title ?? null }))
       return { rows, changes: 0 }
     }
 
-    if (text.startsWith("SELECT d.domain, cl.site_title, cl.email FROM ( SELECT domain FROM dr_claims UNION SELECT domain FROM dr_checks")) {
+    if (
+      text.startsWith(
+        'SELECT d.domain, cl.site_title, cl.email FROM ( SELECT domain FROM dr_claims UNION SELECT domain FROM dr_checks'
+      )
+    ) {
       const domains = new Set([
         ...Array.from(state.claims.keys()),
-        ...state.checks.map((row) => row.domain),
+        ...state.checks.map(row => row.domain)
       ])
-      const rows = Array.from(domains).map((domain) => ({
+      const rows = Array.from(domains).map(domain => ({
         domain,
         site_title: state.claims.get(domain)?.site_title ?? null,
-        email: state.claims.get(domain)?.email ?? null,
+        email: state.claims.get(domain)?.email ?? null
       }))
       return { rows, changes: 0 }
     }
 
-    if (text.startsWith("DELETE FROM dr_claims")) {
+    if (text.startsWith('DELETE FROM dr_claims')) {
       const [domain] = params
       const existed = state.claims.delete(domain)
       return { rows: [], changes: existed ? 1 : 0 }
     }
 
-    if (text.startsWith("INSERT INTO dr_subscriptions")) {
+    if (text.startsWith('INSERT INTO dr_subscriptions')) {
       const [
         email,
         stripeCustomerId,
@@ -348,7 +361,7 @@ function createMockD1() {
         status,
         currentPeriodEnd,
         cancelAtPeriodEnd,
-        updatedAt,
+        updatedAt
       ] = params
       const previous = state.subscriptions.get(subscriptionId)
       const next = {
@@ -362,42 +375,45 @@ function createMockD1() {
         current_period_end: coalesce(currentPeriodEnd, previous?.current_period_end),
         cancel_at_period_end: coalesce(cancelAtPeriodEnd, previous?.cancel_at_period_end),
         created_at: previous?.created_at ?? updatedAt,
-        updated_at: updatedAt,
+        updated_at: updatedAt
       }
       state.subscriptions.set(subscriptionId, next)
       return { rows: [copyRow(next)], changes: 1 }
     }
 
-    if (text.includes("FROM dr_subscriptions") && text.includes("status IN ('active', 'trialing')")) {
+    if (
+      text.includes('FROM dr_subscriptions') &&
+      text.includes("status IN ('active', 'trialing')")
+    ) {
       const [email, now] = params
       const rows = Array.from(state.subscriptions.values())
         .filter(
-          (row) =>
+          row =>
             row.email === email &&
-            ["active", "trialing"].includes(row.status) &&
+            ['active', 'trialing'].includes(row.status) &&
             (row.current_period_end === null || row.current_period_end > now)
         )
         .sort((a, b) => compareIsoDesc(a.updated_at, b.updated_at))
       return { rows: rows.slice(0, 1).map(copyRow), changes: 0 }
     }
 
-    if (text.includes("FROM dr_subscriptions") && text.includes("WHERE email = ?")) {
+    if (text.includes('FROM dr_subscriptions') && text.includes('WHERE email = ?')) {
       const [email] = params
       const rows = Array.from(state.subscriptions.values())
-        .filter((row) => row.email === email)
+        .filter(row => row.email === email)
         .sort((a, b) => compareIsoDesc(a.updated_at, b.updated_at))
       return { rows: rows.slice(0, 1).map(copyRow), changes: 0 }
     }
 
-    if (text.includes("FROM dr_subscriptions") && text.includes("WHERE (? IS NULL OR email = ?)")) {
+    if (text.includes('FROM dr_subscriptions') && text.includes('WHERE (? IS NULL OR email = ?)')) {
       const [email, , limit, offset] = params
       const rows = Array.from(state.subscriptions.values())
-        .filter((row) => email === null || row.email === email)
+        .filter(row => email === null || row.email === email)
         .sort((a, b) => compareIsoDesc(a.updated_at, b.updated_at))
       return { rows: rows.slice(offset, offset + limit).map(copyRow), changes: 0 }
     }
 
-    if (text.startsWith("INSERT INTO dr_billing_audit")) {
+    if (text.startsWith('INSERT INTO dr_billing_audit')) {
       const [
         stripeEventId,
         stripeEventType,
@@ -413,12 +429,12 @@ function createMockD1() {
         eventCreatedAt,
         success,
         error,
-        createdAt,
+        createdAt
       ] = params
       const existing =
         stripeEventId === null
           ? null
-          : state.billingAudit.find((row) => row.stripe_event_id === stripeEventId)
+          : state.billingAudit.find(row => row.stripe_event_id === stripeEventId)
       const next = {
         id: existing?.id ?? state.nextBillingId++,
         stripe_event_id: stripeEventId,
@@ -435,7 +451,7 @@ function createMockD1() {
         event_created_at: coalesce(eventCreatedAt, existing?.event_created_at),
         success: coalesce(success, existing?.success),
         error: error ?? null,
-        created_at: createdAt,
+        created_at: createdAt
       }
       if (existing) {
         Object.assign(existing, next)
@@ -445,26 +461,29 @@ function createMockD1() {
       return { rows: [copyRow(next)], changes: 1 }
     }
 
-    if (text.includes("FROM dr_billing_audit") && text.includes("ORDER BY created_at DESC LIMIT 1")) {
+    if (
+      text.includes('FROM dr_billing_audit') &&
+      text.includes('ORDER BY created_at DESC LIMIT 1')
+    ) {
       const [success] = params
       const rows = state.billingAudit
-        .filter((row) => success === null || row.success === success)
+        .filter(row => success === null || row.success === success)
         .sort((a, b) => compareIsoDesc(a.created_at, b.created_at))
       return { rows: rows.slice(0, 1).map(copyRow), changes: 0 }
     }
 
-    if (text.startsWith("SELECT COUNT(*) AS count FROM dr_billing_audit")) {
+    if (text.startsWith('SELECT COUNT(*) AS count FROM dr_billing_audit')) {
       const [cutoff] = params
       return {
-        rows: [{ count: state.billingAudit.filter((row) => row.created_at < cutoff).length }],
-        changes: 0,
+        rows: [{ count: state.billingAudit.filter(row => row.created_at < cutoff).length }],
+        changes: 0
       }
     }
 
-    if (text.startsWith("DELETE FROM dr_billing_audit")) {
+    if (text.startsWith('DELETE FROM dr_billing_audit')) {
       const [cutoff] = params
       const before = state.billingAudit.length
-      state.billingAudit = state.billingAudit.filter((row) => row.created_at >= cutoff)
+      state.billingAudit = state.billingAudit.filter(row => row.created_at >= cutoff)
       return { rows: [], changes: before - state.billingAudit.length }
     }
 
@@ -475,15 +494,15 @@ function createMockD1() {
     return {
       bind: (...nextParams) => statement(sql, nextParams),
       async run() {
-        calls.push({ method: "run", sql: normalizeSql(sql), params })
+        calls.push({ method: 'run', sql: normalizeSql(sql), params })
         const result = execute(sql, params)
         return { success: true, results: result.rows, meta: { changes: result.changes } }
       },
       async first() {
-        calls.push({ method: "first", sql: normalizeSql(sql), params })
+        calls.push({ method: 'first', sql: normalizeSql(sql), params })
         const result = execute(sql, params)
         return result.rows[0] ?? null
-      },
+      }
     }
   }
 
@@ -491,17 +510,17 @@ function createMockD1() {
     state,
     calls,
     prepare(sql) {
-      calls.push({ method: "prepare", sql: normalizeSql(sql) })
+      calls.push({ method: 'prepare', sql: normalizeSql(sql) })
       return statement(sql)
     },
     async batch(statements) {
-      calls.push({ method: "batch", count: statements.length })
+      calls.push({ method: 'batch', count: statements.length })
       const results = []
       for (const item of statements) {
         results.push(await item.run())
       }
       return results
-    },
+    }
   }
 }
 
@@ -509,11 +528,11 @@ async function importDbWithD1() {
   vi.resetModules()
   const d1 = createMockD1()
   cloudflareMocks.state.db = d1
-  const db = await import("./db.mjs")
+  const db = await import('./db.mjs')
   return { db, d1 }
 }
 
-describe("D1 database boundary", () => {
+describe('D1 database boundary', () => {
   beforeEach(() => {
     cloudflareMocks.getCloudflareContext.mockClear()
     cloudflareMocks.state.db = null
@@ -524,106 +543,141 @@ describe("D1 database boundary", () => {
     vi.resetModules()
   })
 
-  it("upserts and reads claims through the SERP_DR_DB binding", async () => {
+  it('upserts and reads claims through the SERP_DR_DB binding', async () => {
     const { db, d1 } = await importDbWithD1()
 
     const first = await db.upsertClaim({
-      domain: "example.com",
-      email: "owner@example.com",
+      domain: 'example.com',
+      email: 'owner@example.com',
       domainRating: 42.9,
-      provider: "ahrefs",
+      provider: 'ahrefs'
     })
     const second = await db.upsertClaim({
-      domain: "example.com",
+      domain: 'example.com',
       email: null,
       domainRating: 51,
-      provider: "moz",
+      provider: 'moz'
     })
-    const claim = await db.getClaim("example.com")
+    const claim = await db.getClaim('example.com')
 
-    expect(first).toMatchObject({ domain: "example.com", email: "owner@example.com", domain_rating: 42 })
-    expect(second).toMatchObject({ domain: "example.com", email: "owner@example.com", domain_rating: 51 })
-    expect(claim).toMatchObject({ domain: "example.com", email: "owner@example.com", provider: "moz" })
-    expect(d1.calls.some((call) => call.method === "first")).toBe(true)
+    expect(first).toMatchObject({
+      domain: 'example.com',
+      email: 'owner@example.com',
+      domain_rating: 42
+    })
+    expect(second).toMatchObject({
+      domain: 'example.com',
+      email: 'owner@example.com',
+      domain_rating: 51
+    })
+    expect(claim).toMatchObject({
+      domain: 'example.com',
+      email: 'owner@example.com',
+      provider: 'moz'
+    })
+    expect(d1.calls.some(call => call.method === 'first')).toBe(true)
   })
 
-  it("filters invalid site domains before pagination and count", async () => {
+  it('filters invalid site domains before pagination and count', async () => {
     const { db } = await importDbWithD1()
 
     await db.recordDrCheck({
-      domain: "phpinfo.php",
+      domain: 'phpinfo.php',
       domainRating: 99,
-      checkedAt: new Date("2026-01-03T00:00:00Z"),
+      checkedAt: new Date('2026-01-03T00:00:00Z')
     })
     await db.recordDrCheck({
-      domain: "valid-a.com",
+      domain: 'valid-a.com',
       domainRating: 80,
-      checkedAt: new Date("2026-01-02T00:00:00Z"),
+      checkedAt: new Date('2026-01-02T00:00:00Z')
     })
     await db.recordDrCheck({
-      domain: "valid-b.com",
+      domain: 'valid-b.com',
       domainRating: 70,
-      checkedAt: new Date("2026-01-01T00:00:00Z"),
+      checkedAt: new Date('2026-01-01T00:00:00Z')
     })
 
-    const firstPage = await db.listSites({ limit: 1, offset: 0, sort: "dr" })
+    const firstPage = await db.listSites({ limit: 1, offset: 0, sort: 'dr' })
     const count = await db.countSites()
 
     expect(firstPage).toEqual([
-      expect.objectContaining({ domain: "valid-a.com", domain_rating: 80 }),
+      expect.objectContaining({ domain: 'valid-a.com', domain_rating: 80 })
     ])
     expect(count).toBe(2)
   })
 
-  it("hides spam sites from listings and purges them only while unclaimed", async () => {
+  it('hides spam sites from listings and purges them only while unclaimed', async () => {
     const { db } = await importDbWithD1()
 
-    await db.recordDrCheck({ domain: "legit.com", domainRating: 40, checkedAt: new Date("2026-01-01T00:00:00Z") })
-    await db.recordDrCheck({ domain: "bestcasinos.com", domainRating: 60, checkedAt: new Date("2026-01-01T00:00:00Z") })
-    await db.recordDrCheck({ domain: "hijacked.org", domainRating: 50, checkedAt: new Date("2026-01-01T00:00:00Z") })
-    await db.setClaimSiteMetadata({ domain: "hijacked.org", siteTitle: "Best UK Non GamStop Casinos for 2026" })
-    await db.recordDrCheck({ domain: "claimed-spam.com", domainRating: 30, checkedAt: new Date("2026-01-01T00:00:00Z") })
-    await db.setClaimSiteMetadata({ domain: "claimed-spam.com", siteTitle: "Slot Gacor Online" })
-    await db.setClaimEmail({ domain: "claimed-spam.com", email: "owner@example.com" })
-    await db.recordDrCheck({ domain: "config.php.save", domainRating: 6, checkedAt: new Date("2026-01-01T00:00:00Z") })
+    await db.recordDrCheck({
+      domain: 'legit.com',
+      domainRating: 40,
+      checkedAt: new Date('2026-01-01T00:00:00Z')
+    })
+    await db.recordDrCheck({
+      domain: 'bestcasinos.com',
+      domainRating: 60,
+      checkedAt: new Date('2026-01-01T00:00:00Z')
+    })
+    await db.recordDrCheck({
+      domain: 'hijacked.org',
+      domainRating: 50,
+      checkedAt: new Date('2026-01-01T00:00:00Z')
+    })
+    await db.setClaimSiteMetadata({
+      domain: 'hijacked.org',
+      siteTitle: 'Best UK Non GamStop Casinos for 2026'
+    })
+    await db.recordDrCheck({
+      domain: 'claimed-spam.com',
+      domainRating: 30,
+      checkedAt: new Date('2026-01-01T00:00:00Z')
+    })
+    await db.setClaimSiteMetadata({ domain: 'claimed-spam.com', siteTitle: 'Slot Gacor Online' })
+    await db.setClaimEmail({ domain: 'claimed-spam.com', email: 'owner@example.com' })
+    await db.recordDrCheck({
+      domain: 'config.php.save',
+      domainRating: 6,
+      checkedAt: new Date('2026-01-01T00:00:00Z')
+    })
 
-    const rows = await db.listSites({ limit: 10, offset: 0, sort: "dr" })
-    expect(rows.map((row: { domain: string }) => row.domain)).toEqual(["legit.com"])
+    const rows = await db.listSites({ limit: 10, offset: 0, sort: 'dr' })
+    expect(rows.map((row: { domain: string }) => row.domain)).toEqual(['legit.com'])
     expect(await db.countSites()).toBe(1)
 
     const dryRun = await db.purgeInvalidSiteDomains({ dryRun: true })
-    expect(dryRun.domains.sort()).toEqual(["bestcasinos.com", "config.php.save", "hijacked.org"])
+    expect(dryRun.domains.sort()).toEqual(['bestcasinos.com', 'config.php.save', 'hijacked.org'])
 
     await db.purgeInvalidSiteDomains({ dryRun: false })
-    expect(await db.getClaim("hijacked.org")).toBeNull()
-    expect(await db.getClaim("claimed-spam.com")).toMatchObject({ email: "owner@example.com" })
-    expect(await db.getDrChecks("bestcasinos.com")).toEqual([])
-    expect(await db.getDrChecks("legit.com")).toHaveLength(1)
+    expect(await db.getClaim('hijacked.org')).toBeNull()
+    expect(await db.getClaim('claimed-spam.com')).toMatchObject({ email: 'owner@example.com' })
+    expect(await db.getDrChecks('bestcasinos.com')).toEqual([])
+    expect(await db.getDrChecks('legit.com')).toHaveLength(1)
   })
 
-  it("replaces duplicate historical checks for null and non-null providers", async () => {
+  it('replaces duplicate historical checks for null and non-null providers', async () => {
     const { db, d1 } = await importDbWithD1()
-    const domain = "history.example.com"
+    const domain = 'history.example.com'
 
     await db.recordDrHistoryChecks({
       domain,
       provider: null,
-      points: [{ checkedAt: "2026-01-01", domainRating: 10 }],
+      points: [{ checkedAt: '2026-01-01', domainRating: 10 }]
     })
     await db.recordDrHistoryChecks({
       domain,
       provider: null,
-      points: [{ checkedAt: "2026-01-01", domainRating: 12 }],
+      points: [{ checkedAt: '2026-01-01', domainRating: 12 }]
     })
     await db.recordDrHistoryChecks({
       domain,
-      provider: "ahrefs-history",
-      points: [{ checkedAt: "2026-01-01", domainRating: 30 }],
+      provider: 'ahrefs-history',
+      points: [{ checkedAt: '2026-01-01', domainRating: 30 }]
     })
     await db.recordDrHistoryChecks({
       domain,
-      provider: "ahrefs-history",
-      points: [{ checkedAt: "2026-01-01", domainRating: 32 }],
+      provider: 'ahrefs-history',
+      points: [{ checkedAt: '2026-01-01', domainRating: 32 }]
     })
 
     const checks = await db.getDrChecks(domain, { limit: 10 })
@@ -632,37 +686,37 @@ describe("D1 database boundary", () => {
     expect(checks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ domain_rating: 12, provider: null }),
-        expect.objectContaining({ domain_rating: 32, provider: "ahrefs-history" }),
+        expect.objectContaining({ domain_rating: 32, provider: 'ahrefs-history' })
       ])
     )
-    expect(d1.calls.some((call) => call.method === "batch")).toBe(true)
+    expect(d1.calls.some(call => call.method === 'batch')).toBe(true)
   })
 
-  it("upserts subscriptions and normalizes D1 boolean fields on active/latest reads", async () => {
+  it('upserts subscriptions and normalizes D1 boolean fields on active/latest reads', async () => {
     const { db } = await importDbWithD1()
 
     const upserted = await db.upsertSubscription({
-      email: "Billing@Example.com",
-      stripeCustomerId: "cus_123",
-      stripeSubscriptionId: "sub_123",
-      stripePriceId: "price_123",
-      billingInterval: "monthly",
+      email: 'Billing@Example.com',
+      stripeCustomerId: 'cus_123',
+      stripeSubscriptionId: 'sub_123',
+      stripePriceId: 'price_123',
+      billingInterval: 'monthly',
       domainsLimit: 25,
-      status: "active",
-      currentPeriodEnd: new Date("2999-01-01T00:00:00Z"),
-      cancelAtPeriodEnd: true,
+      status: 'active',
+      currentPeriodEnd: new Date('2999-01-01T00:00:00Z'),
+      cancelAtPeriodEnd: true
     })
     await db.upsertSubscription({
-      email: "expired@example.com",
-      stripeSubscriptionId: "sub_expired",
-      status: "active",
-      currentPeriodEnd: new Date("2000-01-01T00:00:00Z"),
-      cancelAtPeriodEnd: false,
+      email: 'expired@example.com',
+      stripeSubscriptionId: 'sub_expired',
+      status: 'active',
+      currentPeriodEnd: new Date('2000-01-01T00:00:00Z'),
+      cancelAtPeriodEnd: false
     })
 
-    const active = await db.getActiveSubscriptionByEmail("billing@example.com")
-    const latest = await db.getLatestSubscriptionByEmail("billing@example.com")
-    const expired = await db.getActiveSubscriptionByEmail("expired@example.com")
+    const active = await db.getActiveSubscriptionByEmail('billing@example.com')
+    const latest = await db.getLatestSubscriptionByEmail('billing@example.com')
+    const expired = await db.getActiveSubscriptionByEmail('expired@example.com')
 
     expect(upserted?.cancel_at_period_end).toBe(true)
     expect(active?.cancel_at_period_end).toBe(true)
@@ -670,49 +724,58 @@ describe("D1 database boundary", () => {
     expect(expired).toBeNull()
   })
 
-  it("upserts duplicate billing audit events by stripe_event_id and normalizes booleans", async () => {
+  it('upserts duplicate billing audit events by stripe_event_id and normalizes booleans', async () => {
     const { db, d1 } = await importDbWithD1()
 
     await db.insertBillingAudit({
-      stripeEventId: "evt_123",
-      stripeEventType: "customer.subscription.updated",
-      email: "Billing@Example.com",
+      stripeEventId: 'evt_123',
+      stripeEventType: 'customer.subscription.updated',
+      email: 'Billing@Example.com',
       success: false,
       cancelAtPeriodEnd: false,
-      error: "initial failure",
+      error: 'initial failure'
     })
     const updated = await db.insertBillingAudit({
-      stripeEventId: "evt_123",
-      stripeEventType: "customer.subscription.updated",
-      email: "billing@example.com",
+      stripeEventId: 'evt_123',
+      stripeEventType: 'customer.subscription.updated',
+      email: 'billing@example.com',
       success: true,
-      cancelAtPeriodEnd: true,
+      cancelAtPeriodEnd: true
     })
     const latest = await db.getLatestBillingAuditEvent()
     const failure = await db.getLatestBillingAuditFailure()
 
     expect(d1.state.billingAudit).toHaveLength(1)
     // A replay that succeeds clears the earlier failure's error.
-    expect(updated).toMatchObject({ stripe_event_id: "evt_123", success: true, cancel_at_period_end: true, error: null })
-    expect(latest).toMatchObject({ stripe_event_id: "evt_123", success: true, cancel_at_period_end: true })
+    expect(updated).toMatchObject({
+      stripe_event_id: 'evt_123',
+      success: true,
+      cancel_at_period_end: true,
+      error: null
+    })
+    expect(latest).toMatchObject({
+      stripe_event_id: 'evt_123',
+      success: true,
+      cancel_at_period_end: true
+    })
     expect(failure).toBeNull()
   })
 
-  it("returns the removed count when pruning billing audit rows", async () => {
+  it('returns the removed count when pruning billing audit rows', async () => {
     const { db, d1 } = await importDbWithD1()
 
     await db.insertBillingAudit({
-      stripeEventId: "evt_old",
-      stripeEventType: "customer.subscription.updated",
-      success: true,
+      stripeEventId: 'evt_old',
+      stripeEventType: 'customer.subscription.updated',
+      success: true
     })
     await db.insertBillingAudit({
-      stripeEventId: "evt_new",
-      stripeEventType: "customer.subscription.updated",
-      success: true,
+      stripeEventId: 'evt_new',
+      stripeEventType: 'customer.subscription.updated',
+      success: true
     })
-    d1.state.billingAudit.find((row) => row.stripe_event_id === "evt_old").created_at =
-      "2000-01-01T00:00:00.000Z"
+    d1.state.billingAudit.find(row => row.stripe_event_id === 'evt_old').created_at =
+      '2000-01-01T00:00:00.000Z'
 
     const dryRun = await db.countPrunableBillingAudit({ olderThanDays: 30 })
     expect(dryRun.count).toBe(1)
@@ -720,6 +783,6 @@ describe("D1 database boundary", () => {
 
     const result = await db.pruneBillingAudit({ olderThanDays: 30 })
     expect(result.removed).toBe(1)
-    expect(d1.state.billingAudit.map((row) => row.stripe_event_id)).toEqual(["evt_new"])
+    expect(d1.state.billingAudit.map(row => row.stripe_event_id)).toEqual(['evt_new'])
   })
 })

@@ -1,8 +1,8 @@
-import Link from "next/link"
-import { Plus } from "lucide-react"
+import { Plus } from 'lucide-react'
+import Link from 'next/link'
 
-import { Button } from "@/components/ui/button"
-import { AuthStatus } from "./auth-status"
+import { Button } from '@/components/ui/button'
+import { AuthStatus } from './auth-status'
 
 export function SiteHeader() {
   return (

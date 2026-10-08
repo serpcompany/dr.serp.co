@@ -6,7 +6,10 @@ function hashOtpCode({ email, code, secret }) {
 
 // The token is returned to the browser, so it carries a keyed hash of the code, never the code itself.
 export function createOtpToken({ email, code, expiresAt, secret }) {
-  return signToken({ typ: 'otp', email, codeHash: hashOtpCode({ email, code, secret }), exp: expiresAt }, secret)
+  return signToken(
+    { typ: 'otp', email, codeHash: hashOtpCode({ email, code, secret }), exp: expiresAt },
+    secret
+  )
 }
 
 export function verifyOtpToken({ token, email, code, secret }) {
@@ -16,7 +19,10 @@ export function verifyOtpToken({ token, email, code, secret }) {
   }
 
   const { payload } = result
-  if (payload.email !== email || !safeEqual(payload.codeHash, hashOtpCode({ email, code, secret }))) {
+  if (
+    payload.email !== email ||
+    !safeEqual(payload.codeHash, hashOtpCode({ email, code, secret }))
+  ) {
     return { ok: false, error: 'Invalid code' }
   }
 

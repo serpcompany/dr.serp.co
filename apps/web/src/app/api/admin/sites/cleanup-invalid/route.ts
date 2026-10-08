@@ -1,35 +1,34 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
+import { checkAdminToken } from '@/server/admin-auth.mjs'
+import { purgeInvalidSiteDomains } from '@/server/db.mjs'
+import { readWriteRequest } from '@/server/write-route'
+import { CleanupBody } from '@/server/write-schemas'
 
-import { purgeInvalidSiteDomains } from "@/server/db.mjs"
-import { checkAdminToken } from "@/server/admin-auth.mjs"
-import { readWriteRequest } from "@/server/write-route"
-import { CleanupBody } from "@/server/write-schemas"
-
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 const KNOWN_INVALID_SITE_DOMAINS = [
-  "test.php",
-  "phpinfo.php",
-  "wp-login.php",
-  "xmlrpc.php",
-  "wp-json",
-  "contact",
-  "demo",
-  "pricing",
-  "ftp-config.json",
-  "get-in-touch",
-  "help",
-  ".env.production",
-  ".env.save",
-  ".remote",
-  "backup.sql",
-  ".env",
-  "support",
-  ".env.sample",
-  "wp",
-  ".env.local",
-  "wordpress",
-  "database.sql",
+  'test.php',
+  'phpinfo.php',
+  'wp-login.php',
+  'xmlrpc.php',
+  'wp-json',
+  'contact',
+  'demo',
+  'pricing',
+  'ftp-config.json',
+  'get-in-touch',
+  'help',
+  '.env.production',
+  '.env.save',
+  '.remote',
+  'backup.sql',
+  '.env',
+  'support',
+  '.env.sample',
+  'wp',
+  '.env.local',
+  'wordpress',
+  'database.sql'
 ]
 
 export async function POST(request: Request) {
@@ -45,11 +44,11 @@ export async function POST(request: Request) {
 
   const result = await purgeInvalidSiteDomains({
     domains: scanAll ? undefined : KNOWN_INVALID_SITE_DOMAINS,
-    dryRun,
+    dryRun
   })
 
   return NextResponse.json({
     ok: true,
-    ...result,
+    ...result
   })
 }

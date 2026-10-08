@@ -1,28 +1,32 @@
-"use client"
+'use client'
 
-import { useEffect, useMemo, useState } from "react"
-import Link from "next/link"
-import { Trash2 } from "lucide-react"
-import { toast } from "sonner"
+import { Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { BillingPortalButton } from '@/app/_components/billing-portal-button'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { readJsonRecord } from '@/lib/read-json'
+import { filterSiteHistory, removeSiteHistory, type SiteRow } from '@/lib/site-history'
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { BillingPortalButton } from "@/app/_components/billing-portal-button"
-
-import { filterSiteHistory, removeSiteHistory, type SiteRow } from "@/lib/site-history"
-import { readJsonRecord } from "@/lib/read-json"
+const SKELETON_KEYS = ['s1', 's2', 's3', 's4', 's5', 's6']
 
 function formatUpdatedAt(value: string | null) {
   if (!value) return null
   const date = new Date(value)
   if (!Number.isFinite(date.getTime())) return null
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date)
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(date)
 }
 
 export function MySites({ email }: { email: string }) {
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [upgrade, setUpgrade] = useState<{ message: string; entitlement?: any } | null>(null)
@@ -44,23 +48,28 @@ export function MySites({ email }: { email: string }) {
       setSites(localMatches)
 
       try {
-        const response = await fetch("/api/my-sites", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        const response = await fetch('/api/my-sites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: trimmedEmail, query: nextQuery, limit: 12, offset: 0 }),
-          signal: controller.signal,
+          signal: controller.signal
         })
         const payload = await readJsonRecord(response)
-        if (payload?.code === "upgrade_required") {
+        if (payload?.code === 'upgrade_required') {
           setUpgrade({
-            message: typeof payload?.error === "string" ? payload.error : "Upgrade required to manage domains.",
-            entitlement: payload?.entitlement ?? null,
+            message:
+              typeof payload?.error === 'string'
+                ? payload.error
+                : 'Upgrade required to manage domains.',
+            entitlement: payload?.entitlement ?? null
           })
           setSites(localMatches)
           return
         }
         if (!response.ok) {
-          throw new Error(typeof payload?.error === "string" ? payload.error : "Failed to load sites.")
+          throw new Error(
+            typeof payload?.error === 'string' ? payload.error : 'Failed to load sites.'
+          )
         }
         const remoteSites: SiteRow[] = Array.isArray(payload?.sites) ? payload.sites : []
         const merged = new Map<string, SiteRow>()
@@ -68,8 +77,8 @@ export function MySites({ email }: { email: string }) {
         for (const row of remoteSites) merged.set(row.domain, row)
         setSites(Array.from(merged.values()))
       } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return
-        setError(err instanceof Error ? err.message : "Failed to load sites.")
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        setError(err instanceof Error ? err.message : 'Failed to load sites.')
         setSites(localMatches)
       } finally {
         setLoading(false)
@@ -80,7 +89,7 @@ export function MySites({ email }: { email: string }) {
   }, [trimmedEmail])
 
   useEffect(() => {
-    fetchSites.run("")
+    fetchSites.run('')
     return () => fetchSites.abort()
   }, [fetchSites])
 
@@ -93,26 +102,30 @@ export function MySites({ email }: { email: string }) {
   }, [fetchSites, query])
 
   const remove = async (domain: string) => {
-    const normalizedDomain = String(domain ?? "").trim().toLowerCase()
+    const normalizedDomain = String(domain ?? '')
+      .trim()
+      .toLowerCase()
     if (!normalizedDomain) return
 
     setRemoving(normalizedDomain)
-    setSites((prev) => prev.filter((row) => row.domain !== normalizedDomain))
+    setSites(prev => prev.filter(row => row.domain !== normalizedDomain))
     removeSiteHistory(trimmedEmail, normalizedDomain)
 
     try {
-      const response = await fetch("/api/claims", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, domain: normalizedDomain }),
+      const response = await fetch('/api/claims', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmedEmail, domain: normalizedDomain })
       })
       if (!response.ok) {
         const payload = await readJsonRecord(response)
-        throw new Error(typeof payload?.error === "string" ? payload.error : "Failed to delete site.")
+        throw new Error(
+          typeof payload?.error === 'string' ? payload.error : 'Failed to delete site.'
+        )
       }
-      toast.success("Removed from your sites")
+      toast.success('Removed from your sites')
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete site.")
+      toast.error(err instanceof Error ? err.message : 'Failed to delete site.')
       fetchSites.run(query.trim())
     } finally {
       setRemoving(null)
@@ -124,7 +137,11 @@ export function MySites({ email }: { email: string }) {
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle>Your sites</CardTitle>
         <div className="w-full sm:w-[260px]">
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your sites…" />
+          <Input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search your sites…"
+          />
         </div>
       </CardHeader>
       <CardContent>
@@ -142,8 +159,8 @@ export function MySites({ email }: { email: string }) {
           </div>
         ) : loading && sites.length === 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="h-20 animate-pulse rounded-lg bg-muted" />
+            {SKELETON_KEYS.map(key => (
+              <div key={key} className="h-20 animate-pulse rounded-lg bg-muted" />
             ))}
           </div>
         ) : error && sites.length === 0 ? (
@@ -156,7 +173,9 @@ export function MySites({ email }: { email: string }) {
         ) : sites.length === 0 ? (
           <div className="rounded-lg border bg-muted p-6 text-center">
             <p className="text-sm text-muted-foreground">
-              {query.trim() ? "No matching sites yet." : "No sites yet — look up a domain to start."}
+              {query.trim()
+                ? 'No matching sites yet.'
+                : 'No sites yet — look up a domain to start.'}
             </p>
             {!query.trim() ? (
               <div className="mt-4 flex justify-center">
@@ -168,47 +187,53 @@ export function MySites({ email }: { email: string }) {
           </div>
         ) : (
           <div className="space-y-3">
-            {error ? <p className="text-xs text-muted-foreground">Some sites may be missing: {error}</p> : null}
+            {error ? (
+              <p className="text-xs text-muted-foreground">Some sites may be missing: {error}</p>
+            ) : null}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {sites.map((site) => {
-              const dr =
-                typeof site.domain_rating === "number" && Number.isFinite(site.domain_rating) ? site.domain_rating : null
-              const updated = formatUpdatedAt(site.updated_at)
+              {sites.map(site => {
+                const dr =
+                  typeof site.domain_rating === 'number' && Number.isFinite(site.domain_rating)
+                    ? site.domain_rating
+                    : null
+                const updated = formatUpdatedAt(site.updated_at)
 
-              return (
-                <div key={site.domain} className="relative">
-                  <Link
-                    href={`/sites/${encodeURIComponent(site.domain)}`}
-                    className="group block rounded-lg border p-4 transition hover:bg-accent"
-                  >
-	                    <div className="flex items-start justify-between gap-3">
-	                      <div className="min-w-0">
-	                        <p className="truncate text-sm font-medium group-hover:underline">{site.domain}</p>
-	                        <p className="mt-1 text-xs text-muted-foreground">
-	                          {updated ? `Last checked ${updated}` : "No recent check"}
-	                        </p>
-	                      </div>
-	                      <Badge variant="secondary">{dr === null ? "DR —" : `DR ${dr}`}</Badge>
-	                    </div>
-	                  </Link>
-	                  <Button
-	                    type="button"
-	                    variant="ghost"
-	                    size="icon"
-                    className="absolute right-2 top-2"
-                    aria-label={`Remove ${site.domain}`}
-                    disabled={removing === site.domain}
-                    onClick={(event) => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      remove(site.domain)
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              )
-            })}
+                return (
+                  <div key={site.domain} className="relative">
+                    <Link
+                      href={`/sites/${encodeURIComponent(site.domain)}`}
+                      className="group block rounded-lg border p-4 transition hover:bg-accent"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium group-hover:underline">
+                            {site.domain}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {updated ? `Last checked ${updated}` : 'No recent check'}
+                          </p>
+                        </div>
+                        <Badge variant="secondary">{dr === null ? 'DR —' : `DR ${dr}`}</Badge>
+                      </div>
+                    </Link>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-2"
+                      aria-label={`Remove ${site.domain}`}
+                      disabled={removing === site.domain}
+                      onClick={event => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        remove(site.domain)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

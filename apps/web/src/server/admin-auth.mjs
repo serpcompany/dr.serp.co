@@ -1,7 +1,7 @@
-import crypto from "node:crypto"
+import crypto from 'node:crypto'
 
 function digest(value) {
-  return crypto.createHash("sha256").update(String(value)).digest()
+  return crypto.createHash('sha256').update(String(value)).digest()
 }
 
 /**
@@ -12,12 +12,12 @@ function digest(value) {
  */
 export function checkAdminToken(request) {
   const expected = process.env.DR_ADMIN_TOKEN
-  if (!expected) return { status: 500, error: "Admin token not configured." }
+  if (!expected) return { status: 500, error: 'Admin token not configured.' }
 
-  const provided = request.headers.get("x-admin-token") ?? ""
+  const provided = request.headers.get('x-admin-token') ?? ''
   // Fixed-length digests, so the comparison leaks neither the token's bytes nor its length.
   if (!provided || !crypto.timingSafeEqual(digest(provided), digest(expected))) {
-    return { status: 401, error: "Unauthorized." }
+    return { status: 401, error: 'Unauthorized.' }
   }
   return null
 }

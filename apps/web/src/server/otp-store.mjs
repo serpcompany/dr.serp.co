@@ -11,7 +11,7 @@ export async function createOtp(email) {
   const rate = await checkRateLimit({
     key: `otp-resend:${email}`,
     points: 1,
-    duration: RESEND_COOLDOWN_SECONDS,
+    duration: RESEND_COOLDOWN_SECONDS
   })
   if (!rate.allowed) {
     return { ok: false, unavailable: Boolean(rate.unavailable), retryAfterMs: rate.retryAfterMs }

@@ -32,8 +32,8 @@ ones your task touches (paths below are relative to that folder):
 
 The site is moving to the SERP web stack under
 [epic #36](https://github.com/serpcompany/dr.serp.co/issues/36), one sub-issue at a time. Until
-an issue lands, keep the current tools: no Drizzle, Better Auth, Biome or `base-nova` components ahead of
-their issue.
+an issue lands, keep the current tools: no Drizzle, Better Auth or `base-nova` components ahead
+of their issue.
 
 ## Where things live
 
@@ -73,7 +73,7 @@ The site is in `apps/web/`, with its own `package.json` and pnpm lockfile. Code 
 Run them from `apps/web/`. Inner loop, while editing:
 
 - `pnpm exec vitest related --run <changed files>`: the tests for what you changed.
-- `pnpm dev`: `next dev` with local values from `.dev.vars`.
+- `pnpm dev`: `next dev` with local values from `.dev.vars`. `pnpm format` formats with Biome.
 - Type errors in app code surface in `pnpm build`. `pnpm exec tsc --noEmit` also checks test files,
   which have known errors until #93.
 

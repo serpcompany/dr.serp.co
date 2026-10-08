@@ -1,46 +1,47 @@
-import { headers } from "next/headers"
-import { notFound } from "next/navigation"
-import { cache } from "react"
-import type { Metadata } from "next"
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import Link from "next/link"
+import type { Metadata } from 'next'
+import { headers } from 'next/headers'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { cache } from 'react'
+import { BadgeEmbed } from '@/components/badges/badge-embed'
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { getPublicBaseUrl } from "@/lib/public-url"
-import { normalizeTarget } from "@/server/dr-providers.mjs"
-import { getSessionEmail } from "@/server/auth-session.mjs"
-import { resolveEntitlement } from "@/server/entitlements.mjs"
-import { getRateLimitKey } from "@/server/rate-limit.mjs"
-import { isSpamSite } from "@/server/site-spam.mjs"
-import { resolveRecheckCadence } from "@/server/recheck-cadence.mjs"
-import { BadgeEmbed } from "@/components/badges/badge-embed"
-import { ClaimClient } from "./claim-client"
-import { DrLineLabel } from "./dr-line-label"
-import { RecheckButton } from "./recheck-button"
-import { DrRadialShape } from "./dr-radial-shape"
-import { loadSiteSnapshot } from "./site-snapshot"
+  BreadcrumbSeparator
+} from '@/components/ui/breadcrumb'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { getPublicBaseUrl } from '@/lib/public-url'
+import { getSessionEmail } from '@/server/auth-session.mjs'
+import { normalizeTarget } from '@/server/dr-providers.mjs'
+import { resolveEntitlement } from '@/server/entitlements.mjs'
+import { getRateLimitKey } from '@/server/rate-limit.mjs'
+import { resolveRecheckCadence } from '@/server/recheck-cadence.mjs'
+import { isSpamSite } from '@/server/site-spam.mjs'
+import { ClaimClient } from './claim-client'
+import { DrLineLabel } from './dr-line-label'
+import { DrRadialShape } from './dr-radial-shape'
+import { RecheckButton } from './recheck-button'
 import {
   buildSitePageMetadata,
   getOutboundLinkProps,
   getPageSiteDescription,
-  getPageSiteTitle,
-} from "./site-page-helpers"
+  getPageSiteTitle
+} from './site-page-helpers'
+import { loadSiteSnapshot } from './site-snapshot'
 
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 const getSitePageData = cache(async (domain: string) =>
-  loadSiteSnapshot(domain, { rateLimitKey: getRateLimitKey({ headers: await headers() }, "new-site-lookup") })
+  loadSiteSnapshot(domain, {
+    rateLimitKey: getRateLimitKey({ headers: await headers() }, 'new-site-lookup')
+  })
 )
 
 export async function generateMetadata({
-  params,
+  params
 }: {
   params: Promise<{ target: string }>
 }): Promise<Metadata> {
@@ -74,15 +75,14 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
     metaDescription,
     siteUrl,
     screenshotUrl,
-    lookupError,
-  } =
-    await getSitePageData(domain)
+    lookupError
+  } = await getSitePageData(domain)
   if (isSpamSite({ domain, siteTitle })) notFound()
   const entitlement = claimEmail ? await resolveEntitlement({ email: claimEmail }) : null
   // Resolve ownership on the server so the owner's email is never sent to visitors.
   const viewerEmail = getSessionEmail({ headers: await headers() })
   const ownerEmail = claimEmail?.trim().toLowerCase() || null
-  const claimStatus = !ownerEmail ? "none" : ownerEmail === viewerEmail ? "mine" : "other"
+  const claimStatus = !ownerEmail ? 'none' : ownerEmail === viewerEmail ? 'mine' : 'other'
   const isPaidLink = Boolean(entitlement?.canAccessPaidFeatures)
   const recheckCadence = resolveRecheckCadence({ isPaid: isPaidLink, lastCheckedAt })
   const pageSiteTitle = getPageSiteTitle({ siteTitle, domain })
@@ -125,7 +125,11 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
                   {domain}
                 </a>
                 <span aria-hidden="true">·</span>
-                <span>{isPaidLink ? "Premium dofollow outbound link" : "Standard nofollow outbound link"}</span>
+                <span>
+                  {isPaidLink
+                    ? 'Premium dofollow outbound link'
+                    : 'Standard nofollow outbound link'}
+                </span>
               </div>
             </div>
           </div>
@@ -137,10 +141,14 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
                 canRecheck={recheckCadence.canRecheck}
                 nextAllowedAt={recheckCadence.nextAllowedAt?.toISOString() ?? null}
                 intervalDays={recheckCadence.intervalDays}
-                tier={recheckCadence.tier === "paid" ? "paid" : "free"}
+                tier={recheckCadence.tier === 'paid' ? 'paid' : 'free'}
               />
             ) : null}
-            <ClaimClient domain={domain} claimStatus={claimStatus} signedIn={Boolean(viewerEmail)} />
+            <ClaimClient
+              domain={domain}
+              claimStatus={claimStatus}
+              signedIn={Boolean(viewerEmail)}
+            />
           </div>
         </div>
       </div>
@@ -155,7 +163,12 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
             <CardTitle>Embed Badge</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center">
-            <BadgeEmbed domain={domain} dr={domainRating} linkUrl={embedLinkUrl} badgeUrl={embedBadgeUrl} />
+            <BadgeEmbed
+              domain={domain}
+              dr={domainRating}
+              linkUrl={embedLinkUrl}
+              badgeUrl={embedBadgeUrl}
+            />
           </CardContent>
         </Card>
       </div>
@@ -166,8 +179,12 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
             <CardTitle>Site Preview</CardTitle>
           </CardHeader>
           <CardContent>
-            <a href={outboundUrl} className="block overflow-hidden rounded-xl border" {...outboundLinkProps}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+            <a
+              href={outboundUrl}
+              className="block overflow-hidden rounded-xl border"
+              {...outboundLinkProps}
+            >
+              {/* biome-ignore lint/performance/noImgElement: a remote screenshot; the Worker has no image optimizer */}
               <img
                 src={screenshotUrl}
                 alt={`${pageSiteTitle} homepage preview`}

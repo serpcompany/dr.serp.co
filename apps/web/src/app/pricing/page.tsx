@@ -1,10 +1,16 @@
-import Link from "next/link"
-
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { PricingSelector } from "@/app/pricing/pricing-selector"
-import { FREE_FEATURES } from "@/lib/pricing"
-import { BillingEntry } from "@/app/_components/billing-entry"
+import Link from 'next/link'
+import { BillingEntry } from '@/app/_components/billing-entry'
+import { PricingSelector } from '@/app/pricing/pricing-selector'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
+import { FREE_FEATURES } from '@/lib/pricing'
 
 export default function PricingPage() {
   return (
@@ -12,8 +18,8 @@ export default function PricingPage() {
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Pricing</h1>
         <p className="text-muted-foreground">
-          Pick a plan based on how many domains you want to monitor. Paid plans update once a week and
-          include on-demand refreshes.
+          Pick a plan based on how many domains you want to monitor. Paid plans update once a week
+          and include on-demand refreshes.
         </p>
       </div>
 
@@ -30,7 +36,7 @@ export default function PricingPage() {
           <CardContent>
             <p className="text-2xl font-semibold">$0</p>
             <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-              {FREE_FEATURES.map((feature) => (
+              {FREE_FEATURES.map(feature => (
                 <li key={feature}>{feature}</li>
               ))}
             </ul>

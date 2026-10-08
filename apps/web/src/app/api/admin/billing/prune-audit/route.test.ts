@@ -1,11 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const countPrunableBillingAudit = vi.fn()
 const pruneBillingAudit = vi.fn()
 
-vi.mock("@/server/db.mjs", () => ({
+vi.mock('@/server/db.mjs', () => ({
   countPrunableBillingAudit,
-  pruneBillingAudit,
+  pruneBillingAudit
 }))
 
 const envBackup = { ...process.env }
@@ -15,48 +15,48 @@ function restoreEnv() {
   Object.assign(process.env, envBackup)
 }
 
-describe("POST /api/admin/billing/prune-audit", () => {
+describe('POST /api/admin/billing/prune-audit', () => {
   beforeEach(() => {
     countPrunableBillingAudit.mockReset()
     pruneBillingAudit.mockReset()
-    process.env.DR_ADMIN_TOKEN = "admin-secret"
+    process.env.DR_ADMIN_TOKEN = 'admin-secret'
   })
 
   afterEach(() => {
     restoreEnv()
   })
 
-  it("requires the admin token", async () => {
-    const { POST } = await import("./route")
-    const request = new Request("http://localhost/api/admin/billing/prune-audit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+  it('requires the admin token', async () => {
+    const { POST } = await import('./route')
+    const request = new Request('http://localhost/api/admin/billing/prune-audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
     })
 
     const response = await POST(request)
     const payload = await response.json()
 
     expect(response.status).toBe(401)
-    expect(payload.error).toBe("Unauthorized.")
+    expect(payload.error).toBe('Unauthorized.')
     expect(countPrunableBillingAudit).not.toHaveBeenCalled()
     expect(pruneBillingAudit).not.toHaveBeenCalled()
   })
 
-  it("counts removable records by default", async () => {
+  it('counts removable records by default', async () => {
     countPrunableBillingAudit.mockResolvedValue({
       count: 7,
-      cutoff: new Date("2026-01-01T00:00:00.000Z"),
+      cutoff: new Date('2026-01-01T00:00:00.000Z')
     })
 
-    const { POST } = await import("./route")
-    const request = new Request("http://localhost/api/admin/billing/prune-audit", {
-      method: "POST",
+    const { POST } = await import('./route')
+    const request = new Request('http://localhost/api/admin/billing/prune-audit', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "x-admin-token": "admin-secret",
+        'Content-Type': 'application/json',
+        'x-admin-token': 'admin-secret'
       },
-      body: JSON.stringify({ olderThanDays: 90 }),
+      body: JSON.stringify({ olderThanDays: 90 })
     })
 
     const response = await POST(request)
@@ -68,26 +68,26 @@ describe("POST /api/admin/billing/prune-audit", () => {
       dryRun: true,
       olderThanDays: 90,
       removable: 7,
-      cutoff: "2026-01-01T00:00:00.000Z",
+      cutoff: '2026-01-01T00:00:00.000Z'
     })
     expect(countPrunableBillingAudit).toHaveBeenCalledWith({ olderThanDays: 90 })
     expect(pruneBillingAudit).not.toHaveBeenCalled()
   })
 
-  it("prunes records only when dryRun is false", async () => {
+  it('prunes records only when dryRun is false', async () => {
     pruneBillingAudit.mockResolvedValue({
       removed: 3,
-      cutoff: new Date("2026-02-01T00:00:00.000Z"),
+      cutoff: new Date('2026-02-01T00:00:00.000Z')
     })
 
-    const { POST } = await import("./route")
-    const request = new Request("http://localhost/api/admin/billing/prune-audit", {
-      method: "POST",
+    const { POST } = await import('./route')
+    const request = new Request('http://localhost/api/admin/billing/prune-audit', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "x-admin-token": "admin-secret",
+        'Content-Type': 'application/json',
+        'x-admin-token': 'admin-secret'
       },
-      body: JSON.stringify({ olderThanDays: 45, dryRun: false }),
+      body: JSON.stringify({ olderThanDays: 45, dryRun: false })
     })
 
     const response = await POST(request)
@@ -99,7 +99,7 @@ describe("POST /api/admin/billing/prune-audit", () => {
       dryRun: false,
       olderThanDays: 45,
       removed: 3,
-      cutoff: "2026-02-01T00:00:00.000Z",
+      cutoff: '2026-02-01T00:00:00.000Z'
     })
     expect(pruneBillingAudit).toHaveBeenCalledWith({ olderThanDays: 45 })
   })

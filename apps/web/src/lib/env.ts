@@ -10,20 +10,21 @@ type ServerEnv = {
 }
 
 export function getServerEnv(): ServerEnv {
-  const { STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_IDS, NEXT_PUBLIC_BASE_URL } = process.env
+  const { STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_IDS, NEXT_PUBLIC_BASE_URL } =
+    process.env
 
   if (!STRIPE_SECRET_KEY) {
-    throw new Error("STRIPE_SECRET_KEY is required")
+    throw new Error('STRIPE_SECRET_KEY is required')
   }
   if (!STRIPE_PRICE_IDS) {
-    throw new Error("STRIPE_PRICE_IDS is required")
+    throw new Error('STRIPE_PRICE_IDS is required')
   }
 
   return {
     STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET,
     STRIPE_PRICE_IDS,
-    NEXT_PUBLIC_BASE_URL,
+    NEXT_PUBLIC_BASE_URL
   }
 }
 

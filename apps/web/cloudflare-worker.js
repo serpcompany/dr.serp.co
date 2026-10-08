@@ -1,7 +1,7 @@
-import handler from "./.open-next/worker.js"
-import { applyCacheControlParity } from "./src/server/cache-control-parity.mjs"
-import { RateLimitDurableObject } from "./src/server/rate-limit-do.mjs"
-import { redirectTrailingSlash } from "./src/server/trailing-slash-redirect.mjs"
+import handler from './.open-next/worker.js'
+import { applyCacheControlParity } from './src/server/cache-control-parity.mjs'
+import { RateLimitDurableObject } from './src/server/rate-limit-do.mjs'
+import { redirectTrailingSlash } from './src/server/trailing-slash-redirect.mjs'
 
 export { RateLimitDurableObject }
 
@@ -12,5 +12,5 @@ export default {
 
     const response = await handler.fetch(request, env, ctx)
     return applyCacheControlParity(request, response)
-  },
+  }
 }

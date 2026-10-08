@@ -1,6 +1,6 @@
-import Stripe from "stripe"
+import Stripe from 'stripe'
 
-import { getServerEnv } from "@/lib/env"
+import { getServerEnv } from '@/lib/env'
 
 // One client per secret key: the key is read on every call, and a changed key gets a new client.
 let stripeClient: { key: string; client: Stripe } | null = null

@@ -16,19 +16,23 @@ function toValidDate(value) {
 /**
  * @param {{ isPaid?: boolean, lastCheckedAt?: string | Date | null, now?: string | Date | null }} [input]
  */
-export function resolveRecheckCadence({ isPaid = false, lastCheckedAt = null, now = new Date() } = {}) {
+export function resolveRecheckCadence({
+  isPaid = false,
+  lastCheckedAt = null,
+  now = new Date()
+} = {}) {
   const checkedAt = toValidDate(lastCheckedAt)
   const currentTime = toValidDate(now) ?? new Date()
   const intervalDays = isPaid ? PAID_RECHECK_INTERVAL_DAYS : FREE_RECHECK_INTERVAL_DAYS
 
   if (!checkedAt) {
     return {
-      tier: isPaid ? "paid" : "free",
+      tier: isPaid ? 'paid' : 'free',
       intervalDays,
       canRecheck: true,
       lastCheckedAt: null,
       nextAllowedAt: null,
-      retryAfterMs: 0,
+      retryAfterMs: 0
     }
   }
 
@@ -36,12 +40,12 @@ export function resolveRecheckCadence({ isPaid = false, lastCheckedAt = null, no
   const retryAfterMs = Math.max(0, nextAllowedAt.getTime() - currentTime.getTime())
 
   return {
-    tier: isPaid ? "paid" : "free",
+    tier: isPaid ? 'paid' : 'free',
     intervalDays,
     canRecheck: retryAfterMs <= 0,
     lastCheckedAt: checkedAt,
     nextAllowedAt,
-    retryAfterMs,
+    retryAfterMs
   }
 }
 
@@ -50,6 +54,6 @@ export function resolveRecheckCadence({ isPaid = false, lastCheckedAt = null, no
  */
 export function formatRecheckCadenceError(cadence) {
   const intervalDays = Number(cadence?.intervalDays) || FREE_RECHECK_INTERVAL_DAYS
-  const tier = cadence?.tier === "paid" ? "Paid" : "Free"
+  const tier = cadence?.tier === 'paid' ? 'Paid' : 'Free'
   return `${tier} domains can be rechecked once every ${intervalDays} days.`
 }

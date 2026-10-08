@@ -1,25 +1,24 @@
-"use client"
+'use client'
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-
-import { Button } from "@/components/ui/button"
-import { BillingPortalButton } from "@/app/_components/billing-portal-button"
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { BillingPortalButton } from '@/app/_components/billing-portal-button'
+import { Button } from '@/components/ui/button'
 
 function readEmail() {
-  return window.localStorage.getItem("dr-auth-email")?.trim().toLowerCase() || ""
+  return window.localStorage.getItem('dr-auth-email')?.trim().toLowerCase() || ''
 }
 
 export function BillingEntry() {
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState('')
 
   useEffect(() => {
     setEmail(readEmail())
     const onStorage = (event: StorageEvent) => {
-      if (event.key === "dr-auth-email") setEmail(readEmail())
+      if (event.key === 'dr-auth-email') setEmail(readEmail())
     }
-    window.addEventListener("storage", onStorage)
-    return () => window.removeEventListener("storage", onStorage)
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
   }, [])
 
   if (!email) {

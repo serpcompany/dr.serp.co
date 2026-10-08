@@ -1,10 +1,16 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import { Laptop, Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
+import { Laptop, Moon, Sun } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import * as React from 'react'
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 
 export function ThemeToggle({ className, ...props }: React.ComponentProps<typeof SelectTrigger>) {
   const { setTheme, theme } = useTheme()
@@ -52,4 +58,3 @@ export function ThemeToggle({ className, ...props }: React.ComponentProps<typeof
     </Select>
   )
 }
-
