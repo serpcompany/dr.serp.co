@@ -8,15 +8,6 @@ import { describe, expect, it } from "vitest"
 const ROOTS = ["src", "scripts", "migrations"]
 const SOURCE = /\.(?:[cm]?js|tsx?|sql)$/
 
-// A LIKE or GLOB whose pattern is a bound parameter, alone or inside lower(), concatenation or a
-// template literal, or a JavaScript-built `%…%` pattern.
-const BOUND_PATTERN = [
-  /\b(?:LIKE|GLOB)\s+(?:lower\s*\(\s*|upper\s*\(\s*)?\?/i,
-  /\b(?:LIKE|GLOB)\s+[^\n]*\|\|\s*\?/i,
-  /\b(?:LIKE|GLOB)\s+[^\n]*\$\{/i,
-  /`%\$\{/,
-]
-
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const file = path.join(dir, name)
@@ -25,10 +16,33 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-function findBoundPatterns(source: string) {
+// Comments are dropped, then each whole file is searched, so a pattern split across lines counts.
+// SQL in this repo is uppercase, so the operator form is matched in uppercase (prose says "like");
+// the function form like(…) or glob(…) is matched in any case.
+function stripComments(source: string) {
   return source
-    .split("\n")
-    .flatMap((line, index) => (BOUND_PATTERN.some((pattern) => pattern.test(line)) ? [index + 1] : []))
+    .replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, " "))
+    .replace(/(^|[^:"'`])\/\/[^\n]*/g, "$1")
+    .replace(/--[^\n]*/g, "")
+}
+
+// Every LIKE or GLOB operator must take one whole string literal as its pattern; anything else (a
+// bound parameter, lower(?), a concatenation, a template) can carry user input past D1's limit.
+const UNSAFE = [
+  /\b(?:LIKE|GLOB)\b(?!\s*'[^']*'(?!\s*\|\|))/g,
+  /\b(?:like|glob)\s*\(/gi,
+  /`%\$\{/g,
+]
+
+function findBoundPatterns(source: string) {
+  const code = stripComments(source)
+  const lines = new Set<number>()
+  for (const pattern of UNSAFE) {
+    for (const match of code.matchAll(pattern)) {
+      lines.add(code.slice(0, match.index).split("\n").length)
+    }
+  }
+  return [...lines].sort((a, b) => a - b)
 }
 
 describe("SQL patterns", () => {
@@ -44,7 +58,12 @@ describe("SQL patterns", () => {
     expect(findBoundPatterns("WHERE domain LIKE ?")).toEqual([1])
     expect(findBoundPatterns("WHERE domain GLOB '*' || ? || '*'")).toEqual([1])
     expect(findBoundPatterns("const pattern = `%${q}%`")).toEqual([1])
+    expect(findBoundPatterns("WHERE domain LIKE (?)")).toEqual([1])
+    expect(findBoundPatterns("WHERE domain LIKE '%' || lower(?) || '%'")).toEqual([1])
+    expect(findBoundPatterns("WHERE like(?, domain)")).toEqual([1])
+    expect(findBoundPatterns("WHERE domain LIKE\n  ?")).toEqual([1])
     expect(findBoundPatterns("WHERE instr(lower(domain), ?) > 0")).toEqual([])
     expect(findBoundPatterns("WHERE status LIKE 'active%'")).toEqual([])
+    expect(findBoundPatterns("// never LIKE: D1 refuses long patterns")).toEqual([])
   })
 })

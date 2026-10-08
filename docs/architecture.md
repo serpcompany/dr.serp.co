@@ -75,8 +75,9 @@ over 50 bytes ([D1 limits](https://github.com/serpcompany/serp/blob/main/docs/en
 `normalizeSearchQuery` collapses whitespace, keeps 100 characters and folds only ASCII case, as
 SQLite's `lower()` does. `src/server/sql-patterns.test.ts` fails on a bound `LIKE` or `GLOB`
 pattern, and `src/server/db-workerd.test.ts` runs search on D1 in workerd, which enforces the
-limit. The listable filter runs in JavaScript, so `listSites` reads only the rows up to the
-requested page plus 200, and `countSites` still reads each matching domain and title.
+limit. The listable filter runs in JavaScript, so `listSites` reads the rows up to the requested
+page plus 200, and further only when unlistable rows leave the page short; offsets stop at
+100,000. `countSites` still reads each matching domain and title; #75 moves both into SQL.
 
 ## Rate limits
 

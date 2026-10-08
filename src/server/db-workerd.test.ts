@@ -23,7 +23,12 @@ let d1: D1
 async function applyMigrations() {
   const dir = path.join(process.cwd(), "migrations")
   for (const file of readdirSync(dir).filter((name) => name.endsWith(".sql")).sort()) {
+    // Comment lines dropped, then split at a semicolon ending a line. A migration with a trigger
+    // (a semicolon inside BEGIN … END) needs a smarter split; setup fails loudly if one lands.
     const statements = readFileSync(path.join(dir, file), "utf8")
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("--"))
+      .join("\n")
       .split(/;\s*$/m)
       .map((sql) => sql.trim())
       .filter(Boolean)
@@ -108,5 +113,31 @@ describe("site search on workerd D1", () => {
     expect((await db.listSites({ limit: 1 })).map((row) => row.domain)).toEqual(["example.com"])
     expect((await db.listSites({ limit: 1, offset: 1 })).map((row) => row.domain)).toEqual(["example.org"])
     expect(await db.countSites({})).toBe(2)
+  })
+
+  it("reads past more unlistable rows than the slack, so pagination stays exact", async () => {
+    const spam = Array.from({ length: 250 }, (_, index) =>
+      d1
+        .prepare("INSERT INTO dr_claims (domain, domain_rating, updated_at) VALUES (?, ?, ?)")
+        .bind(`casino-${index}.com`, 99, "2026-10-01T00:00:00.000Z")
+    )
+    await d1.batch(spam)
+    await insertClaim("example.com", { rating: 70 })
+    await insertClaim("example.org", { rating: 60 })
+    const db = await import("./db.mjs")
+
+    expect((await db.listSites({ limit: 1 })).map((row) => row.domain)).toEqual(["example.com"])
+    expect((await db.listSites({ limit: 1, offset: 1 })).map((row) => row.domain)).toEqual(["example.org"])
+    expect(await db.listSites({ limit: 1, offset: 2 })).toEqual([])
+    expect(await db.countSites({})).toBe(2)
+  })
+
+  it("answers an empty page for an offset past the clamp", async () => {
+    await insertClaim("example.com", { email: "owner@example.com" })
+    const db = await import("./db.mjs")
+
+    expect(await db.listSites({ offset: 1e20 })).toEqual([])
+    expect(await db.listClaims({ offset: 1e20 })).toEqual([])
+    expect(await db.listClaimsByEmail({ email: "owner@example.com", offset: 1e20 })).toEqual([])
   })
 })

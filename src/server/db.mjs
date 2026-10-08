@@ -316,9 +316,15 @@ function filterListableSiteRows(rows) {
 }
 
 const MAX_SEARCH_LENGTH = 100
-// Rows past the requested page that listSites reads, so a page stays full when a few stored rows
-// are unlistable (invalid or spam). The cleanup route purges those, so few remain.
+// Deeper pages answer empty. An unbounded offset reaches SQL, where D1 refuses a value past 64 bits.
+const MAX_LIST_OFFSET = 100_000
+// Rows past the requested page that listSites reads first, so a page stays full when some stored
+// rows are unlistable (invalid or spam). When more than that precede the page, it reads further.
 const LISTABLE_SCAN_SLACK = 200
+
+function clampOffset(value) {
+  return Number.isFinite(value) ? Math.min(MAX_LIST_OFFSET, Math.max(0, Math.floor(value))) : 0
+}
 
 // SQLite's lower() folds only ASCII, so fold only ASCII here too.
 function asciiLower(value) {
@@ -902,7 +908,7 @@ export async function listClaims(opts = {}) {
   const d1 = getD1Database()
   if (d1) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+    const offset = clampOffset(opts.offset)
     const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
@@ -931,7 +937,7 @@ export async function listClaims(opts = {}) {
 
   if (canUseFallbackStore()) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+    const offset = clampOffset(opts.offset)
     const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
@@ -1071,7 +1077,7 @@ export async function listClaimsByEmail(opts) {
   const d1 = getD1Database()
   if (d1) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+    const offset = clampOffset(opts.offset)
     const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
@@ -1100,7 +1106,7 @@ export async function listClaimsByEmail(opts) {
 
   if (canUseFallbackStore()) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+    const offset = clampOffset(opts.offset)
     const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
@@ -1189,9 +1195,8 @@ export async function listSites(opts = {}) {
     const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = Number.isFinite(opts.offset) ? Math.max(0, Math.floor(opts.offset)) : 0
-    const rawRows = await d1Rows(
-      d1,
+    const offset = clampOffset(opts.offset)
+    const sql =
       sort === "updated"
         ? `
             WITH domains AS (
@@ -1278,17 +1283,23 @@ export async function listSites(opts = {}) {
             FROM site_rows
             ORDER BY domain_rating IS NULL ASC, domain_rating DESC, updated_at IS NULL ASC, updated_at DESC, domain ASC
             LIMIT ?
-          `,
-      [q, q, offset + limit + LISTABLE_SCAN_SLACK]
-    )
-    // Listability uses JavaScript rules (domain validation and the spam filter), so it runs on
-    // a bounded read: the rows up to the page, plus slack for unlistable ones.
-    return filterListableSiteRows(rawRows).slice(offset, offset + limit)
+          `
+    // Listability uses JavaScript rules (domain validation and the spam filter), so it runs on a
+    // bounded read: the rows up to the page plus slack, read further only when unlistable rows
+    // leave the page short and more rows remain.
+    let scan = offset + limit + LISTABLE_SCAN_SLACK
+    for (;;) {
+      const rawRows = await d1Rows(d1, sql, [q, q, scan])
+      const rows = filterListableSiteRows(rawRows)
+      const shortfall = offset + limit - rows.length
+      if (shortfall <= 0 || rawRows.length < scan) return rows.slice(offset, offset + limit)
+      scan += shortfall + LISTABLE_SCAN_SLACK
+    }
   }
 
   if (canUseFallbackStore()) {
     const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = Number.isFinite(opts.offset) ? Math.max(0, opts.offset) : 0
+    const offset = clampOffset(opts.offset)
     const q = normalizeSearchQuery(opts.query)
     const sort = opts.sort === "updated" ? "updated" : "dr"
 
