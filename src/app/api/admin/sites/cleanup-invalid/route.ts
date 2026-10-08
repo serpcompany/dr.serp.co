@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { readRequestJsonRecord } from "@/lib/read-json"
 import { purgeInvalidSiteDomains } from "@/server/db.mjs"
+import { checkAdminToken } from "@/server/admin-auth.mjs"
 
 export const runtime = "nodejs"
 
@@ -31,16 +32,8 @@ const KNOWN_INVALID_SITE_DOMAINS = [
 ]
 
 export async function POST(request: Request) {
-  const adminToken = process.env.DR_ADMIN_TOKEN
-  if (!adminToken) {
-    return NextResponse.json({ error: "Admin token not configured." }, { status: 500 })
-  }
-
-  const url = new URL(request.url)
-  const provided = request.headers.get("x-admin-token") || url.searchParams.get("token") || ""
-  if (provided !== adminToken) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 })
-  }
+  const denied = checkAdminToken(request)
+  if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status })
 
   const body = await readRequestJsonRecord(request)
   const dryRun = body?.dryRun !== false
