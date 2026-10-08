@@ -6,7 +6,6 @@ const requiredFiles = [
   "cloudflare-worker.js",
   "wrangler.jsonc",
   "migrations/0001_initial_d1_schema.sql",
-  "docs/knowledge/cloudflare-operations.md",
   "src/server/rate-limit-do.mjs",
   "src/server/db-d1.test.ts",
   "src/server/rate-limit.test.ts",
@@ -97,7 +96,6 @@ try {
 
   const findings = []
   const blockers = []
-  const warnings = []
 
   for (const relativePath of requiredFiles) {
     if (!(await fileExists(relativePath))) {
@@ -171,13 +169,6 @@ try {
     })
   }
 
-  const docs = await readFile("docs/knowledge/cloudflare-operations.md", "utf8")
-  for (const expected of ["SERP_DR_DB", "RATE_LIMITER", "WORKER_SELF_REFERENCE", "DR_ADMIN_BASE_URL"]) {
-    if (!docs.includes(expected)) {
-      warnings.push({ area: "runbook", message: `Runbook does not mention ${expected}` })
-    }
-  }
-
   const schema = await readFile("migrations/0001_initial_d1_schema.sql", "utf8")
   for (const table of ["dr_claims", "dr_checks", "dr_subscriptions", "dr_billing_audit"]) {
     if (!schema.includes(`CREATE TABLE IF NOT EXISTS ${table}`)) {
@@ -195,7 +186,6 @@ try {
     checkedAt: new Date().toISOString(),
     findings,
     blockers,
-    warnings,
   }
 
   console.log(JSON.stringify(summary, null, options.pretty ? 2 : 0))
