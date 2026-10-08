@@ -1,0 +1,66 @@
+name: PR Issue Link
+
+# Fails a PR that GitHub hasn't linked to an issue, so merging it closes the issue.
+# Standard: docs/engineering/standards/git-workflow.md
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  issue-link:
+    # Exempt: bot and release-please PRs, and promotion or merge-back PRs between this
+    # repository's own main and staging. A fork's main is not exempt.
+    if: >-
+      github.event.pull_request.user.type != 'Bot' &&
+      !startsWith(github.head_ref, 'release-please--') &&
+      !(github.event.pull_request.head.repo.full_name == github.repository &&
+        contains(fromJSON('["main","staging"]'), github.base_ref) &&
+        contains(fromJSON('["main","staging"]'), github.head_ref))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the PR closes an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if printf '%s\n' "$BODY" | grep -qiE '^No issue: *[^ ]'; then
+            echo "Exempt: $(printf '%s\n' "$BODY" | grep -iE '^No issue:' | head -1)"
+            exit 0
+          fi
+          default=$(gh repo view "$GITHUB_REPOSITORY" --json defaultBranchRef --jq .defaultBranchRef.name) || {
+            echo "::error::Could not read the repository's default branch. Re-run this check."; exit 1; }
+
+          # A hotfix into main in a repository with Staging: GitHub ignores closing keywords
+          # there, so accept the keyword in the body and say the issue needs closing by hand.
+          if [ "$GITHUB_BASE_REF" = main ] && [ "$default" = staging ]; then
+            issues=$(printf '%s\n' "$BODY" | grep -oiE '\b(close[sd]?|fix(e[sd])?|resolve[sd]?):? +#[0-9]+' | grep -oE '#[0-9]+' | paste -sd ' ' -) || true
+            if [ -n "$issues" ]; then
+              echo "::warning::GitHub won't close $issues on a merge into main. Close it by hand after the merge."
+              exit 0
+            fi
+            echo "::error::This PR closes no issue. Add 'Closes #<number>' to the body, or a line 'No issue: <reason>'."
+            exit 1
+          fi
+
+          # GitHub links keywords a moment after the event, so look a few times.
+          for attempt in 1 2 3; do
+            linked=$(gh pr view "$PR" -R "$GITHUB_REPOSITORY" --json closingIssuesReferences \
+              --jq '[.closingIssuesReferences[].number | "#\(.)"] | join(" ")') || linked=""
+            if [ -n "$linked" ]; then echo "Closes $linked"; exit 0; fi
+            [ "$attempt" -lt 3 ] && sleep 5
+          done
+          echo "::error::This PR closes no issue. Start the body with 'Closes #<number>', or add a line 'No issue: <reason>'. A link added in the Development sidebar needs a re-run of this check."
+          case "$GITHUB_BASE_REF" in
+            "$default") ;;
+            main|staging)
+              echo "::error::GitHub ignores closing keywords on PRs into '$GITHUB_BASE_REF' because the default branch is '$default'. Make the base branch the default branch (git-workflow standard)." ;;
+            *)
+              echo "::error::This PR targets '$GITHUB_BASE_REF', not the base branch, so GitHub links no issue yet. The check passes once the PR is retargeted to the base branch." ;;
+          esac
+          exit 1
