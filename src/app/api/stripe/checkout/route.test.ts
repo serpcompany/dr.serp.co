@@ -35,7 +35,7 @@ describe("POST /api/stripe/checkout", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/stripe/checkout", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domains: 13, billing: "monthly" }),
     })
 
@@ -50,7 +50,7 @@ describe("POST /api/stripe/checkout", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/stripe/checkout", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domains: 12, billing: "weekly" }),
     })
 
@@ -69,7 +69,7 @@ describe("POST /api/stripe/checkout", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/stripe/checkout", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domains: 12, billing: "monthly" }),
     })
 

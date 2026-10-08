@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server"
 
-import { readRequestJsonRecord } from "@/lib/read-json"
 import { normalizeTarget, fetchDomainRating, fetchDomainRatingHistory } from "@/server/dr-providers.mjs"
 import { getClaim, getDrChecks, recordDrCheck, recordDrHistoryChecks, upsertClaim } from "@/server/db.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
 import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 import { formatRecheckCadenceError, resolveRecheckCadence } from "@/server/recheck-cadence.mjs"
 import { isSpamSite } from "@/server/site-spam.mjs"
+import { z } from "zod"
+import { readWriteRequest } from "@/server/write-route"
 
 export const runtime = "nodejs"
 const RATE_LIMIT_POINTS = Number(process.env.RECHECK_RATE_LIMIT_POINTS ?? 10)
@@ -16,9 +17,13 @@ function hasStoredRating(value: unknown) {
   return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value))
 }
 
+const RecheckBody = z.object({ domain: z.string({ message: "Valid domain required" }).max(2048) })
+
 export async function POST(request: Request) {
-  const body = await readRequestJsonRecord(request)
-  const domain = normalizeTarget(String(body?.domain || ""))
+  const read = await readWriteRequest(request, RecheckBody)
+  if (!read.ok) return read.response
+
+  const domain = normalizeTarget(read.data.domain)
   if (!domain) {
     return NextResponse.json({ error: "Valid domain required" }, { status: 400 })
   }

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 
-import { readRequestJsonRecord } from "@/lib/read-json"
 import { createOtp } from "@/server/otp-store.mjs"
 import { createOtpToken } from "@/server/otp-token.mjs"
+import { z } from "zod"
+import { readWriteRequest } from "@/server/write-route"
 
 function isValidEmail(email: string) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
@@ -10,9 +11,13 @@ function isValidEmail(email: string) {
 
 export const runtime = "nodejs"
 
+const RequestOtpBody = z.object({ email: z.string({ message: "Valid email required" }).max(320) })
+
 export async function POST(request: Request) {
-  const body = await readRequestJsonRecord(request)
-  const email = String(body?.email || "").trim().toLowerCase()
+  const read = await readWriteRequest(request, RequestOtpBody)
+  if (!read.ok) return read.response
+
+  const email = read.data.email.trim().toLowerCase()
   if (!isValidEmail(email)) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 })
   }

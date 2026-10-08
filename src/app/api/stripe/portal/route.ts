@@ -5,12 +5,16 @@ import { getStripe } from "@/lib/stripe"
 import { getSessionEmail } from "@/server/auth-session.mjs"
 import { getLatestSubscriptionByEmail } from "@/server/db.mjs"
 import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
+import { EMPTY_BODY, readWriteRequest } from "@/server/write-route"
 
 export const runtime = "nodejs"
 const RATE_LIMIT_POINTS = Number(process.env.BILLING_PORTAL_RATE_LIMIT_POINTS ?? 10)
 const RATE_LIMIT_DURATION = Number(process.env.BILLING_PORTAL_RATE_LIMIT_DURATION ?? 60)
 
 export async function POST(request: Request) {
+  const read = await readWriteRequest(request, EMPTY_BODY)
+  if (!read.ok) return read.response
+
   const rateKey = getRateLimitKey(request, "stripe-portal")
   const rate = await checkRateLimit({ key: rateKey, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
   if (!rate.allowed) {

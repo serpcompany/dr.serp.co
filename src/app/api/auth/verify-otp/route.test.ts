@@ -12,7 +12,7 @@ vi.mock("@/server/rate-limit.mjs", () => ({
 function verifyRequest(body: Record<string, unknown>) {
   return new Request("http://localhost/api/auth/verify-otp", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: "http://localhost" },
     body: JSON.stringify(body),
   })
 }

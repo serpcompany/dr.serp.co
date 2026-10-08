@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 
-import { readRequestJsonRecord } from "@/lib/read-json"
 import { purgeInvalidSiteDomains } from "@/server/db.mjs"
 import { checkAdminToken } from "@/server/admin-auth.mjs"
+import { z } from "zod"
+import { readWriteRequest } from "@/server/write-route"
 
 export const runtime = "nodejs"
 
@@ -31,11 +32,16 @@ const KNOWN_INVALID_SITE_DOMAINS = [
   "database.sql",
 ]
 
+const CleanupBody = z.object({ dryRun: z.boolean().optional(), scanAll: z.boolean().optional() })
+
 export async function POST(request: Request) {
   const denied = checkAdminToken(request)
   if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status })
 
-  const body = await readRequestJsonRecord(request)
+  // Operator scripts call admin routes with a token, not a browser cookie, so no Origin check.
+  const read = await readWriteRequest(request, CleanupBody, { checkOrigin: false })
+  if (!read.ok) return read.response
+  const body = read.data
   const dryRun = body?.dryRun !== false
   const scanAll = body?.scanAll === true
 
