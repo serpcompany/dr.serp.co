@@ -42,7 +42,7 @@ npm run dev
 
 ## Environment Variables
 
-See `.env.example`. Key variables:
+Local values go in `.dev.vars` (copy `.dev.vars.example`), never in `.env*` files: the OpenNext build copies `.env*` values into the Worker bundle. Key variables:
 
 | Variable | Description |
 |----------|-------------|
