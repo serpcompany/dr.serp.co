@@ -5,6 +5,7 @@ import { getStripe } from "@/lib/stripe"
 import { getPriceId } from "@/lib/stripe-pricing"
 import type { BillingPeriod } from "@/lib/pricing"
 import { getSessionEmail } from "@/server/auth-session.mjs"
+import { resolveEntitlement } from "@/server/entitlements.mjs"
 import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 import { readWriteRequest } from "@/server/write-route"
 import { CheckoutBody } from "@/server/write-schemas"
@@ -42,6 +43,22 @@ export async function POST(request: Request) {
 
     if (billing !== "monthly" && billing !== "annual") {
       return NextResponse.json({ error: "Invalid billing period." }, { status: 400 })
+    }
+
+    // A subscriber switches plans with /api/stripe/change-plan; a second checkout would bill twice.
+    if (email) {
+      const entitlement = await resolveEntitlement({ email })
+      const current = entitlement?.subscription
+      if (entitlement?.canAccessPaidFeatures && current?.stripeSubscriptionId) {
+        return NextResponse.json(
+          {
+            error: "You already have a plan. Switch it instead of buying a second one.",
+            code: "has_plan",
+            plan: { domains: current.domainsLimit, billing: current.billingInterval },
+          },
+          { status: 409 }
+        )
+      }
     }
 
     const stripe = getStripe()
