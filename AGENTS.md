@@ -38,8 +38,9 @@ of their issue.
 ## Where things live
 
 The site is in `apps/web/`, with its own `package.json` and pnpm lockfile. Code paths here and in
-`docs/` are relative to it. The root holds the docs (`AGENTS.md`, `CLAUDE.md`, `README.md`,
-`docs/`), `.archive/` and `.github/`; `apps/web/AGENTS.md` holds only the block `next dev` keeps.
+`docs/` are relative to it, except paths starting with a root entry: the docs (`AGENTS.md`,
+`CLAUDE.md`, `README.md`, `docs/`), `.archive/` and `.github/`. `apps/web/AGENTS.md` and `CLAUDE.md`
+only carry the block `next dev` keeps.
 
 - `src/app/`: pages and route handlers. Writes a visitor asks for are route handlers under
   `src/app/api/`; there are no Server Actions. Rendering a site page and the badge route also
