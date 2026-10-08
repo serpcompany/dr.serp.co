@@ -77,24 +77,29 @@ the history (`pnpm exec wrangler versions list --env production`).
 
 ## D1 migrations
 
-Migrations are raw SQL in `migrations/`, applied by Wrangler, which records each in the database's
-`d1_migrations` table. They are forward-only. Apply locally first:
+The schema is `src/db/schema.ts`. A change to it becomes a migration with `pnpm db:generate`,
+which writes SQL into `drizzle/` and updates Drizzle's journal; `pnpm db:check` (part of
+`pnpm check`) fails when the two disagree. What Drizzle can't express, such as `STRICT` tables,
+goes in a custom migration (`pnpm db:generate --custom`). Wrangler applies the files and records
+each in the database's `d1_migrations` table. They are forward-only.
+
+The baseline, `drizzle/0001_initial_d1_schema.sql`, keeps the name the Staging and Production
+ledgers already record, so they never apply it again; later migrations get timestamp prefixes and
+sort after it. `src/db/schema.test.ts` checks that a fresh migration builds exactly Production's
+schema (`src/db/production-schema.json`) and that `schema.ts` describes it.
+
+Apply locally first (`pnpm db:migrate:local`). The owner applies to Staging, checks the site
+there, then applies to Production, until CI does it
+([#100](https://github.com/serpcompany/dr.serp.co/issues/100)):
 
 ```sh
-pnpm exec wrangler d1 migrations apply DB --local
-```
-
-The owner applies to Staging, checks the site there, then applies to Production:
-
-```sh
-pnpm exec wrangler d1 migrations apply DB --env staging --remote
-pnpm exec wrangler d1 migrations apply DB --env production --remote
+pnpm db:migrate:staging
+pnpm db:migrate:production
 ```
 
 Apply a migration before deploying code that depends on it. Data imports follow the same order,
 Staging first, with `wrangler d1 execute ... --file`; keep their files in `tmp/` and delete them
-afterwards. Drizzle replaces raw SQL migrations in
-[#48](https://github.com/serpcompany/dr.serp.co/issues/48).
+afterwards. `pnpm db:migrations:list:<env>` shows what a database has applied.
 
 ## Operator scripts
 

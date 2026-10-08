@@ -73,8 +73,8 @@ There is no Next.js data cache, no ISR and no OpenNext incremental cache.
 
 ## Data
 
-D1, bound as `DB` in every environment, holds four tables
-(`migrations/0001_initial_d1_schema.sql`):
+D1, bound as `DB` in every environment, holds four tables, defined in `src/db/schema.ts` and built
+by the migrations in `drizzle/`:
 
 - `dr_claims`: one row per domain. The latest DR, the owner's email when claimed, and site
   metadata (title, description, URL, screenshot).

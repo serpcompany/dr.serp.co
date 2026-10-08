@@ -5,7 +5,7 @@ import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-const ROOTS = ['src', 'scripts', 'migrations']
+const ROOTS = ['src', 'scripts', 'drizzle']
 const SOURCE = /\.(?:[cm]?js|tsx?|sql)$/
 
 function sourceFiles(dir: string): string[] {

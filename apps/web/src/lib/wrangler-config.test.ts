@@ -35,7 +35,11 @@ describe('wrangler.jsonc', () => {
 
       it('has its own D1, rate limiter and self-reference bindings', () => {
         expect(config.d1_databases).toEqual([
-          expect.objectContaining({ binding: 'DB', migrations_dir: 'migrations' })
+          expect.objectContaining({
+            binding: 'DB',
+            migrations_dir: 'drizzle',
+            migrations_table: 'd1_migrations'
+          })
         ])
         expect(config.d1_databases[0].database_id).not.toBe(local.d1_databases[0].database_id)
         expect(
