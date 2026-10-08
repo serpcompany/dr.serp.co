@@ -56,8 +56,8 @@ need a session; checkout uses the session's email when there is one.
   `past_due` or `unpaid` (the open invoice is paid in the portal first), 409 `too_many_claims` for a
   smaller size than the domains already claimed, and 400 `same_plan`. A cancellation scheduled in
   the portal stays scheduled. The webhook syncs the new plan. `/pricing` starts on a subscriber's
-  plan and shows a "Switch plan" button instead of checkout, and points a plan on hold (no paid
-  access while an invoice is open) to the billing page. The live statuses are one set, in
+  plan and shows a "Switch plan" button instead of checkout, and points a plan on hold (`past_due`
+  or `unpaid`) to the billing page. The live statuses are one set, in
   `src/server/subscription-status.mjs`.
 - `POST /api/stripe/portal` opens the Stripe customer portal for payment details, invoices and
   cancellation, returning to `STRIPE_PORTAL_RETURN_URL` or `/billing`. Production passes

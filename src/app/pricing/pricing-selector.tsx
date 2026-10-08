@@ -38,7 +38,7 @@ export function PricingSelector() {
   // A subscriber changes their plan instead of starting a second subscription (#84).
   const [currentPlan, setCurrentPlan] = useState<CurrentPlan | null>(null)
   const [changed, setChanged] = useState<CurrentPlan | null>(null)
-  // A live plan without paid access: past_due or unpaid past its period, waiting on an open invoice.
+  // A live plan waiting on an open invoice (past_due or unpaid): change-plan refuses until it's paid.
   const [onHold, setOnHold] = useState(false)
 
   // Start the selector on the subscriber's own plan, so nothing is one click from a downgrade.
@@ -58,7 +58,7 @@ export function PricingSelector() {
         const payload = await readJsonRecord(response)
         const entitlement = payload?.entitlement
         if (!entitlement?.hasLivePlan || !entitlement?.subscription) return
-        setOnHold(!entitlement.canAccessPaidFeatures)
+        setOnHold(["past_due", "unpaid"].includes(entitlement.subscription.status))
         showCurrentPlan(
           readPlan({ domains: entitlement.subscription.domainsLimit, billing: entitlement.subscription.billingInterval })
         )
@@ -226,7 +226,7 @@ export function PricingSelector() {
             </p>
             {onHold ? (
               <p className="mt-1 text-xs text-muted-foreground">
-                It&apos;s on hold until its open invoice is paid. Pay it with Manage billing on the{" "}
+                It has an unpaid invoice. Pay it with Manage billing on the{" "}
                 <Link href="/billing" className="underline underline-offset-4">
                   billing page
                 </Link>
