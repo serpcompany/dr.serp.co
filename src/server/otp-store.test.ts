@@ -23,6 +23,12 @@ describe("createOtp", () => {
   it("refuses a second code within the cooldown, with the limiter's retry time", async () => {
     checkRateLimit.mockResolvedValue({ allowed: false, remaining: 0, retryAfterMs: 42000 })
 
-    expect(await createOtp("user@example.com")).toEqual({ ok: false, retryAfterMs: 42000 })
+    expect(await createOtp("user@example.com")).toEqual({ ok: false, unavailable: false, retryAfterMs: 42000 })
+  })
+
+  it("passes a limiter outage on as unavailable", async () => {
+    checkRateLimit.mockResolvedValue({ allowed: false, unavailable: true, remaining: 0, retryAfterMs: 60000 })
+
+    expect(await createOtp("user@example.com")).toMatchObject({ ok: false, unavailable: true })
   })
 })

@@ -6,6 +6,7 @@ import { createOtpToken } from "@/server/otp-token.mjs"
 const checkRateLimit = vi.fn()
 
 vi.mock("@/server/rate-limit.mjs", () => ({
+  RATE_LIMITER_UNAVAILABLE_MESSAGE: "This is unavailable right now. Please try again shortly.",
   checkRateLimit,
 }))
 
@@ -73,5 +74,17 @@ describe("POST /api/auth/verify-otp", () => {
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: "Sign-in is unavailable right now. Please try again later." })
     expect(consoleError).toHaveBeenCalledWith("auth.verify-otp: USESEND_OTP_SECRET and USESEND_API_KEY are not set")
+  })
+
+  it("answers 503, not a cooldown, when the rate limiter is down", async () => {
+    checkRateLimit.mockResolvedValue({ allowed: false, unavailable: true, remaining: 0, retryAfterMs: 60000 })
+    const { POST } = await import("./route")
+
+    const response = await POST(verifyRequest({ email: "user@example.com", code: "482913", token: token() }))
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get("Retry-After")).toBeNull()
+    expect(await response.json()).toEqual({ error: "This is unavailable right now. Please try again shortly." })
+    expect(response.headers.get("set-cookie")).toBeNull()
   })
 })

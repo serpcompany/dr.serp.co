@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { createOtp } from "@/server/otp-store.mjs"
+import { RATE_LIMITER_UNAVAILABLE_MESSAGE } from "@/server/rate-limit.mjs"
 import { createOtpToken } from "@/server/otp-token.mjs"
 import { readWriteRequest } from "@/server/write-route"
 import { RequestOtpBody } from "@/server/write-schemas"
@@ -20,7 +21,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 })
   }
 
-  const { ok, code, retryAfterMs, expiresAt } = await createOtp(email)
+  const { ok, unavailable, code, retryAfterMs, expiresAt } = await createOtp(email)
+  if (unavailable) {
+    return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
+  }
   if (!ok) {
     return NextResponse.json(
       { error: "Please wait before requesting another code", retryAfterMs },

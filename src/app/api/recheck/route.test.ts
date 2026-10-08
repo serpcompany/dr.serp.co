@@ -24,6 +24,7 @@ vi.mock("@/server/entitlements.mjs", () => ({
 }))
 
 vi.mock("@/server/rate-limit.mjs", () => ({
+  RATE_LIMITER_UNAVAILABLE_MESSAGE: "This is unavailable right now. Please try again shortly.",
   checkRateLimit,
   getRateLimitKey,
 }))
@@ -395,5 +396,23 @@ describe("POST /api/recheck", () => {
     expect(payload).toEqual({ error: "DR provider is unavailable right now. Please try again later." })
     expect(upsertClaim).not.toHaveBeenCalled()
     expect(recordDrCheck).not.toHaveBeenCalled()
+  })
+
+  it("answers 503, not a cooldown, when the rate limiter is down", async () => {
+    checkRateLimit.mockResolvedValue({ allowed: false, unavailable: true, remaining: 0, retryAfterMs: 60000 })
+
+    const { POST } = await import("./route")
+    const response = await POST(
+      new Request("http://localhost/api/recheck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "http://localhost" },
+        body: JSON.stringify({ domain: "example.com" }),
+      })
+    )
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get("Retry-After")).toBeNull()
+    expect(await response.json()).toEqual({ error: "This is unavailable right now. Please try again shortly." })
+    expect(fetchDomainRating).not.toHaveBeenCalled()
   })
 })

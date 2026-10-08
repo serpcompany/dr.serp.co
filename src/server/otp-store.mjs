@@ -14,7 +14,7 @@ export async function createOtp(email) {
     duration: RESEND_COOLDOWN_SECONDS,
   })
   if (!rate.allowed) {
-    return { ok: false, retryAfterMs: rate.retryAfterMs }
+    return { ok: false, unavailable: Boolean(rate.unavailable), retryAfterMs: rate.retryAfterMs }
   }
 
   const code = String(crypto.randomInt(100000, 1000000))

@@ -16,21 +16,25 @@ const NEW_SITE_LOOKUP_RATE_LIMIT_POINTS = Number(process.env.NEW_SITE_LOOKUP_RAT
 const NEW_SITE_LOOKUP_RATE_LIMIT_DURATION = Number(process.env.NEW_SITE_LOOKUP_RATE_LIMIT_DURATION ?? 3600)
 const NEW_SITE_LOOKUP_DAILY_LIMIT = Number(process.env.NEW_SITE_LOOKUP_DAILY_LIMIT ?? 100)
 const NEW_SITE_LOOKUP_LIMITED_MESSAGE = "Too many new site lookups right now. Please try again later."
+const NEW_SITE_LOOKUP_UNAVAILABLE_MESSAGE = "New site lookups are unavailable right now. Please try again shortly."
 
-async function allowNewSiteLookup(rateLimitKey: string) {
+/** Null when a new lookup may go ahead, else the message to show instead. */
+async function newSiteLookupRefusal(rateLimitKey: string) {
   const perClient = await checkRateLimit({
     key: rateLimitKey,
     points: NEW_SITE_LOOKUP_RATE_LIMIT_POINTS,
     duration: NEW_SITE_LOOKUP_RATE_LIMIT_DURATION,
   })
-  if (!perClient.allowed) return false
+  if (perClient.unavailable) return NEW_SITE_LOOKUP_UNAVAILABLE_MESSAGE
+  if (!perClient.allowed) return NEW_SITE_LOOKUP_LIMITED_MESSAGE
 
   const global = await checkRateLimit({
     key: "new-site-lookup:global",
     points: NEW_SITE_LOOKUP_DAILY_LIMIT,
     duration: 24 * 60 * 60,
   })
-  return global.allowed
+  if (global.unavailable) return NEW_SITE_LOOKUP_UNAVAILABLE_MESSAGE
+  return global.allowed ? null : NEW_SITE_LOOKUP_LIMITED_MESSAGE
 }
 
 type ChartPoint = {
@@ -133,9 +137,10 @@ export async function loadSiteSnapshot(
   const isNewSite = domainRating === null
   const storedSpam = isSpamSite({ domain, siteTitle })
   let canFetch = !storedSpam
-  if (canFetch && isNewSite && !(await allowNewSiteLookup(rateLimitKey))) {
+  const refusal = canFetch && isNewSite ? await newSiteLookupRefusal(rateLimitKey) : null
+  if (refusal) {
     canFetch = false
-    lookupError = NEW_SITE_LOOKUP_LIMITED_MESSAGE
+    lookupError = refusal
   }
 
   if (canFetch && (!siteTitle || !metaDescription || !siteUrl)) {

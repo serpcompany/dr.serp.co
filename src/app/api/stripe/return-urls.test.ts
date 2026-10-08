@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+const limiter = vi.hoisted(() => vi.fn(async () => ({ allowed: true, unavailable: false, remaining: 9, retryAfterMs: 0 })))
 const createCheckoutSession = vi.fn()
 const createPortalSession = vi.fn()
 
@@ -23,7 +24,8 @@ vi.mock("@/server/db.mjs", () => ({
 }))
 
 vi.mock("@/server/rate-limit.mjs", () => ({
-  checkRateLimit: async () => ({ allowed: true, remaining: 9, retryAfterMs: 0 }),
+  RATE_LIMITER_UNAVAILABLE_MESSAGE: "This is unavailable right now. Please try again shortly.",
+  checkRateLimit: limiter,
   getRateLimitKey: () => "test:127.0.0.1",
 }))
 
@@ -102,5 +104,20 @@ describe("Stripe return URLs", () => {
 
     expect(response.status).toBe(200)
     expect(createPortalSession).toHaveBeenCalledWith(expect.objectContaining({ configuration: "bpc_dr" }))
+  })
+
+  it("checkout and the portal answer 503 while the rate limiter is down, before calling Stripe", async () => {
+    limiter.mockResolvedValueOnce({ allowed: false, unavailable: true, remaining: 0, retryAfterMs: 60000 }).mockResolvedValueOnce({ allowed: false, unavailable: true, remaining: 0, retryAfterMs: 60000 })
+    const checkout = (await import("./checkout/route")).POST
+    const portal = (await import("./portal/route")).POST
+
+    const checkoutResponse = await checkout(siteRequest("/api/stripe/checkout", { domains: 12, billing: "monthly" }))
+    const portalResponse = await portal(siteRequest("/api/stripe/portal", {}))
+
+    expect(checkoutResponse.status).toBe(503)
+    expect(await checkoutResponse.json()).toEqual({ error: "This is unavailable right now. Please try again shortly." })
+    expect(portalResponse.status).toBe(503)
+    expect(createCheckoutSession).not.toHaveBeenCalled()
+    expect(createPortalSession).not.toHaveBeenCalled()
   })
 })

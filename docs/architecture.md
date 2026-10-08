@@ -86,7 +86,10 @@ page past offset 100,000 is empty. `countSites` still reads each matching domain
 
 `checkRateLimit` in `src/server/rate-limit.mjs` keeps a fixed-window counter per key in the
 `RATE_LIMITER` Durable Object, which makes it consistent across isolates. If the Durable Object
-fails, the request is refused. Without the binding (`next dev`), it counts in memory.
+fails, the request is refused and the result is marked `unavailable`: the failure is logged
+(the limit's name, never the IP or email in its key), routes answer 503 rather than a cooldown,
+and a site page says new lookups are unavailable. Without the binding (`next dev`), it counts in
+memory.
 
 ## Configuration
 
