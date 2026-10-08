@@ -1,7 +1,7 @@
 // DR readings: one row per lookup, the source of the history chart and the recheck cadence.
 import { and, asc, desc, eq, isNull } from 'drizzle-orm'
 
-import type { Db } from './client'
+import { type Db, withDbErrors } from './client'
 import { drChecks } from './schema'
 import { clampDr, coerceDate, isFiniteNumber, isoText, nowIsoText } from './values'
 
@@ -21,7 +21,7 @@ const CHECK_ROW = {
   checked_at: drChecks.checkedAt
 }
 
-export async function recordDrCheck(
+export const recordDrCheck = withDbErrors(async function recordDrCheck(
   db: Db,
   input: {
     domain: string
@@ -42,7 +42,7 @@ export async function recordDrCheck(
     })
     .returning(CHECK_ROW)
   return row ?? null
-}
+})
 
 export type HistoryPoint = {
   domainRating?: unknown
@@ -54,7 +54,7 @@ export type HistoryPoint = {
 
 // Historical points replace an existing row with the same domain, provider and time instead of
 // adding a duplicate. Each point's delete and insert run as one batch (one D1 transaction).
-export async function recordDrHistoryChecks(
+export const recordDrHistoryChecks = withDbErrors(async function recordDrHistoryChecks(
   db: Db,
   input: { domain: string; points: HistoryPoint[]; provider?: string | null }
 ): Promise<CheckRow[]> {
@@ -92,10 +92,14 @@ export async function recordDrHistoryChecks(
     if (inserted[0]) recorded.push(inserted[0])
   }
   return recorded
-}
+})
 
 // The most recent readings for a domain, oldest first.
-export async function getDrChecks(db: Db, domain: string, opts: { limit?: number } = {}) {
+export const getDrChecks = withDbErrors(async function getDrChecks(
+  db: Db,
+  domain: string,
+  opts: { limit?: number } = {}
+) {
   const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
   const rows = await db
     .select({
@@ -108,10 +112,10 @@ export async function getDrChecks(db: Db, domain: string, opts: { limit?: number
     .orderBy(desc(drChecks.checkedAt))
     .limit(limit)
   return rows.reverse()
-}
+})
 
 // Every reading, oldest first, a page at a time (export tooling).
-export async function listDrChecks(
+export const listDrChecks = withDbErrors(async function listDrChecks(
   db: Db,
   opts: { domain?: string | null; limit?: number; offset?: number } = {}
 ) {
@@ -130,4 +134,4 @@ export async function listDrChecks(
     .orderBy(asc(drChecks.checkedAt), asc(drChecks.id))
     .limit(limit)
     .offset(offset)
-}
+})

@@ -2,7 +2,7 @@
 // rendering a site also writes a row here, so a row with no email is an unclaimed site.
 import { and, asc, count, desc, eq, type SQL, sql } from 'drizzle-orm'
 
-import type { Db } from './client'
+import { type Db, withDbErrors } from './client'
 import { normalizeSearchQuery } from './listable'
 import { drClaims } from './schema'
 import { excluded, excludedOrStored } from './upsert'
@@ -62,17 +62,20 @@ const CLAIM_LIST_ROW = {
   screenshot_url: drClaims.screenshotUrl
 }
 
-export async function getClaim(db: Db, domain: string): Promise<ClaimRow | null> {
+export const getClaim = withDbErrors(async function getClaim(
+  db: Db,
+  domain: string
+): Promise<ClaimRow | null> {
   const [row] = await db
     .select(CLAIM_ROW)
     .from(drClaims)
     .where(eq(drClaims.domain, domain))
     .limit(1)
   return row ?? null
-}
+})
 
 // Records a DR reading for a domain. A NULL email keeps the stored owner.
-export async function upsertClaim(
+export const upsertClaim = withDbErrors(async function upsertClaim(
   db: Db,
   input: { domain: string; email?: string | null; domainRating: unknown; provider?: string | null }
 ): Promise<ClaimRow | null> {
@@ -96,11 +99,11 @@ export async function upsertClaim(
     })
     .returning(CLAIM_ROW)
   return row ?? null
-}
+})
 
 // Sets a domain's owner without touching its DR. Never takes over a domain another email owns
 // (compared case-insensitively): the update is skipped and the answer is null.
-export async function setClaimEmail(
+export const setClaimEmail = withDbErrors(async function setClaimEmail(
   db: Db,
   input: { domain: string; email: string }
 ): Promise<ClaimRow | null> {
@@ -114,10 +117,10 @@ export async function setClaimEmail(
     })
     .returning(CLAIM_ROW)
   return row ?? null
-}
+})
 
 // Releases a claim when the email matches, keeping the domain and its DR so the site stays listed.
-export async function clearClaimEmail(
+export const clearClaimEmail = withDbErrors(async function clearClaimEmail(
   db: Db,
   input: { domain: unknown; email: unknown }
 ): Promise<ClaimRow | null> {
@@ -130,10 +133,13 @@ export async function clearClaimEmail(
     .where(and(eq(drClaims.domain, domain), sql`lower(${drClaims.email}) = ${email}`))
     .returning(CLAIM_ROW)
   return row ?? null
-}
+})
 
 // Stores a domain even before its DR is known, so a visited site appears in the directory.
-export async function touchDomain(db: Db, domain: unknown): Promise<ClaimRow | null> {
+export const touchDomain = withDbErrors(async function touchDomain(
+  db: Db,
+  domain: unknown
+): Promise<ClaimRow | null> {
   const normalized = String(domain ?? '').trim()
   if (!normalized) return null
   const [row] = await db
@@ -145,10 +151,10 @@ export async function touchDomain(db: Db, domain: unknown): Promise<ClaimRow | n
     })
     .returning(CLAIM_ROW)
   return row ?? null
-}
+})
 
 // Stores a site's title, description, URL and screenshot. A NULL field keeps the stored value.
-export async function setClaimSiteMetadata(
+export const setClaimSiteMetadata = withDbErrors(async function setClaimSiteMetadata(
   db: Db,
   input: {
     domain: unknown
@@ -182,7 +188,7 @@ export async function setClaimSiteMetadata(
     })
     .returning(CLAIM_ROW)
   return row ?? null
-}
+})
 
 type ListOpts = { query?: unknown; limit?: number; offset?: number; sort?: 'dr' | 'updated' }
 
@@ -216,20 +222,26 @@ async function listClaimPage(db: Db, email: string | null, opts: ListOpts) {
     .offset(offset)
 }
 
-export function listClaims(db: Db, opts: ListOpts = {}): Promise<ClaimListRow[]> {
+export const listClaims = withDbErrors(function listClaims(
+  db: Db,
+  opts: ListOpts = {}
+): Promise<ClaimListRow[]> {
   return listClaimPage(db, null, opts)
-}
+})
 
-export async function countClaims(db: Db, opts: { query?: unknown } = {}) {
+export const countClaims = withDbErrors(async function countClaims(
+  db: Db,
+  opts: { query?: unknown } = {}
+) {
   const [row] = await db
     .select({ count: count() })
     .from(drClaims)
     .where(matchesSearch(normalizeSearchQuery(opts.query)))
   return row?.count ?? 0
-}
+})
 
 // Every claim row, by domain, a page at a time (export tooling).
-export function listClaimRows(
+export const listClaimRows = withDbErrors(function listClaimRows(
   db: Db,
   opts: { limit?: number; offset?: number } = {}
 ): Promise<ClaimRow[]> {
@@ -241,19 +253,22 @@ export function listClaimRows(
     .orderBy(asc(drClaims.domain))
     .limit(limit)
     .offset(offset)
-}
+})
 
 // One email's claims. The email is matched exactly after trimming and lowercasing it.
-export async function listClaimsByEmail(
+export const listClaimsByEmail = withDbErrors(async function listClaimsByEmail(
   db: Db,
   opts: ListOpts & { email: unknown }
 ): Promise<ClaimListRow[]> {
   const email = normalizeEmail(opts.email)
   if (!email) return []
   return listClaimPage(db, email, opts)
-}
+})
 
-export async function countClaimsByEmail(db: Db, opts: { email: unknown; query?: unknown }) {
+export const countClaimsByEmail = withDbErrors(async function countClaimsByEmail(
+  db: Db,
+  opts: { email: unknown; query?: unknown }
+) {
   const email = normalizeEmail(opts.email)
   if (!email) return 0
   const [row] = await db
@@ -261,4 +276,4 @@ export async function countClaimsByEmail(db: Db, opts: { email: unknown; query?:
     .from(drClaims)
     .where(and(eq(drClaims.email, email), matchesSearch(normalizeSearchQuery(opts.query))))
   return row?.count ?? 0
-}
+})

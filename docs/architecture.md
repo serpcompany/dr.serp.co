@@ -55,7 +55,8 @@ as lastmod. Past 50,000 sites the group needs a second file, and the route logs 
   limits. It never imports pages, route handlers or components.
 - **`src/db/`** is the data layer: the Drizzle schema and the typed queries, by area (`sites.ts`,
   `checks.ts`, `claims.ts`, `subscriptions.ts`, `billing-audit.ts`), each taking a Drizzle client.
-  It is the only place with SQL.
+  It is the only place with SQL. Each query runs through `withDbErrors`, so a failure throws D1's
+  own error, not Drizzle's message with the SQL and bound values (emails, Stripe IDs).
 - **`src/lib/`** holds shared helpers: pricing tiers, the Stripe client, env validation and the
   browser's list of recently viewed sites.
 

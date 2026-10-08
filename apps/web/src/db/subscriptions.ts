@@ -2,7 +2,7 @@
 // trimmed and lowercased; cancel_at_period_end reads back as a boolean or null.
 import { and, desc, eq, gt, inArray, isNull, or } from 'drizzle-orm'
 
-import type { Db } from './client'
+import { type Db, withDbErrors } from './client'
 import { drSubscriptions } from './schema'
 import { excluded, excludedOrStored } from './upsert'
 import {
@@ -50,7 +50,7 @@ function subscriptionRow(
 
 // Keyed by the Stripe subscription ID. A field the event leaves NULL keeps the stored value, so a
 // sparse event never erases what an earlier one recorded.
-export async function upsertSubscription(
+export const upsertSubscription = withDbErrors(async function upsertSubscription(
   db: Db,
   input: {
     email: unknown
@@ -98,52 +98,56 @@ export async function upsertSubscription(
     })
     .returning(SUBSCRIPTION_ROW)
   return row ? subscriptionRow(row) : null
-}
+})
 
 // The most recently updated subscription that is active or trialing and not past its period end
 // (a NULL period end counts as current).
-export async function getActiveSubscriptionByEmail(
-  db: Db,
-  email: unknown
-): Promise<SubscriptionRow | null> {
-  const normalized = normalizeEmail(email)
-  if (!normalized) return null
-  const [row] = await db
-    .select(SUBSCRIPTION_ROW)
-    .from(drSubscriptions)
-    .where(
-      and(
-        eq(drSubscriptions.email, normalized),
-        inArray(drSubscriptions.status, ['active', 'trialing']),
-        or(
-          isNull(drSubscriptions.currentPeriodEnd),
-          gt(drSubscriptions.currentPeriodEnd, nowIsoText())
+export const getActiveSubscriptionByEmail = withDbErrors(
+  async function getActiveSubscriptionByEmail(
+    db: Db,
+    email: unknown
+  ): Promise<SubscriptionRow | null> {
+    const normalized = normalizeEmail(email)
+    if (!normalized) return null
+    const [row] = await db
+      .select(SUBSCRIPTION_ROW)
+      .from(drSubscriptions)
+      .where(
+        and(
+          eq(drSubscriptions.email, normalized),
+          inArray(drSubscriptions.status, ['active', 'trialing']),
+          or(
+            isNull(drSubscriptions.currentPeriodEnd),
+            gt(drSubscriptions.currentPeriodEnd, nowIsoText())
+          )
         )
       )
-    )
-    .orderBy(desc(drSubscriptions.updatedAt))
-    .limit(1)
-  return row ? subscriptionRow(row) : null
-}
+      .orderBy(desc(drSubscriptions.updatedAt))
+      .limit(1)
+    return row ? subscriptionRow(row) : null
+  }
+)
 
 // The most recently updated subscription, whatever its status.
-export async function getLatestSubscriptionByEmail(
-  db: Db,
-  email: unknown
-): Promise<SubscriptionRow | null> {
-  const normalized = normalizeEmail(email)
-  if (!normalized) return null
-  const [row] = await db
-    .select(SUBSCRIPTION_ROW)
-    .from(drSubscriptions)
-    .where(eq(drSubscriptions.email, normalized))
-    .orderBy(desc(drSubscriptions.updatedAt))
-    .limit(1)
-  return row ? subscriptionRow(row) : null
-}
+export const getLatestSubscriptionByEmail = withDbErrors(
+  async function getLatestSubscriptionByEmail(
+    db: Db,
+    email: unknown
+  ): Promise<SubscriptionRow | null> {
+    const normalized = normalizeEmail(email)
+    if (!normalized) return null
+    const [row] = await db
+      .select(SUBSCRIPTION_ROW)
+      .from(drSubscriptions)
+      .where(eq(drSubscriptions.email, normalized))
+      .orderBy(desc(drSubscriptions.updatedAt))
+      .limit(1)
+    return row ? subscriptionRow(row) : null
+  }
+)
 
 // Subscriptions, most recently updated first, a page at a time (reporting).
-export async function listSubscriptions(
+export const listSubscriptions = withDbErrors(async function listSubscriptions(
   db: Db,
   opts: { email?: unknown; limit?: number; offset?: number } = {}
 ): Promise<SubscriptionRow[]> {
@@ -158,4 +162,4 @@ export async function listSubscriptions(
     .limit(limit)
     .offset(offset)
   return rows.map(subscriptionRow)
-}
+})

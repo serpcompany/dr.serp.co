@@ -2,7 +2,7 @@
 // succeeded. cancel_at_period_end and success read back as booleans or null.
 import { asc, count, desc, eq, lt, sql } from 'drizzle-orm'
 
-import type { Db } from './client'
+import { type Db, withDbErrors } from './client'
 import { drBillingAudit } from './schema'
 import { excluded, excludedOrStored } from './upsert'
 import {
@@ -67,7 +67,7 @@ function billingAuditRow(
 // adding one: the latest attempt's type, outcome, error and time win, and other fields it leaves
 // NULL keep their stored values. Events without an ID always add a row; the unique index on
 // stripe_event_id is partial, so NULLs never conflict.
-export async function insertBillingAudit(
+export const insertBillingAudit = withDbErrors(async function insertBillingAudit(
   db: Db,
   input: {
     stripeEventId?: string | null
@@ -132,14 +132,14 @@ export async function insertBillingAudit(
     })
     .returning(BILLING_AUDIT_ROW)
   return row ? billingAuditRow(row) : null
-}
+})
 
 function successFilter(success: unknown) {
   return typeof success === 'boolean' ? eq(drBillingAudit.success, success ? 1 : 0) : undefined
 }
 
 // The most recent event, or the most recent success or failure (the webhook health check).
-export async function getLatestBillingAuditEvent(
+export const getLatestBillingAuditEvent = withDbErrors(async function getLatestBillingAuditEvent(
   db: Db,
   opts: { success?: boolean | null } = {}
 ): Promise<BillingAuditRow | null> {
@@ -150,10 +150,10 @@ export async function getLatestBillingAuditEvent(
     .orderBy(desc(drBillingAudit.createdAt))
     .limit(1)
   return row ? billingAuditRow(row) : null
-}
+})
 
 // Audit rows, oldest first, a page at a time (export tooling).
-export async function listBillingAudit(
+export const listBillingAudit = withDbErrors(async function listBillingAudit(
   db: Db,
   opts: { success?: boolean | null; limit?: number; offset?: number } = {}
 ): Promise<BillingAuditRow[]> {
@@ -167,7 +167,7 @@ export async function listBillingAudit(
     .limit(limit)
     .offset(offset)
   return rows.map(billingAuditRow)
-}
+})
 
 // Rows logged before this time are prunable: olderThanDays (whole days, at least 1, default 180)
 // before now.
@@ -179,20 +179,26 @@ export function billingAuditCutoff(opts: { olderThanDays?: number } = {}) {
   return { days, cutoff }
 }
 
-export async function countPrunableBillingAudit(db: Db, opts: { olderThanDays?: number } = {}) {
+export const countPrunableBillingAudit = withDbErrors(async function countPrunableBillingAudit(
+  db: Db,
+  opts: { olderThanDays?: number } = {}
+) {
   const { cutoff } = billingAuditCutoff(opts)
   const [row] = await db
     .select({ count: count() })
     .from(drBillingAudit)
     .where(lt(drBillingAudit.createdAt, cutoff.toISOString()))
   return { count: row?.count ?? 0, cutoff }
-}
+})
 
-export async function pruneBillingAudit(db: Db, opts: { olderThanDays?: number } = {}) {
+export const pruneBillingAudit = withDbErrors(async function pruneBillingAudit(
+  db: Db,
+  opts: { olderThanDays?: number } = {}
+) {
   const { cutoff } = billingAuditCutoff(opts)
   const result = await db
     .delete(drBillingAudit)
     .where(lt(drBillingAudit.createdAt, cutoff.toISOString()))
     .run()
   return { removed: Number(result.meta?.changes ?? 0), cutoff }
-}
+})
