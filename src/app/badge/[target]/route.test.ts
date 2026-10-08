@@ -87,4 +87,19 @@ describe("GET /badge/[target]", () => {
     expect(svg).toContain(">?<")
     expect(fetchDomainRating).not.toHaveBeenCalled()
   })
+
+  it("logs a lookup error on the server and never returns it", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    getClaim.mockRejectedValue(new Error("D1_ERROR: no such table: dr_claims"))
+    getDrChecks.mockResolvedValue([])
+
+    const { response, svg } = await requestBadge("http://localhost/badge/example.com")
+
+    expect(response.status).toBe(200)
+    expect(svg).toContain(">?<")
+    expect(response.headers.get("Cache-Control")).toBe("no-store")
+    expect([...response.headers.keys()].some((name) => name.startsWith("x-dr"))).toBe(false)
+    expect(svg).not.toContain("D1_ERROR")
+    expect(consoleError).toHaveBeenCalledWith("badge: lookup failed", { error: "D1_ERROR: no such table: dr_claims" })
+  })
 })
