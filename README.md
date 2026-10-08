@@ -1,71 +1,14 @@
 # dr.serp.co
 
-Next.js (App Router) app for generating public Domain Rating (DR) pages and embeddable badges.
-
-**Live site:** [https://dr.serp.co](https://dr.serp.co)
-
-## Features
-
-- **Public DR pages** — Shareable page for any domain showing its Ahrefs Domain Rating
-- **Embeddable badges** — Dynamic SVG badges with verified DR scores
-- **Domain claiming** — Verify ownership via email OTP and manage your sites
-- **DR history** — Track rating changes over time
-
-## Quick Start
+[dr.serp.co](https://dr.serp.co) shows any website's Ahrefs Domain Rating on a shareable page,
+serves an embeddable DR badge, and sells subscriptions for claiming and tracking domains. It is a
+Next.js app on Cloudflare Workers with D1.
 
 ```bash
 npm install
+cp .dev.vars.example .dev.vars   # local values; never put them in .env* files
 npm run dev
 ```
 
-## Documentation
-
-- [Badges](docs/badges.md) — Badge styles, embedding, and configuration
-- [Tutorials](docs/tutorials/) — How-to guides
-
-## Routes
-
-| Route | Description |
-|-------|-------------|
-| `/add` | Add a domain, sign in, and generate an embeddable badge |
-| `/sites/:domain` | Public page (DR + badge + embed snippet) |
-| `/badge/:domain` | Dynamic SVG badge |
-| `/pricing` | Pricing plans |
-| `/billing` | Billing status and portal access |
-| `POST /api/auth/request-otp` | Send email OTP |
-| `POST /api/auth/verify-otp` | Verify OTP and set the `dr_session` cookie |
-| `GET/DELETE /api/auth/session` | Read the signed-in email / sign out |
-| `POST /api/billing/status` | Billing status + entitlement API |
-| `POST /api/stripe/portal` | Stripe customer portal session |
-| `GET /api/stripe/webhook/health` | Webhook health status |
-| `GET /api/admin/subscriptions` | Admin subscription report |
-
-## Environment Variables
-
-Local values go in `.dev.vars` (copy `.dev.vars.example`), never in `.env*` files: the OpenNext build copies `.env*` values into the Worker bundle. Key variables:
-
-| Variable | Description |
-|----------|-------------|
-| `USESEND_API_KEY` | UseSend API key for email |
-| `USESEND_FROM` | From address (e.g. `DR Checker <no-reply@mail.serp.co>`) |
-| `USESEND_OTP_SECRET` | OTP secret (defaults to API key) |
-| `DR_PUBLIC_BASE_URL` | Public base URL used to build `/sites/:domain` profile links (default: `https://dr.serp.co`) |
-| `DR_BADGE_BASE_URL` | Badge URL (default: `https://embeds.serp.co`) |
-| `AHREFS_API_KEY` | Ahrefs API v3 key for live Domain Rating lookups |
-| `STRIPE_SECRET_KEY` | Stripe API secret key |
-| `STRIPE_PRICE_IDS` | JSON map of price IDs for tiers |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
-| `STRIPE_PORTAL_RETURN_URL` | Optional return URL for billing portal |
-| `DR_ADMIN_TOKEN` | Token for admin subscription report endpoint |
-| `SERP_DR_DB` | Cloudflare D1 binding for app data |
-| `RATE_LIMITER` | Cloudflare Durable Object binding for rate limiting |
-
-## Database
-
-Production runs on Cloudflare Workers/OpenNext and uses D1 through the `SERP_DR_DB` binding. Rate limits use the `RATE_LIMITER` Durable Object binding.
-
-If none are set (common in local/dev), the app falls back to an in-memory store and persists to `.cache/dr-fallback.json`.
-
-## License
-
-MIT
+[AGENTS.md](AGENTS.md) maps the code, the commands and the docs. The docs themselves are in
+[docs/](docs/README.md).
