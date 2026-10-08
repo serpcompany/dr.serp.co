@@ -42,6 +42,7 @@ describe("Stripe return URLs", () => {
     // Not the code's fallback, and with a trailing slash, so the test proves the setting is read.
     vi.stubEnv("DR_PUBLIC_BASE_URL", "https://staging.dr.example/")
     vi.stubEnv("STRIPE_PORTAL_RETURN_URL", "")
+    vi.stubEnv("STRIPE_PORTAL_CONFIGURATION_ID", "")
     createCheckoutSession.mockReset().mockResolvedValue({ url: "https://checkout.stripe.com/c/1" })
     createPortalSession.mockReset().mockResolvedValue({ url: "https://billing.stripe.com/p/1" })
   })
@@ -71,6 +72,8 @@ describe("Stripe return URLs", () => {
     expect(createPortalSession).toHaveBeenCalledWith(
       expect.objectContaining({ customer: "cus_1", return_url: "https://staging.dr.example/billing" })
     )
+    // Unset: no configuration key at all, since Stripe rejects an empty one.
+    expect(createPortalSession.mock.calls[0][0]).not.toHaveProperty("configuration")
   })
 
   it("the portal returns a fixed message when Stripe fails", async () => {
@@ -95,8 +98,9 @@ describe("Stripe return URLs", () => {
   it("the portal uses dr.serp.co's configuration when one is set", async () => {
     vi.stubEnv("STRIPE_PORTAL_CONFIGURATION_ID", "bpc_dr")
     const { POST } = await import("./portal/route")
-    await POST(siteRequest("/api/stripe/portal", {}))
+    const response = await POST(siteRequest("/api/stripe/portal", {}))
 
+    expect(response.status).toBe(200)
     expect(createPortalSession).toHaveBeenCalledWith(expect.objectContaining({ configuration: "bpc_dr" }))
   })
 })

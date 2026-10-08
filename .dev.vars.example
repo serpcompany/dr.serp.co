@@ -26,6 +26,8 @@ STRIPE_PRICE_IDS=
 # Optional, for webhook handling
 STRIPE_WEBHOOK_SECRET=
 STRIPE_PORTAL_RETURN_URL=
+# A portal configuration id in the same mode as STRIPE_SECRET_KEY; empty uses Stripe's default.
+STRIPE_PORTAL_CONFIGURATION_ID=
 
 # Billing ops
 CHECKOUT_RATE_LIMIT_POINTS=20

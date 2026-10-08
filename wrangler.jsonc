@@ -90,7 +90,10 @@
       "vars": {
         "NEXTJS_ENV": "production",
         "DR_PUBLIC_BASE_URL": "https://serp-dr-preview.serpcompany.workers.dev",
-        "DR_BADGE_BASE_URL": "https://serp-dr-preview.serpcompany.workers.dev"
+        "DR_BADGE_BASE_URL": "https://serp-dr-preview.serpcompany.workers.dev",
+        // Empty: Stripe's default portal configuration. Set an id in the same mode (live or test) as
+        // Preview's STRIPE_SECRET_KEY to use a dr.serp.co one.
+        "STRIPE_PORTAL_CONFIGURATION_ID": ""
       },
       "secrets": {
         "required": [
