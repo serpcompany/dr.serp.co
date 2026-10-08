@@ -9,6 +9,7 @@ import {
 import { fetchDomainRating, fetchDomainRatingHistory } from "@/server/dr-providers.mjs"
 import { checkRateLimit } from "@/server/rate-limit.mjs"
 import { resolveSitePresentation } from "@/server/site-presentation.mjs"
+import { isSpamSite } from "@/server/site-spam.mjs"
 
 // First visits to unknown domains trigger paid Ahrefs lookups, so cap them per client and globally.
 const NEW_SITE_LOOKUP_RATE_LIMIT_POINTS = Number(process.env.NEW_SITE_LOOKUP_RATE_LIMIT_POINTS ?? 10)
@@ -127,7 +128,30 @@ export async function loadSiteSnapshot(
   let screenshotUrl = claim?.screenshot_url ?? null
   let lookupError: string | null = null
 
-  if (domainRating === null && !(await allowNewSiteLookup(rateLimitKey))) {
+  if (!siteTitle || !metaDescription || !siteUrl) {
+    try {
+      const resolved = await resolveSitePresentation(domain)
+      const persisted = await setClaimSiteMetadata({
+        domain,
+        siteTitle: resolved.siteTitle ?? null,
+        metaDescription: resolved.metaDescription ?? null,
+        siteUrl: resolved.siteUrl ?? null,
+        screenshotUrl: resolved.screenshotUrl ?? null,
+      })
+
+      siteTitle = persisted?.site_title ?? resolved.siteTitle ?? siteTitle
+      metaDescription = persisted?.meta_description ?? resolved.metaDescription ?? metaDescription
+      siteUrl = persisted?.site_url ?? resolved.siteUrl ?? siteUrl
+      screenshotUrl = persisted?.screenshot_url ?? resolved.screenshotUrl ?? screenshotUrl
+    } catch {
+      // Metadata enrichment is best-effort. The page can still render from DR data alone.
+    }
+  }
+
+  // Resolve the title first so a site caught only by its spam title never costs a lookup.
+  if (domainRating === null && isSpamSite({ domain, siteTitle })) {
+    // The page renders not-found for spam sites, so there's nothing to look up.
+  } else if (domainRating === null && !(await allowNewSiteLookup(rateLimitKey))) {
     lookupError = NEW_SITE_LOOKUP_LIMITED_MESSAGE
   } else if (domainRating === null) {
     try {
@@ -173,26 +197,6 @@ export async function loadSiteSnapshot(
     } catch (error) {
       // Provider errors can name internal env vars; log them server-side only.
       console.error("DR lookup failed", { domain, error: error instanceof Error ? error.message : error })
-    }
-  }
-
-  if (!siteTitle || !metaDescription || !siteUrl) {
-    try {
-      const resolved = await resolveSitePresentation(domain)
-      const persisted = await setClaimSiteMetadata({
-        domain,
-        siteTitle: resolved.siteTitle ?? null,
-        metaDescription: resolved.metaDescription ?? null,
-        siteUrl: resolved.siteUrl ?? null,
-        screenshotUrl: resolved.screenshotUrl ?? null,
-      })
-
-      siteTitle = persisted?.site_title ?? resolved.siteTitle ?? siteTitle
-      metaDescription = persisted?.meta_description ?? resolved.metaDescription ?? metaDescription
-      siteUrl = persisted?.site_url ?? resolved.siteUrl ?? siteUrl
-      screenshotUrl = persisted?.screenshot_url ?? resolved.screenshotUrl ?? screenshotUrl
-    } catch {
-      // Metadata enrichment is best-effort. The page can still render from DR data alone.
     }
   }
 

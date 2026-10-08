@@ -228,6 +228,39 @@ describe("loadSiteSnapshot", () => {
     expect(result.domainRating).toBe(64)
   })
 
+  it("skips the first lookup for a site caught by its spam title", async () => {
+    getDrChecks.mockResolvedValue([])
+    getClaim.mockResolvedValue(null)
+    resolveSitePresentation.mockResolvedValue({ siteTitle: "Situs Slot Gacor Terpercaya" })
+    setClaimSiteMetadata.mockResolvedValue({ site_title: "Situs Slot Gacor Terpercaya" })
+
+    const { loadSiteSnapshot } = await import("./site-snapshot")
+    const result = await loadSiteSnapshot("example.com")
+
+    expect(fetchDomainRating).not.toHaveBeenCalled()
+    expect(checkRateLimit).not.toHaveBeenCalled()
+    expect(upsertClaim).not.toHaveBeenCalled()
+    expect(result.domainRating).toBeNull()
+    expect(result.siteTitle).toBe("Situs Slot Gacor Terpercaya")
+  })
+
+  it("skips the first lookup for a site whose stored title is spam", async () => {
+    getDrChecks.mockResolvedValue([])
+    getClaim.mockResolvedValue({
+      domain: "example.com",
+      domain_rating: null,
+      site_title: "Online Casino Reviews",
+      meta_description: "Reviews",
+      site_url: "https://example.com",
+    })
+
+    const { loadSiteSnapshot } = await import("./site-snapshot")
+    await loadSiteSnapshot("example.com")
+
+    expect(resolveSitePresentation).not.toHaveBeenCalled()
+    expect(fetchDomainRating).not.toHaveBeenCalled()
+  })
+
   it("rate limits new site lookups per client before calling the provider", async () => {
     getDrChecks.mockResolvedValue([])
     getClaim.mockResolvedValue(null)

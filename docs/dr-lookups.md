@@ -19,17 +19,17 @@ The scraping research is in `.archive/research/ahrefs-dr-without-api.md`.
 Ahrefs is called in three places, and every result is written to `dr_checks`:
 
 1. **First visit to an unknown domain.** `/sites/<domain>` with no stored DR looks it up
-   (`src/app/sites/[target]/site-snapshot.ts`). New lookups are capped at 10 per IP per hour and
-   100 per day across the site (`NEW_SITE_LOOKUP_*`). Over a cap, the page says so and doesn't
-   call Ahrefs, though it still fetches the site's metadata and stores the domain (#59).
-2. **A recheck.** `POST /api/recheck` allows 10 requests per IP per minute, and a domain can be
-   rechecked once per 30 days, or once per 7 days when its owner has a paid plan
-   (`src/server/recheck-cadence.mjs`), counted from its last check. When the provider fails, the
-   route answers 503; it never reports the stored rating as a fresh one. A domain the site has
-   never stored can be rechecked at once, so this route also looks up new domains outside the
-   first-visit caps, and it doesn't check the spam filter. (A stored row with no check counts from
-   its `updated_at`, so such a domain waits out the interval.) Closing that gap is
-   [#59](https://github.com/serpcompany/dr.serp.co/issues/59).
+   (`src/app/sites/[target]/site-snapshot.ts`). It fetches the site's metadata first and skips the
+   lookup when the title is spam. New lookups are capped at 10 per IP per hour and 100 per day
+   across the site (`NEW_SITE_LOOKUP_*`). Over a cap, the page says so and doesn't call Ahrefs,
+   though it still stores the domain with its metadata.
+2. **A recheck.** `POST /api/recheck` only rechecks a domain with a stored DR, in `dr_claims` or
+   `dr_checks`. It answers 404 for any other domain, with the `sitePath` whose first visit looks it
+   up within the caps, and 404 for a spam domain or stored title. It allows 10 requests per IP per
+   minute, and a domain can be rechecked once per 30 days, or once per 7 days when its owner has a
+   paid plan (`src/server/recheck-cadence.mjs`), counted from its last check, or from the row's
+   `updated_at` when it has none. When the provider fails, the route answers 503; it never reports
+   the stored rating as a fresh one.
 3. **History import.** A second paid call, made only for claimed domains: on a first lookup of a
    domain that is already claimed, and after each recheck. The add-site flow claims a domain after
    its first lookup, so its history arrives with its first recheck. The import is best effort; the
@@ -62,8 +62,7 @@ own downloader sites aren't caught. A spam site:
 
 - is hidden from the site list and its counts;
 - renders not-found, with `noindex`;
-- gets no first-visit lookup when its domain matches. A site caught only by its title is known
-  after its first lookup, and `/api/recheck` doesn't check spam yet (#59).
+- gets no first-visit lookup, whether its domain or its title matches, and no recheck.
 
 The list and its counts also drop invalid and spam rows when reading, as a backstop for rows
 stored before a rule existed.
