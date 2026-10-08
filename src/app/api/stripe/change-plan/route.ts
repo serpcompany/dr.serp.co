@@ -81,6 +81,17 @@ export async function POST(request: Request) {
     if (!LIVE_SUBSCRIPTION_STATUSES.has(subscription.status) || !item?.price?.id || !getTierForPriceId(item.price.id)) {
       return NextResponse.json({ error: NO_PLAN_MESSAGE, code: "no_plan" }, { status: 409 })
     }
+    // With an open invoice, Stripe's handling of a price change is unclear (it may restart the plan
+    // and leave the old invoice open), so the invoice is paid first, in the portal.
+    if (subscription.status === "past_due" || subscription.status === "unpaid") {
+      return NextResponse.json(
+        {
+          error: "Your plan has an unpaid invoice. Pay it with Manage billing on the billing page, then switch.",
+          code: "payment_due",
+        },
+        { status: 409 }
+      )
+    }
     if (item.price.id === priceId) {
       return NextResponse.json({ error: "You're already on this plan.", code: "same_plan" }, { status: 400 })
     }

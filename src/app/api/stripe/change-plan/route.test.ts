@@ -110,16 +110,18 @@ describe("POST /api/stripe/change-plan", () => {
     expect(mocks.update).not.toHaveBeenCalled()
   })
 
-  it("moves an unpaid subscription, which restarts once paid", async () => {
+  it.each(["past_due", "unpaid"])("sends a %s subscription to pay its open invoice first", async (status) => {
     mocks.retrieve.mockResolvedValue({
       id: "sub_1",
-      status: "unpaid",
+      status,
       items: { data: [{ id: "si_1", price: { id: "price_12m" } }] },
     })
     const { POST } = await import("./route")
+    const response = await POST(changePlan({ domains: 25, billing: "monthly" }))
 
-    expect((await POST(changePlan({ domains: 25, billing: "monthly" }))).status).toBe(200)
-    expect(mocks.update).toHaveBeenCalled()
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ code: "payment_due" })
+    expect(mocks.update).not.toHaveBeenCalled()
   })
 
   it("refuses when D1 has no live plan, even with paid access in grace", async () => {

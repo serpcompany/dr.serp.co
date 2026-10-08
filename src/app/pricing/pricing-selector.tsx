@@ -226,11 +226,11 @@ export function PricingSelector() {
             </p>
             {onHold ? (
               <p className="mt-1 text-xs text-muted-foreground">
-                It&apos;s on hold until its open invoice is paid.{" "}
+                It&apos;s on hold until its open invoice is paid. Pay it with Manage billing on the{" "}
                 <Link href="/billing" className="underline underline-offset-4">
-                  Pay it on the billing page
+                  billing page
                 </Link>
-                .
+                , then switch.
               </p>
             ) : null}
             <p className="mt-1 text-xs text-muted-foreground">
@@ -250,7 +250,7 @@ export function PricingSelector() {
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2">
         {currentPlan ? (
-          <Button onClick={handleChangePlan} disabled={isSubmitting || isCurrentPlan} className="w-full">
+          <Button onClick={handleChangePlan} disabled={isSubmitting || isCurrentPlan || onHold} className="w-full">
             {isSubmitting ? "Switching plan..." : isCurrentPlan ? "Current plan" : "Switch plan"}
           </Button>
         ) : (
