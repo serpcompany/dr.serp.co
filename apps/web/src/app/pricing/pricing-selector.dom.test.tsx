@@ -91,7 +91,7 @@ describe('PricingSelector', () => {
         body: {
           code: 'has_plan',
           error: 'You already have a plan.',
-          plan: { domains: 12, billing: 'monthly' }
+          plan: { domains: 50, billing: 'annual' }
         }
       }
     })
@@ -100,6 +100,10 @@ describe('PricingSelector', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start monitoring' }))
 
     expect(await screen.findByRole('button', { name: 'Current plan' })).toBeTruthy()
+    expect(screen.getByText('50 domains, billed yearly')).toBeTruthy()
+    expect(
+      screen.getByRole('switch', { name: 'Toggle annual billing' }).getAttribute('aria-checked')
+    ).toBe('true')
     expect(screen.queryByText('You already have a plan.')).toBeNull()
   })
 
