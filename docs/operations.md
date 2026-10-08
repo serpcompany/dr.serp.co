@@ -3,7 +3,7 @@
 The environments, where secrets live, and how deploys, D1 migrations, operator scripts and rollback
 work. Every remote operation here is the owner's: agents prepare and verify, but never deploy,
 change secrets or run remote D1 commands. Moving deploys and migrations into CI is
-[#44](https://github.com/serpcompany/dr.serp.co/issues/44).
+[#100](https://github.com/serpcompany/dr.serp.co/issues/100).
 
 ## Environments
 
@@ -61,13 +61,16 @@ project Wrangler hands it to `opennextjs-cloudflare deploy`, but skips the build
 check, so it ships whatever build is sitting in `.open-next/`. `pnpm cf:deploy:dry-run` builds
 and validates without deploying.
 
-After a deploy, check that Wrangler reported `dr.serp.co (custom domain)`, then smoke-test:
+After a deploy, check that Wrangler reported the environment's custom domain, then run the smoke
+test against it (or its `workers.dev` URL; the script sends the smoke-test header):
 
 ```sh
-curl -I https://dr.serp.co/
-curl -sS 'https://dr.serp.co/api/sites?limit=1'
-curl -I https://dr.serp.co/badge/browserextensions.io
+scripts/smoke.sh https://staging-dr.serp.co staging
+scripts/smoke.sh https://dr.serp.co production
 ```
+
+It checks the pages, a badge and `/api/sites`, the environment's robots header, the `workers.dev`
+redirect to the canonical host, and that a write route refuses a request without `Origin`.
 
 The Worker version belongs in the pull request or deploy notes, not in a doc. Cloudflare keeps
 the history (`pnpm exec wrangler versions list --env production`).

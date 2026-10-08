@@ -79,7 +79,7 @@ Run them from `apps/web/`. Inner loop, while editing:
   `tsconfig.js.json` (`checkJs`, with implicit `any` allowed there until #98).
 
 Finish gate, once per finished state: `pnpm check` (lint, typecheck, tests, `cf:audit`, the
-OpenNext build and `docs:check`). It writes no source files.
+OpenNext build and `docs:check`). It writes no source files; CI runs it on pull requests.
 
 Evidence beyond the finish gate:
 
@@ -92,7 +92,7 @@ Evidence beyond the finish gate:
   values into the Worker bundle, and `scripts/check-bundle-env.mjs` fails the build if any are there.
 - **Agents never deploy or run remote D1 commands** (`--remote`). The owner deploys with
   `pnpm deploy:staging` or `pnpm deploy:production`, never `wrangler deploy`, until
-  [#44](https://github.com/serpcompany/dr.serp.co/issues/44) moves deploys to CI.
+  [#100](https://github.com/serpcompany/dr.serp.co/issues/100) moves deploys to CI.
 - **The top level of `wrangler.jsonc` is the local configuration,** and every remote command passes
   `--env`. Environments still inherit some top-level keys, such as `compatibility_date`, so read
   [Operations](docs/operations.md#environments) before changing it.
