@@ -43,7 +43,7 @@ export function DrLineLabel({ points }: { points: Point[] }) {
       </CardHeader>
       <CardContent>
         {chartData.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No checks yet. Click “Recheck DR” to add the first point.</p>
+          <p className="text-sm text-muted-foreground">No checks yet. Reload this page later to look up its DR.</p>
         ) : (
           <ChartContainer config={chartConfig} className="aspect-auto h-[125px] w-full">
             <LineChart

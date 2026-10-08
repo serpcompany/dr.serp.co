@@ -129,13 +129,16 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <RecheckButton
-              domain={domain}
-              canRecheck={recheckCadence.canRecheck}
-              nextAllowedAt={recheckCadence.nextAllowedAt?.toISOString() ?? null}
-              intervalDays={recheckCadence.intervalDays}
-              tier={recheckCadence.tier === "paid" ? "paid" : "free"}
-            />
+            {domainRating !== null ? (
+              // Only a stored DR can be rechecked; a first lookup happens when the page loads.
+              <RecheckButton
+                domain={domain}
+                canRecheck={recheckCadence.canRecheck}
+                nextAllowedAt={recheckCadence.nextAllowedAt?.toISOString() ?? null}
+                intervalDays={recheckCadence.intervalDays}
+                tier={recheckCadence.tier === "paid" ? "paid" : "free"}
+              />
+            ) : null}
             <ClaimClient domain={domain} claimStatus={claimStatus} signedIn={Boolean(viewerEmail)} />
           </div>
         </div>

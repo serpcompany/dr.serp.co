@@ -19,10 +19,10 @@ The scraping research is in `.archive/research/ahrefs-dr-without-api.md`.
 Ahrefs is called in three places, and every result is written to `dr_checks`:
 
 1. **First visit to an unknown domain.** `/sites/<domain>` with no stored DR looks it up
-   (`src/app/sites/[target]/site-snapshot.ts`). It fetches the site's metadata first and skips the
-   lookup when the title is spam. New lookups are capped at 10 per IP per hour and 100 per day
-   across the site (`NEW_SITE_LOOKUP_*`). Over a cap, the page says so and doesn't call Ahrefs,
-   though it still stores the domain with its metadata.
+   (`src/app/sites/[target]/site-snapshot.ts`). New lookups are capped at 10 per IP per hour and
+   100 per day across the site (`NEW_SITE_LOOKUP_*`). Under the caps, the page fetches the site's
+   metadata, skips the lookup when the title is spam, then calls Ahrefs. Over a cap, it says so
+   and fetches and stores nothing. The page offers a recheck only once a DR is stored.
 2. **A recheck.** `POST /api/recheck` only rechecks a domain with a stored DR, in `dr_claims` or
    `dr_checks`. It answers 404 for any other domain, with the `sitePath` whose first visit looks it
    up within the caps, and 404 for a spam domain or stored title. It allows 10 requests per IP per
@@ -80,6 +80,7 @@ only deletes with `-- --apply`, after the owner approves
 
 `resolveSitePresentation` in `src/server/site-presentation.mjs` fetches a site's title,
 description and a homepage screenshot from Microlink, and falls back to fetching the page's HTML.
-It runs on every visit to a page whose title, description or URL is still missing, and stores the
-result in `dr_claims`, so a site whose metadata resolves isn't fetched again.
+It runs on a visit to a page whose title, description or URL is still missing, and stores the
+result in `dr_claims`, so a site whose metadata resolves isn't fetched again. For a domain with no
+stored DR it counts against the new-lookup caps, and it never runs for a stored spam title.
 `npm run sites:backfill-metadata` fills in older rows.

@@ -237,8 +237,9 @@ describe("loadSiteSnapshot", () => {
     const { loadSiteSnapshot } = await import("./site-snapshot")
     const result = await loadSiteSnapshot("example.com")
 
+    // The metadata fetch that reveals the title counts against the caps; the lookup never runs.
+    expect(checkRateLimit).toHaveBeenCalled()
     expect(fetchDomainRating).not.toHaveBeenCalled()
-    expect(checkRateLimit).not.toHaveBeenCalled()
     expect(upsertClaim).not.toHaveBeenCalled()
     expect(result.domainRating).toBeNull()
     expect(result.siteTitle).toBe("Situs Slot Gacor Terpercaya")
@@ -257,8 +258,23 @@ describe("loadSiteSnapshot", () => {
     const { loadSiteSnapshot } = await import("./site-snapshot")
     await loadSiteSnapshot("example.com")
 
+    expect(checkRateLimit).not.toHaveBeenCalled()
     expect(resolveSitePresentation).not.toHaveBeenCalled()
     expect(fetchDomainRating).not.toHaveBeenCalled()
+  })
+
+  it("fetches no metadata and stores no row for a first visit over the cap", async () => {
+    getDrChecks.mockResolvedValue([])
+    getClaim.mockResolvedValue(null)
+    checkRateLimit.mockResolvedValueOnce({ allowed: false, remaining: 0, retryAfterMs: 60000 })
+
+    const { loadSiteSnapshot } = await import("./site-snapshot")
+    const result = await loadSiteSnapshot("example.com", { rateLimitKey: "new-site-lookup:203.0.113.7" })
+
+    expect(resolveSitePresentation).not.toHaveBeenCalled()
+    expect(setClaimSiteMetadata).not.toHaveBeenCalled()
+    expect(fetchDomainRating).not.toHaveBeenCalled()
+    expect(result.lookupError).toBe("Too many new site lookups right now. Please try again later.")
   })
 
   it("rate limits new site lookups per client before calling the provider", async () => {

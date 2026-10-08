@@ -128,7 +128,17 @@ export async function loadSiteSnapshot(
   let screenshotUrl = claim?.screenshot_url ?? null
   let lookupError: string | null = null
 
-  if (!siteTitle || !metaDescription || !siteUrl) {
+  // A domain with no stored DR is a new lookup: its metadata fetch and its DR lookup both count
+  // against the new-lookup caps, and a stored spam title skips both.
+  const isNewSite = domainRating === null
+  const storedSpam = isSpamSite({ domain, siteTitle })
+  let canFetch = !storedSpam
+  if (canFetch && isNewSite && !(await allowNewSiteLookup(rateLimitKey))) {
+    canFetch = false
+    lookupError = NEW_SITE_LOOKUP_LIMITED_MESSAGE
+  }
+
+  if (canFetch && (!siteTitle || !metaDescription || !siteUrl)) {
     try {
       const resolved = await resolveSitePresentation(domain)
       const persisted = await setClaimSiteMetadata({
@@ -148,12 +158,8 @@ export async function loadSiteSnapshot(
     }
   }
 
-  // Resolve the title first so a site caught only by its spam title never costs a lookup.
-  if (domainRating === null && isSpamSite({ domain, siteTitle })) {
-    // The page renders not-found for spam sites, so there's nothing to look up.
-  } else if (domainRating === null && !(await allowNewSiteLookup(rateLimitKey))) {
-    lookupError = NEW_SITE_LOOKUP_LIMITED_MESSAGE
-  } else if (domainRating === null) {
+  // Resolve the title before the lookup, so a site caught only by its spam title never costs one.
+  if (canFetch && isNewSite && !isSpamSite({ domain, siteTitle })) {
     try {
       const result = await fetchDomainRating({ target: domain })
       if (!(result as { captchaRequired?: boolean })?.captchaRequired) {
