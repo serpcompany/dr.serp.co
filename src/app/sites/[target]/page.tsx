@@ -13,6 +13,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { getPublicBaseUrl } from "@/lib/public-url"
 import { normalizeTarget } from "@/server/dr-providers.mjs"
 import { getSessionEmail } from "@/server/auth-session.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
@@ -60,7 +61,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
   // Spam domains get no page and no paid DR lookup; loadSiteSnapshot skips the lookup for spam titles.
   if (!domain || isSpamSite({ domain })) notFound()
 
-  const embedBase = process.env.DR_PUBLIC_BASE_URL || "https://dr.serp.co"
+  const embedBase = getPublicBaseUrl()
   const embedLinkUrl = `${embedBase}/sites/${encodeURIComponent(domain)}`
   const embedBadgeBase = process.env.DR_BADGE_BASE_URL || embedBase
   const embedBadgeUrl = `${embedBadgeBase}/badge/${encodeURIComponent(domain)}?style=serp-dr-v3`

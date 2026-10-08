@@ -50,7 +50,9 @@ checkout uses the session's email when there is one.
 - `GET /api/admin/subscriptions` (admin token) reports every subscription and its domain usage.
 
 Checkout and the portal build their return URLs from `DR_PUBLIC_BASE_URL`, never from the
-request's `Origin` header, which the client controls.
+request's `Origin` header, which the client controls. `npm run cf:preview` builds with
+`--env=preview`, so a test checkout there returns to the deployed preview Worker, not to
+localhost; use `npm run dev` for a local round trip.
 
 ## Webhooks
 

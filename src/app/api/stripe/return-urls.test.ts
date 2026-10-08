@@ -37,7 +37,8 @@ function forgedRequest(path: string, body: unknown) {
 
 describe("Stripe return URLs", () => {
   beforeEach(() => {
-    vi.stubEnv("DR_PUBLIC_BASE_URL", "https://dr.serp.co")
+    // Not the code's fallback, and with a trailing slash, so the test proves the setting is read.
+    vi.stubEnv("DR_PUBLIC_BASE_URL", "https://staging.dr.example/")
     vi.stubEnv("STRIPE_PORTAL_RETURN_URL", "")
     createCheckoutSession.mockReset().mockResolvedValue({ url: "https://checkout.stripe.com/c/1" })
     createPortalSession.mockReset().mockResolvedValue({ url: "https://billing.stripe.com/p/1" })
@@ -54,8 +55,8 @@ describe("Stripe return URLs", () => {
     expect(response.status).toBe(200)
     expect(createCheckoutSession).toHaveBeenCalledWith(
       expect.objectContaining({
-        success_url: "https://dr.serp.co/pricing?checkout=success",
-        cancel_url: "https://dr.serp.co/pricing?checkout=cancelled",
+        success_url: "https://staging.dr.example/pricing?checkout=success",
+        cancel_url: "https://staging.dr.example/pricing?checkout=cancelled",
       })
     )
   })
@@ -66,7 +67,7 @@ describe("Stripe return URLs", () => {
 
     expect(response.status).toBe(200)
     expect(createPortalSession).toHaveBeenCalledWith(
-      expect.objectContaining({ customer: "cus_1", return_url: "https://dr.serp.co/billing" })
+      expect.objectContaining({ customer: "cus_1", return_url: "https://staging.dr.example/billing" })
     )
   })
 })
