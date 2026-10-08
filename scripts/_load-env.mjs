@@ -1,31 +1,16 @@
 import fs from "node:fs"
 import path from "node:path"
+import { parseEnv } from "node:util"
 
+// Local values live in .dev.vars, never in .env* files, which the OpenNext build copies into the
+// Worker bundle. Variables already set in the shell win.
 export function loadProjectEnv(cwd = process.cwd()) {
-  for (const name of [".env.local", ".env"]) {
-    const filePath = path.join(cwd, name)
-    if (!fs.existsSync(filePath)) continue
+  const filePath = path.join(cwd, ".dev.vars")
+  if (!fs.existsSync(filePath)) return
 
-    for (const line of fs.readFileSync(filePath, "utf8").split(/\r?\n/)) {
-      const trimmed = line.trim()
-      if (!trimmed || trimmed.startsWith("#")) continue
-
-      const separator = trimmed.indexOf("=")
-      if (separator === -1) continue
-
-      const key = trimmed.slice(0, separator).trim()
-      let value = trimmed.slice(separator + 1).trim()
-
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1)
-      }
-
-      if (!(key in process.env)) {
-        process.env[key] = value
-      }
+  for (const [key, value] of Object.entries(parseEnv(fs.readFileSync(filePath, "utf8")))) {
+    if (!(key in process.env)) {
+      process.env[key] = value
     }
   }
 }

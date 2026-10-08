@@ -112,8 +112,12 @@ npm run cf:deploy:dry-run
 Deploy production:
 
 ```sh
-npx wrangler deploy --env production
+npm run deploy:production
 ```
+
+It builds for Production, fails if the bundle carries any `.env*` value
+(`scripts/check-bundle-env.mjs`), then runs `opennextjs-cloudflare deploy`. Never use
+`wrangler deploy` directly: it skips the pages OpenNext uploads.
 
 After deploy:
 
@@ -137,8 +141,10 @@ Then run `curl --resolve 'dr.serp.co:443:<edge-ip>' ...`.
 
 ## Guardrails
 
-- Do not commit secrets, `.env`, `.env.local`, `.codex/`, `.claude/`, `.wrangler/`,
-  `.open-next/`, `.next/`, or `tmp/` artifacts.
+- Do not commit secrets, `.dev.vars`, `.codex/`, `.claude/`, `.wrangler/`, `.open-next/`,
+  `.next/`, or `tmp/` artifacts.
+- Keep local values in `.dev.vars`, never in `.env*` files, which OpenNext copies into the
+  Worker bundle.
 - Do not run direct database commands without explicit approval in the current
   conversation.
 - Keep Cloudflare bindings and Worker secrets in Cloudflare, not in Git.

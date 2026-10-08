@@ -1,10 +1,12 @@
+# Copy to .dev.vars for local runs (next dev, wrangler, opennextjs-cloudflare preview).
+# Never put these in .env* files: the OpenNext build copies .env* values into the Worker bundle.
+# Deployed environments use Worker vars and secrets (wrangler secret put --env <env>).
+
 USESEND_API_KEY=
 USESEND_FROM=DR Checker <no-reply@mail.serp.co>
 
 USESEND_OTP_SECRET=
 
-VITE_PUBLIC_BASE_URL=https://dr.serp.co
-VITE_BADGE_BASE_URL=https://dr.serp.co
 DR_PUBLIC_BASE_URL=https://dr.serp.co
 DR_BADGE_BASE_URL=https://dr.serp.co
 
