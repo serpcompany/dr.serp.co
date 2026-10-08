@@ -55,7 +55,9 @@ describe('withDbErrors', () => {
     ])
     for (const name of modules) {
       const unwrapped =
-        readFileSync(path.join(dir, name), 'utf8').match(/^export (async )?function \w+/gm) ?? []
+        readFileSync(path.join(dir, name), 'utf8').match(
+          /^export (async )?function \w+|^export const \w+ = (?!withDbErrors\()/gm
+        ) ?? []
       expect(
         unwrapped.filter(line => !line.endsWith('billingAuditCutoff')),
         name
