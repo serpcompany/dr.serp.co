@@ -58,10 +58,8 @@ function compareDrDesc(a: Row, b: Row) {
 function createMockD1() {
   const state = {
     claims: new Map<string, Row>(),
-    checks: [] as Row[],
     subscriptions: new Map<string, Row>(),
     billingAudit: [] as Row[],
-    nextCheckId: 1,
     nextBillingId: 1
   }
   const calls: Row[] = []
