@@ -37,18 +37,16 @@ function toDate(value: Date | string | null | undefined) {
 
 // Webhook payloads follow the endpoint's API version (2025-06-30.basil), not the SDK's
 // (2023-10-16), so read fields that basil moved from either place.
-type SubscriptionRef = string | { id?: string } | null | undefined
 type InvoiceShapes = {
-  subscription?: SubscriptionRef
-  parent?: { subscription_details?: { subscription?: SubscriptionRef } | null } | null
+  subscription?: string | null
+  parent?: { subscription_details?: { subscription?: string | null } | null } | null
 }
 type PeriodEnd = { current_period_end?: number | null }
 
 function invoiceSubscriptionId(invoice: Stripe.Invoice) {
   const shapes = invoice as unknown as InvoiceShapes
-  const value = shapes.subscription ?? shapes.parent?.subscription_details?.subscription ?? null
-  if (typeof value === "string") return value
-  return value?.id ?? null
+  const value = shapes.subscription ?? shapes.parent?.subscription_details?.subscription
+  return typeof value === "string" ? value : null
 }
 
 function subscriptionPeriodEnd(subscription: Stripe.Subscription) {

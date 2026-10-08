@@ -434,7 +434,7 @@ function createMockD1() {
         cancel_at_period_end: coalesce(cancelAtPeriodEnd, existing?.cancel_at_period_end),
         event_created_at: coalesce(eventCreatedAt, existing?.event_created_at),
         success: coalesce(success, existing?.success),
-        error: coalesce(error, existing?.error),
+        error: error ?? null,
         created_at: createdAt,
       }
       if (existing) {
@@ -687,13 +687,13 @@ describe("D1 database boundary", () => {
       email: "billing@example.com",
       success: true,
       cancelAtPeriodEnd: true,
-      error: "resolved",
     })
     const latest = await db.getLatestBillingAuditEvent()
     const failure = await db.getLatestBillingAuditFailure()
 
     expect(d1.state.billingAudit).toHaveLength(1)
-    expect(updated).toMatchObject({ stripe_event_id: "evt_123", success: true, cancel_at_period_end: true })
+    // A replay that succeeds clears the earlier failure's error.
+    expect(updated).toMatchObject({ stripe_event_id: "evt_123", success: true, cancel_at_period_end: true, error: null })
     expect(latest).toMatchObject({ stripe_event_id: "evt_123", success: true, cancel_at_period_end: true })
     expect(failure).toBeNull()
   })
