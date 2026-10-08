@@ -44,8 +44,11 @@ checkout uses the session's email when there is one.
 
 - `POST /api/stripe/checkout` opens a subscription-mode Checkout Session, returning to
   `/pricing?checkout=success` or `/pricing?checkout=cancelled`.
-- `POST /api/stripe/portal` opens the Stripe customer portal for plan changes and payment details,
-  returning to `STRIPE_PORTAL_RETURN_URL` or `/billing`.
+- `POST /api/stripe/portal` opens the Stripe customer portal for payment details, invoices and
+  cancellation, returning to `STRIPE_PORTAL_RETURN_URL` or `/billing`. Production passes
+  dr.serp.co's portal configuration (`STRIPE_PORTAL_CONFIGURATION_ID` in `wrangler.jsonc`), because
+  the account's default one belongs to SERP Lists. It doesn't offer plan changes: Stripe's portal
+  allows one price per interval for each product, and dr.serp.co has four sizes per interval.
 - `POST /api/billing/status` returns the subscriber's entitlement and subscription for `/billing`.
 - `GET /api/admin/subscriptions` (admin token) reports every subscription and its domain usage.
 
