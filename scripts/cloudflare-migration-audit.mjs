@@ -96,7 +96,6 @@ try {
 
   const findings = []
   const blockers = []
-  const warnings = []
 
   for (const relativePath of requiredFiles) {
     if (!(await fileExists(relativePath))) {
@@ -187,7 +186,6 @@ try {
     checkedAt: new Date().toISOString(),
     findings,
     blockers,
-    warnings,
   }
 
   console.log(JSON.stringify(summary, null, options.pretty ? 2 : 0))
