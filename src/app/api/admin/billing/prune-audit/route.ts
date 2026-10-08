@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { readRequestJsonRecord } from "@/lib/read-json"
 import { countPrunableBillingAudit, pruneBillingAudit } from "@/server/db.mjs"
+import { checkAdminToken } from "@/server/admin-auth.mjs"
 
 export const runtime = "nodejs"
 
@@ -10,22 +11,9 @@ function parseRetentionDays(value: unknown) {
   return Number.isFinite(parsed) ? Math.max(1, Math.floor(parsed)) : null
 }
 
-function unauthorizedResponse() {
-  return NextResponse.json({ error: "Unauthorized." }, { status: 401 })
-}
-
-function adminTokenFrom(request: Request) {
-  const url = new URL(request.url)
-  return request.headers.get("x-admin-token") || url.searchParams.get("token") || ""
-}
-
 export async function POST(request: Request) {
-  const adminToken = process.env.DR_ADMIN_TOKEN
-  if (!adminToken) {
-    return NextResponse.json({ error: "Admin token not configured." }, { status: 500 })
-  }
-
-  if (adminTokenFrom(request) !== adminToken) return unauthorizedResponse()
+  const denied = checkAdminToken(request)
+  if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status })
 
   const body = await readRequestJsonRecord(request)
   const envDays = parseRetentionDays(process.env.BILLING_AUDIT_RETENTION_DAYS)

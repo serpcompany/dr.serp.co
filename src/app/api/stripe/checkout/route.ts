@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { getPublicBaseUrl } from "@/lib/public-url"
 import { getStripe } from "@/lib/stripe"
 import { getPriceId } from "@/lib/stripe-pricing"
 import type { BillingPeriod } from "@/lib/pricing"
@@ -45,9 +46,7 @@ export async function POST(request: Request) {
     }
     if (email) metadata.email = email
 
-    const origin = request.headers.get("origin")
-    const baseUrl =
-      origin ?? process.env.DR_PUBLIC_BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
+    const baseUrl = getPublicBaseUrl()
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
