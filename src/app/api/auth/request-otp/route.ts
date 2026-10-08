@@ -17,11 +17,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 })
   }
 
-  const { ok, code, retryAfterMs, expiresAt } = createOtp(email)
+  const { ok, code, retryAfterMs, expiresAt } = await createOtp(email)
   if (!ok) {
     return NextResponse.json(
       { error: "Please wait before requesting another code", retryAfterMs },
-      { status: 429 }
+      { status: 429, headers: { "Retry-After": String(Math.ceil((retryAfterMs ?? 0) / 1000)) } }
     )
   }
 

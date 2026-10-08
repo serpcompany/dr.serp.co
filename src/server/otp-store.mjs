@@ -1,18 +1,22 @@
 import crypto from 'node:crypto'
 
-const otpStore = globalThis.__otpStore || new Map()
-globalThis.__otpStore = otpStore
+import { checkRateLimit } from './rate-limit.mjs'
 
-const RESEND_COOLDOWN_MS = 60 * 1000
+const RESEND_COOLDOWN_SECONDS = 60
+const CODE_TTL_MS = 10 * 60 * 1000
 
-export function createOtp(email) {
-  const now = Date.now()
-  const existing = otpStore.get(email)
-  if (existing && now - existing.lastSentAt < RESEND_COOLDOWN_MS) {
-    return { ok: false, retryAfterMs: RESEND_COOLDOWN_MS - (now - existing.lastSentAt) }
+// One code per email per minute. The cooldown is counted in the RATE_LIMITER Durable Object, so
+// every Worker isolate shares it; when the Durable Object fails, checkRateLimit refuses.
+export async function createOtp(email) {
+  const rate = await checkRateLimit({
+    key: `otp-resend:${email}`,
+    points: 1,
+    duration: RESEND_COOLDOWN_SECONDS,
+  })
+  if (!rate.allowed) {
+    return { ok: false, retryAfterMs: rate.retryAfterMs }
   }
 
   const code = String(crypto.randomInt(100000, 1000000))
-  otpStore.set(email, { lastSentAt: now })
-  return { ok: true, code, expiresAt: now + 10 * 60 * 1000 }
+  return { ok: true, code, expiresAt: Date.now() + CODE_TTL_MS }
 }
