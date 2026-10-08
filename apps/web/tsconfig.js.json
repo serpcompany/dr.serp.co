@@ -5,6 +5,6 @@
     "noImplicitAny": false,
     "incremental": false
   },
-  "include": ["cloudflare-env.d.ts", "src/**/*.mjs", "scripts/**/*.mjs"],
+  "include": ["cloudflare-env.d.ts", "open-next-worker.d.ts", "src/**/*.mjs", "scripts/**/*.mjs"],
   "exclude": ["node_modules", "**/*.test.*"]
 }

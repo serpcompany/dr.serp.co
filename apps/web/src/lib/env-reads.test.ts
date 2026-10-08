@@ -57,7 +57,7 @@ describe('configuration reads', () => {
   })
 
   it('no module reads process.env outside a function', () => {
-    const files = [...sourceFiles(path.join(ROOT, 'src')), path.join(ROOT, 'cloudflare-worker.js')]
+    const files = [...sourceFiles(path.join(ROOT, 'src')), path.join(ROOT, 'worker.ts')]
     const reads = files.flatMap(file => loadTimeEnvReads(file, readFileSync(file, 'utf8')))
 
     expect(reads).toEqual([])

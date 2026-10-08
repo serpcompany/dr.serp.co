@@ -3,7 +3,7 @@ import path from 'node:path'
 
 const requiredFiles = [
   'open-next.config.ts',
-  'cloudflare-worker.js',
+  'worker.ts',
   'wrangler.jsonc',
   'migrations/0001_initial_d1_schema.sql',
   'src/server/rate-limit-do.mjs',
@@ -17,7 +17,7 @@ const requiredFiles = [
 const requiredPackageScripts = [
   'cf:build',
   'preview',
-  'cf:preview:dry-run',
+  'cf:staging:dry-run',
   'cf:deploy:dry-run',
   'cf-typegen',
   'routes:manifest',
@@ -115,11 +115,11 @@ try {
   const wrangler = parseJsonc(wranglerSource)
   const wranglerStrings = collectStrings(wrangler)
 
-  if (wrangler.main !== './cloudflare-worker.js') {
+  if (wrangler.main !== './worker.ts') {
     findings.push({
       severity: 'error',
       area: 'wrangler',
-      message: 'main must point to ./cloudflare-worker.js'
+      message: 'main must point to ./worker.ts'
     })
   }
   if (!wrangler.compatibility_flags?.includes('nodejs_compat')) {
@@ -132,11 +132,11 @@ try {
   if (wrangler.assets?.binding !== 'ASSETS') {
     findings.push({ severity: 'error', area: 'wrangler', message: 'ASSETS binding is required' })
   }
-  if (!wrangler.d1_databases?.some(entry => entry.binding === 'SERP_DR_DB')) {
+  if (!wrangler.d1_databases?.some(entry => entry.binding === 'DB')) {
     findings.push({
       severity: 'error',
       area: 'wrangler',
-      message: 'SERP_DR_DB D1 binding is required'
+      message: 'DB D1 binding is required'
     })
   }
   if (!wrangler.durable_objects?.bindings?.some(entry => entry.name === 'RATE_LIMITER')) {
@@ -192,7 +192,7 @@ try {
 
   const declaredSecrets = unique([
     ...(wrangler.secrets?.required ?? []),
-    ...(wrangler.env?.preview?.secrets?.required ?? []),
+    ...(wrangler.env?.staging?.secrets?.required ?? []),
     ...(wrangler.env?.production?.secrets?.required ?? [])
   ])
   for (const secret of requiredSecrets) {

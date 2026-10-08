@@ -1,7 +1,7 @@
 const PARITY_CACHE_CONTROL = 'public, max-age=0, must-revalidate'
 const OPEN_NEXT_STATIC_CACHE_CONTROL = 's-maxage=31536000'
 
-function shouldSkipPath(pathname) {
+function shouldSkipPath(pathname: string) {
   return (
     pathname.startsWith('/_next/') ||
     pathname === '/favicon.ico' ||
@@ -9,7 +9,8 @@ function shouldSkipPath(pathname) {
   )
 }
 
-export function applyCacheControlParity(request, response) {
+// A response with no Cache-Control, or with OpenNext's year-long default, revalidates instead.
+export function applyCacheControlParity(request: Request, response: Response): Response {
   if (request.method !== 'GET' && request.method !== 'HEAD') return response
 
   const url = new URL(request.url)

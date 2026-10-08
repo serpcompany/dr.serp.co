@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyCacheControlParity } from './cache-control-parity.mjs'
+import { applyCacheControlParity } from './cache-control-parity'
 
 describe('applyCacheControlParity', () => {
   it('adds parity cache-control to GET responses without one', () => {

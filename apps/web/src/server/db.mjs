@@ -2,7 +2,7 @@ import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { isValidDomainTarget } from './domain-target.mjs'
 import { isSpamSite } from './site-spam.mjs'
 
-const D1_BINDING_NAME = 'SERP_DR_DB'
+const D1_BINDING_NAME = 'DB'
 
 /**
  * Number.isFinite, as a type guard.
