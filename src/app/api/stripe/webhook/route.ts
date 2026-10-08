@@ -72,14 +72,9 @@ async function buildSubscriptionSnapshot(
 ) {
   const price = subscription.items.data[0]?.price
   const priceId = price?.id ?? null
-  let tier = null
-  if (priceId) {
-    try {
-      tier = getTierForPriceId(priceId)
-    } catch {
-      tier = null
-    }
-  }
+  // Null for another product's price. A broken STRIPE_PRICE_IDS throws instead, so the event fails
+  // with a 500 and Stripe retries it, rather than being ignored as another product's.
+  const tier = priceId ? getTierForPriceId(priceId) : null
   const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id
 
   const emailFromCustomer = await resolveCustomerEmail(stripe, customerId)
@@ -99,13 +94,21 @@ async function buildSubscriptionSnapshot(
     status: subscription.status,
     currentPeriodEnd,
     cancelAtPeriodEnd: subscription.cancel_at_period_end ?? null,
+    // The Stripe account also sells other SERP products; only dr.serp.co's prices map to a tier.
+    isDrPlan: tier !== null,
   }
 }
 
+const IGNORED_PRICE = "Ignored: not a dr.serp.co price."
+
 async function syncSubscription(snapshot: Awaited<ReturnType<typeof buildSubscriptionSnapshot>>) {
+  if (!snapshot.isDrPlan) {
+    console.info("stripe.webhook: ignored a subscription on another product", snapshot.stripePriceId)
+    return { record: null, snapshot, ignored: true }
+  }
   if (!snapshot.email) {
     console.warn("stripe.webhook: missing email for subscription", snapshot.stripeSubscriptionId)
-    return { record: null, snapshot }
+    return { record: null, snapshot, ignored: false }
   }
 
   const record = await upsertSubscription({
@@ -120,7 +123,33 @@ async function syncSubscription(snapshot: Awaited<ReturnType<typeof buildSubscri
     cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd ?? null,
   })
 
-  return { record, snapshot }
+  return { record, snapshot, ignored: false }
+}
+
+// The audit row for a synced event. Another product's event keeps only its ids and price, not
+// that customer's email or plan.
+function auditFields(synced: Awaited<ReturnType<typeof syncSubscription>>) {
+  const { snapshot } = synced
+  if (synced.ignored) {
+    return {
+      stripeSubscriptionId: snapshot.stripeSubscriptionId ?? null,
+      stripePriceId: snapshot.stripePriceId ?? null,
+      success: true,
+      error: IGNORED_PRICE,
+    }
+  }
+  return {
+    stripeCustomerId: snapshot.stripeCustomerId ?? null,
+    stripeSubscriptionId: snapshot.stripeSubscriptionId ?? null,
+    stripePriceId: snapshot.stripePriceId ?? null,
+    email: snapshot.email ?? null,
+    billingInterval: snapshot.billingInterval ?? null,
+    domainsLimit: snapshot.domainsLimit ?? null,
+    status: snapshot.status ?? null,
+    currentPeriodEnd: snapshot.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd ?? null,
+    success: true,
+  }
 }
 
 export async function POST(request: Request) {
@@ -175,21 +204,12 @@ export async function POST(request: Request) {
         }
         const subscription = await stripe.subscriptions.retrieve(subscriptionId)
         const snapshot = await buildSubscriptionSnapshot(stripe, subscription, email)
-        await syncSubscription(snapshot)
+        const synced = await syncSubscription(snapshot)
         await insertBillingAudit({
           stripeEventId: event.id,
           stripeEventType: event.type,
           eventCreatedAt,
-          stripeCustomerId: snapshot.stripeCustomerId ?? null,
-          stripeSubscriptionId: snapshot.stripeSubscriptionId ?? null,
-          stripePriceId: snapshot.stripePriceId ?? null,
-          email: snapshot.email ?? null,
-          billingInterval: snapshot.billingInterval ?? null,
-          domainsLimit: snapshot.domainsLimit ?? null,
-          status: snapshot.status ?? null,
-          currentPeriodEnd: snapshot.currentPeriodEnd ?? null,
-          cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd ?? null,
-          success: true,
+          ...auditFields(synced),
         })
         break
       }
@@ -198,21 +218,12 @@ export async function POST(request: Request) {
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription
         const snapshot = await buildSubscriptionSnapshot(stripe, subscription, null)
-        await syncSubscription(snapshot)
+        const synced = await syncSubscription(snapshot)
         await insertBillingAudit({
           stripeEventId: event.id,
           stripeEventType: event.type,
           eventCreatedAt,
-          stripeCustomerId: snapshot.stripeCustomerId ?? null,
-          stripeSubscriptionId: snapshot.stripeSubscriptionId ?? null,
-          stripePriceId: snapshot.stripePriceId ?? null,
-          email: snapshot.email ?? null,
-          billingInterval: snapshot.billingInterval ?? null,
-          domainsLimit: snapshot.domainsLimit ?? null,
-          status: snapshot.status ?? null,
-          currentPeriodEnd: snapshot.currentPeriodEnd ?? null,
-          cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd ?? null,
-          success: true,
+          ...auditFields(synced),
         })
         break
       }
@@ -232,21 +243,12 @@ export async function POST(request: Request) {
         }
         const subscription = await stripe.subscriptions.retrieve(subscriptionId)
         const snapshot = await buildSubscriptionSnapshot(stripe, subscription, null)
-        await syncSubscription(snapshot)
+        const synced = await syncSubscription(snapshot)
         await insertBillingAudit({
           stripeEventId: event.id,
           stripeEventType: event.type,
           eventCreatedAt,
-          stripeCustomerId: snapshot.stripeCustomerId ?? null,
-          stripeSubscriptionId: snapshot.stripeSubscriptionId ?? null,
-          stripePriceId: snapshot.stripePriceId ?? null,
-          email: snapshot.email ?? null,
-          billingInterval: snapshot.billingInterval ?? null,
-          domainsLimit: snapshot.domainsLimit ?? null,
-          status: snapshot.status ?? null,
-          currentPeriodEnd: snapshot.currentPeriodEnd ?? null,
-          cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd ?? null,
-          success: true,
+          ...auditFields(synced),
         })
         break
       }

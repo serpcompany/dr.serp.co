@@ -40,7 +40,9 @@ function safeTierLookup(priceId) {
   if (!priceId) return null
   try {
     return getTierForPriceId(priceId)
-  } catch {
+  } catch (error) {
+    // A broken STRIPE_PRICE_IDS: fail closed, but leave a trace.
+    console.error("entitlements: price lookup failed", error instanceof Error ? error.message : error)
     return null
   }
 }
@@ -70,9 +72,13 @@ export async function resolveEntitlement({ email, now = new Date() }) {
   ])
 
   const currentPeriodEnd = toDate(subscription?.current_period_end)
-  const access = resolveAccessStatus(subscription?.status ?? null, currentPeriodEnd, now)
-
   const tier = safeTierLookup(subscription?.stripe_price_id ?? null)
+  // The Stripe account also sells other SERP products: a row whose price isn't a dr.serp.co tier
+  // is no plan here, whatever its Stripe status.
+  const access = tier
+    ? resolveAccessStatus(subscription?.status ?? null, currentPeriodEnd, now)
+    : resolveAccessStatus(null, null, now)
+
   const domainsLimitRaw = Number.isFinite(Number(subscription?.domains_limit))
     ? Number(subscription.domains_limit)
     : tier?.domains ?? 0

@@ -64,6 +64,12 @@ with `STRIPE_WEBHOOK_SECRET` and handles:
   `customer.subscription.deleted`;
 - `invoice.paid` and `invoice.payment_failed`.
 
+The Stripe account ("SERP SAAS") also sells SERP Lists Pro and SERP Subscriptions Premium, and
+the endpoint receives their events too. The handler syncs a subscription only when its price is
+one of dr.serp.co's (`STRIPE_PRICE_IDS`); it records any other as a successful audit row with
+the error "Ignored: not a dr.serp.co price." and no customer details. Entitlements likewise
+grant nothing for a row whose price isn't a dr.serp.co tier.
+
 Each event updates `dr_subscriptions` and writes one row to `dr_billing_audit`, which records
 success or the error and is unique on the Stripe event ID, so a replayed event is recorded once,
 with the replay's result and error replacing the earlier ones.

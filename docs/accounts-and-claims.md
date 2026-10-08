@@ -53,7 +53,8 @@ A claim ties a domain to one account (`dr_claims.email`).
 ## What a paid plan gives a claimed domain
 
 `resolveEntitlement` decides whether the owner's plan is active: `active` and `trialing`
-subscriptions are, and a lapsed one stays active until its current period ends. While it is:
+subscriptions on a dr.serp.co price are, and a lapsed one stays active until its current period
+ends. A subscription on another SERP product's price is no plan here ([Billing](billing.md#webhooks)). While it is:
 
 - the site page links to the domain's homepage without `nofollow`
   (`getOutboundLinkProps` in `src/app/sites/[target]/site-page-helpers.ts`);

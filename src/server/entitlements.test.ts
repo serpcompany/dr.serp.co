@@ -13,7 +13,8 @@ vi.mock("@/server/db.mjs", () => ({
 }))
 
 vi.mock("@/lib/stripe-pricing", () => ({
-  getTierForPriceId: vi.fn(() => ({ domains: 25, billing: "monthly" })),
+  // Like the real function: null for a price that isn't dr.serp.co's.
+  getTierForPriceId: vi.fn((priceId: string) => (priceId === "price_25m" ? { domains: 25, billing: "monthly" } : null)),
 }))
 
 const baseNow = new Date("2026-01-01T00:00:00Z")
@@ -59,6 +60,7 @@ describe("resolveEntitlement", () => {
   it("marks active subscriptions as paid access", async () => {
     mocks.getLatestSubscriptionByEmail.mockResolvedValue({
       stripe_subscription_id: "sub_active",
+      stripe_price_id: "price_25m",
       status: "active",
       domains_limit: 12,
       billing_interval: "monthly",
@@ -76,6 +78,7 @@ describe("resolveEntitlement", () => {
   it("marks trialing subscriptions as paid access", async () => {
     mocks.getLatestSubscriptionByEmail.mockResolvedValue({
       stripe_subscription_id: "sub_trial",
+      stripe_price_id: "price_25m",
       status: "trialing",
       domains_limit: 25,
       billing_interval: "monthly",
@@ -92,6 +95,7 @@ describe("resolveEntitlement", () => {
   it("treats past_due with expired period as unpaid", async () => {
     mocks.getLatestSubscriptionByEmail.mockResolvedValue({
       stripe_subscription_id: "sub_past_due",
+      stripe_price_id: "price_25m",
       status: "past_due",
       domains_limit: 25,
       billing_interval: "monthly",
@@ -108,6 +112,7 @@ describe("resolveEntitlement", () => {
   it("treats canceled with expired period as inactive", async () => {
     mocks.getLatestSubscriptionByEmail.mockResolvedValue({
       stripe_subscription_id: "sub_canceled",
+      stripe_price_id: "price_25m",
       status: "canceled",
       domains_limit: 25,
       billing_interval: "monthly",
@@ -124,6 +129,7 @@ describe("resolveEntitlement", () => {
   it("treats past_due with future period end as grace", async () => {
     mocks.getLatestSubscriptionByEmail.mockResolvedValue({
       stripe_subscription_id: "sub_grace",
+      stripe_price_id: "price_25m",
       status: "past_due",
       domains_limit: 25,
       billing_interval: "monthly",
@@ -135,5 +141,19 @@ describe("resolveEntitlement", () => {
 
     expect(result?.status).toBe("grace")
     expect(result?.canAccessPaidFeatures).toBe(true)
+  })
+
+  it("grants nothing for an active subscription on another product's price", async () => {
+    mocks.getLatestSubscriptionByEmail.mockResolvedValue({
+      stripe_subscription_id: "sub_lists",
+      stripe_price_id: "price_1SsjeTCt1irzGjqBfVd0YRM9",
+      status: "active",
+      domains_limit: null,
+      current_period_end: new Date("2026-02-01T00:00:00Z"),
+    })
+
+    const result = await resolveEntitlement({ email: "lists@example.com", now: baseNow })
+
+    expect(result).toMatchObject({ status: "none", canAccessPaidFeatures: false, canClaim: false })
   })
 })
