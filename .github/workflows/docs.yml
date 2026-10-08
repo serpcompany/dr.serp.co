@@ -25,14 +25,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # The docs tooling (remark) is installed with the site in apps/web.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: apps/web/package.json
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
-          cache: npm
+          node-version-file: apps/web/.nvmrc
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
 
       - name: Install
-        run: npm ci --no-audit --no-fund
+        working-directory: apps/web
+        run: pnpm install --frozen-lockfile
 
       - name: Check doc sizes, names and links
-        run: npm run docs:check
+        working-directory: apps/web
+        run: pnpm docs:check

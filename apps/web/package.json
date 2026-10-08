@@ -3,8 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@10.17.0",
   "engines": {
-    "node": "^20.12 || ^22"
+    "node": "^22"
   },
   "scripts": {
     "predev": "node scripts/clean-next.mjs",
@@ -30,7 +31,7 @@
     "r2:replace-badges": "node scripts/replace-r2-badge-assets.mjs",
     "sites:purge-invalid": "node scripts/purge-invalid-site-domains.mjs",
     "sites:backfill-metadata": "node scripts/backfill-site-metadata.mjs",
-    "docs:check": "node .github/scripts/check-docs.mjs && remark \"*.md\" \"docs/**/*.md\" --frail --quiet --use remark-validate-links"
+    "docs:check": "node ../../.github/scripts/check-docs.mjs && remark \"../../*.md\" \"../../docs/**/*.md\" --frail --quiet --use remark-validate-links"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.19.11",
@@ -84,6 +85,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "3.3.3",
     "@eslint/js": "^9.21.0",
     "@tailwindcss/postcss": "^4.1.8",
     "@types/node": "^22.10.0",
@@ -95,6 +97,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
+    "miniflare": "4.20260617.1",
     "remark-cli": "^12.0.1",
     "remark-validate-links": "^13.1.0",
     "tailwindcss": "^4.1.11",
@@ -103,5 +106,11 @@
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^2.1.9",
     "wrangler": "^4.103.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
   }
 }

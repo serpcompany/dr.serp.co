@@ -44,7 +44,7 @@ Older embeds load fixed SVGs from R2, such as `https://embeds.serp.co/serp-dr-sm
 are served by a separate Worker, `badge-api`, from the `serp-embeds` bucket, not by this site, and
 any number in them was fixed at upload. They don't support `style` or a live DR.
 
-`npm run r2:replace-badges -- --bucket serp-embeds` replaces those files from `svgs/badges/`,
+`pnpm r2:replace-badges --bucket serp-embeds` replaces those files from `svgs/badges/`,
 following the map in `scripts/r2-badge-replacements.json`. Without `--apply` it only reports what
 it would do. With `--apply` it first backs up each object under `_backup/badges/<timestamp>/` in
 the bucket and to `tmp/r2-badge-backups/`, then prints the commands to roll back. It writes to a

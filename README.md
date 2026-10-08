@@ -5,9 +5,10 @@ serves an embeddable DR badge, and sells subscriptions for claiming and tracking
 Next.js app on Cloudflare Workers with D1.
 
 ```bash
-npm install
+cd apps/web
+pnpm install
 cp .dev.vars.example .dev.vars   # local values; never put them in .env* files
-npm run dev
+pnpm dev
 ```
 
 [AGENTS.md](AGENTS.md) maps the code, the commands and the docs. The docs themselves are in

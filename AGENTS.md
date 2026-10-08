@@ -32,10 +32,13 @@ ones your task touches (paths below are relative to that folder):
 
 The site is moving to the SERP web stack under
 [epic #36](https://github.com/serpcompany/dr.serp.co/issues/36), one sub-issue at a time. Until
-an issue lands, keep the current tools: no Drizzle, Better Auth, Biome, pnpm or `base-nova`
-components ahead of their issue.
+an issue lands, keep the current tools: no Drizzle, Better Auth, Biome or `base-nova` components ahead of
+their issue.
 
 ## Where things live
+
+The site is in `apps/web/`, with its own `package.json` and pnpm lockfile. Code paths here and in
+`docs/` are relative to it; the root holds only `AGENTS.md`, `README.md`, `docs/` and `.github/`.
 
 - `src/app/`: pages and route handlers. Writes a visitor asks for are route handlers under
   `src/app/api/`; there are no Server Actions. Rendering a site page and the badge route also
@@ -66,19 +69,19 @@ components ahead of their issue.
 
 ## Commands
 
-Inner loop, while editing:
+Run them from `apps/web/`. Inner loop, while editing:
 
-- `npx vitest related --run <changed files>`: the tests for what you changed.
-- `npm run dev`: `next dev` with local values from `.dev.vars`.
-- Type errors in app code surface in `npm run build`. `npx tsc --noEmit` also checks test files,
-  which have known errors until #42.
+- `pnpm exec vitest related --run <changed files>`: the tests for what you changed.
+- `pnpm dev`: `next dev` with local values from `.dev.vars`.
+- Type errors in app code surface in `pnpm build`. `pnpm exec tsc --noEmit` also checks test files,
+  which have known errors until #93.
 
-Finish gate, once per finished state: `npm run lint && npm test &&
-npm run cf:audit -- --strict --pretty && npm run cf:build && npm run docs:check`.
+Finish gate, once per finished state: `pnpm lint && pnpm test &&
+pnpm cf:audit --strict --pretty && pnpm cf:build && pnpm docs:check`.
 
 Evidence beyond the finish gate:
 
-- **Worker entry, redirects, headers or `wrangler.jsonc`:** a run on `npm run cf:preview`.
+- **Worker entry, redirects, headers or `wrangler.jsonc`:** a run on `pnpm cf:preview`.
 - **Visible UI:** one local run with a screenshot at 1440 px and 390 px wide.
 
 ## Rules
@@ -86,7 +89,7 @@ Evidence beyond the finish gate:
 - **Local values go in `.dev.vars`, never in `.env*` files.** The OpenNext build copies `.env*`
   values into the Worker bundle, and `scripts/check-bundle-env.mjs` fails the build if any are there.
 - **Agents never deploy or run remote D1 commands** (`--remote`). The owner deploys with
-  `npm run deploy:preview` or `npm run deploy:production`, never `wrangler deploy`, until
+  `pnpm deploy:preview` or `pnpm deploy:production`, never `wrangler deploy`, until
   [#44](https://github.com/serpcompany/dr.serp.co/issues/44) moves deploys to CI.
 - **The top level of `wrangler.jsonc` is the local configuration,** and every remote command passes
   `--env`. Environments still inherit some top-level keys, such as `compatibility_date`, so read

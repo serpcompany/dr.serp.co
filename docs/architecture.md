@@ -20,7 +20,7 @@ The entry also exports `RateLimitDurableObject`, the class behind the `RATE_LIMI
 logic lives in `src/server/`, and each part has tests next to it.
 
 `next dev` doesn't run the Worker entry, so slash redirects and cache headers only show up in
-`npm run cf:preview` or a deployed Worker.
+`pnpm cf:preview` or a deployed Worker.
 
 ## Layers
 
@@ -69,7 +69,7 @@ D1, bound as `SERP_DR_DB` in every environment, holds four tables
 
 `src/server/db.mjs` reads the binding through `getCloudflareContext()` on each call. Without a
 Cloudflare context outside production, which is `next dev`, it uses an in-memory store saved to
-`.cache/dr-fallback.json`, so `next dev` never touches D1. `npm run cf:preview` runs against
+`.cache/dr-fallback.json`, so `next dev` never touches D1. `pnpm cf:preview` runs against
 local D1 in `.wrangler/`. In production, a missing binding throws. Replacing the fallback with
 local D1 and moving to Drizzle is [#48](https://github.com/serpcompany/dr.serp.co/issues/48).
 
