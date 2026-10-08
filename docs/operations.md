@@ -3,7 +3,7 @@
 The environments, where secrets live, and how deploys, D1 migrations, operator scripts and rollback
 work. Every remote operation here is the owner's: agents prepare and verify, but never deploy,
 change secrets or run remote D1 commands. Moving deploys and migrations into CI is
-[#44](https://github.com/serpcompany/dr.serp.co/issues/44).
+[#100](https://github.com/serpcompany/dr.serp.co/issues/100).
 
 ## Environments
 

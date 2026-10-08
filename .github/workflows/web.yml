@@ -49,13 +49,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: apps/web/pnpm-lock.yaml
 
-      - name: Cache the Next.js build cache
-        uses: actions/cache@v4
-        with:
-          path: apps/web/.next/cache
-          key: next-${{ hashFiles('apps/web/pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: next-${{ hashFiles('apps/web/pnpm-lock.yaml') }}-
-
       - name: Install
         run: pnpm install --frozen-lockfile
 

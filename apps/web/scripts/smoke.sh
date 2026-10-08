@@ -33,6 +33,8 @@ fi
 base="${base%/}"
 
 header="x-dr-serp-smoke-test: 1"
+# Every request gives up after 15 s, so a stalled connection fails the check instead of hanging.
+curl_() { curl -sS --connect-timeout 5 --max-time 15 "$@"; }
 failures=0
 
 pass() { echo "ok    $1"; }
@@ -44,7 +46,7 @@ fail() {
 # expect_status <path> <status> [content-type prefix]
 expect_status() {
   local path="$1" want="$2" type="${3:-}" got
-  got=$(curl -sS -o /dev/null -w '%{http_code} %{content_type}' -H "$header" "$base$path") || got="000"
+  got=$(curl_ -o /dev/null -w '%{http_code} %{content_type}' -H "$header" "$base$path") || got="000"
   if [ "${got%% *}" != "$want" ]; then
     fail "GET $path: $got, want $want"
   elif [ -n "$type" ] && [[ "${got#* }" != "$type"* ]]; then
@@ -61,9 +63,15 @@ expect_status /badge/example.com 200 image/svg+xml
 expect_status '/api/sites?limit=1' 200 application/json
 
 # Robots: Staging sends noindex on every response; Production never does.
-robots=$(curl -sS -D - -o /dev/null -H "$header" "$base/pricing" | tr -d '\r' |
+if ! headers=$(curl_ -D - -o /dev/null -H "$header" "$base/pricing"); then
+  fail "GET /pricing for the robots header: request failed"
+  headers=""
+fi
+robots=$(printf '%s' "$headers" | tr -d '\r' |
   awk 'tolower($1) == "x-robots-tag:" { print tolower($2) }')
-if [ "$env" = staging ] && [ "$robots" != noindex ]; then
+if [ -z "$headers" ]; then
+  : # already reported
+elif [ "$env" = staging ] && [ "$robots" != noindex ]; then
   fail "Staging must send X-Robots-Tag: noindex (got '${robots}')"
 elif [ "$env" = production ] && [ -n "$robots" ]; then
   fail "Production must not send X-Robots-Tag (got '${robots}')"
@@ -76,7 +84,7 @@ fi
 want="$canonical/sites/example.com?smoke=1"
 got=""
 for _ in 1 2 3 4 5 6; do
-  got=$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' "$platform/sites/example.com?smoke=1") || got="000"
+  got=$(curl_ -o /dev/null -w '%{http_code} %{redirect_url}' "$platform/sites/example.com?smoke=1") || got="000"
   [ "$got" = "308 $want" ] && break
   sleep 5
 done
@@ -87,7 +95,7 @@ else
 fi
 
 # A write route refuses a request without Origin before doing any work.
-status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H "$header" \
+status=$(curl_ -o /dev/null -w '%{http_code}' -X POST -H "$header" \
   -H 'Content-Type: application/json' -d '{}' "$base/api/stripe/checkout") || status="000"
 if [ "$status" = 403 ]; then
   pass "POST /api/stripe/checkout without Origin: 403"
