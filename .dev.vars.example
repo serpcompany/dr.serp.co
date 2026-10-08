@@ -1,4 +1,6 @@
-# Copy to .dev.vars for local runs (next dev, wrangler, opennextjs-cloudflare preview).
+# Copy to .dev.vars for local runs. npm run dev and the operator scripts load every key. Wrangler
+# (wrangler dev, npm run cf:preview) loads only the keys in secrets.required in wrangler.jsonc;
+# the rest fall back to their code defaults there.
 # Never put these in .env* files: the OpenNext build copies .env* values into the Worker bundle.
 # Deployed environments use Worker vars and secrets (wrangler secret put --env <env>).
 
