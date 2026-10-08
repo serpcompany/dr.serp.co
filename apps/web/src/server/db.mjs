@@ -1,6 +1,9 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare'
+import * as checksQueries from '@/db/checks'
+import { dbFrom } from '@/db/client'
+import { isListableSiteRow, isPurgeableSiteRow, normalizeSearchQuery } from '@/db/listable'
+import * as sitesQueries from '@/db/sites'
 import { isValidDomainTarget } from './domain-target.mjs'
-import { isSpamSite } from './site-spam.mjs'
 
 const D1_BINDING_NAME = 'DB'
 
@@ -316,24 +319,13 @@ function normalizeD1BillingAuditRow(row) {
   }
 }
 
-function isListableSiteRow(row) {
-  return (
-    isValidDomainTarget(row?.domain) &&
-    !isSpamSite({ domain: row?.domain, siteTitle: row?.site_title })
-  )
-}
-
 function filterListableSiteRows(rows) {
   return rows.filter(isListableSiteRow)
 }
 
-const MAX_SEARCH_LENGTH = 100
 // Deeper pages answer empty, so an unbounded offset never reaches SQL, where D1 refuses a value
 // past 64 bits.
 const MAX_LIST_OFFSET = 100_000
-// Rows past the requested page that listSites reads first, so a page stays full when some stored
-// rows are unlistable (invalid or spam). When more than that precede the page, it reads further.
-const LISTABLE_SCAN_SLACK = 200
 
 function clampOffset(value) {
   return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
@@ -344,33 +336,10 @@ function asciiLower(value) {
   return String(value ?? '').replace(/[A-Z]/g, char => char.toLowerCase())
 }
 
-/**
- * Normalize a site search: collapse whitespace, keep at most 100 characters, fold ASCII case.
- * Queries match with instr(), never LIKE: D1 refuses LIKE patterns over 50 bytes.
- * @param {unknown} value
- * @returns {string | null}
- */
-export function normalizeSearchQuery(value) {
-  const collapsed = String(value ?? '')
-    .replace(/\s+/g, ' ')
-    .trim()
-  if (!collapsed) return null
-  const capped = Array.from(collapsed).slice(0, MAX_SEARCH_LENGTH).join('').trim()
-  return asciiLower(capped)
-}
+export { normalizeSearchQuery }
 
 function domainMatches(domain, q) {
   return !q || asciiLower(domain).includes(q)
-}
-
-// Invalid domains are always purged; spam is purged only while unclaimed so a claim is never silently deleted.
-function isPurgeableSiteRow(row) {
-  const domain = String(row?.domain ?? '')
-    .trim()
-    .toLowerCase()
-  if (!domain) return false
-  if (!isValidDomainTarget(domain)) return true
-  return !row?.email && isSpamSite({ domain, siteTitle: row?.site_title })
 }
 
 function rowsFrom(result) {
@@ -398,7 +367,7 @@ async function d1First(db, sqlText, params = []) {
   return d1Statement(db, sqlText, params).first()
 }
 
-async function d1Batch(db, statements) {
+async function _d1Batch(db, statements) {
   if (typeof db.batch === 'function') return db.batch(statements)
   const results = []
   for (const statement of statements) {
@@ -724,19 +693,7 @@ export async function setClaimSiteMetadata({
 export async function recordDrCheck({ domain, domainRating, provider = null, checkedAt = null }) {
   const d1 = getD1Database()
   if (d1) {
-    const safeRating = clampDr(domainRating)
-    if (safeRating === null) return null
-    return (
-      (await d1First(
-        d1,
-        `
-          INSERT INTO dr_checks (domain, domain_rating, provider, checked_at)
-          VALUES (?, ?, ?, ?)
-          RETURNING id, domain, domain_rating, provider, checked_at
-        `,
-        [domain, safeRating, provider, isoText(checkedAt, nowIsoText())]
-      )) || null
-    )
+    return checksQueries.recordDrCheck(dbFrom(d1), { domain, domainRating, provider, checkedAt })
   }
 
   if (canUseFallbackStore()) {
@@ -786,34 +743,7 @@ export async function recordDrHistoryChecks({ domain, points, provider = 'ahrefs
 
   const d1 = getD1Database()
   if (d1) {
-    const recorded = []
-    for (const point of normalizedPoints) {
-      const checkedAt = point.checked_at.toISOString()
-      const results = await d1Batch(d1, [
-        d1Statement(
-          d1,
-          `
-            DELETE FROM dr_checks
-            WHERE domain = ?
-              AND ((provider IS NULL AND ? IS NULL) OR provider = ?)
-              AND checked_at = ?
-          `,
-          [normalizedDomain, point.provider, point.provider, checkedAt]
-        ),
-        d1Statement(
-          d1,
-          `
-            INSERT INTO dr_checks (domain, domain_rating, provider, checked_at)
-            VALUES (?, ?, ?, ?)
-            RETURNING id, domain, domain_rating, provider, checked_at
-          `,
-          [normalizedDomain, point.domain_rating, point.provider, checkedAt]
-        )
-      ])
-      const row = rowsFrom(results?.[1])[0] || null
-      if (row) recorded.push(row)
-    }
-    return recorded
+    return checksQueries.recordDrHistoryChecks(dbFrom(d1), { domain, points, provider })
   }
 
   if (canUseFallbackStore()) {
@@ -859,19 +789,7 @@ export async function recordDrHistoryChecks({ domain, points, provider = 'ahrefs
 export async function getDrChecks(domain, opts = {}) {
   const d1 = getD1Database()
   if (d1) {
-    const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(365, opts.limit)) : 60
-    const rows = await d1Rows(
-      d1,
-      `
-        SELECT domain_rating, provider, checked_at
-        FROM dr_checks
-        WHERE domain = ?
-        ORDER BY checked_at DESC
-        LIMIT ?
-      `,
-      [domain, limit]
-    )
-    return rows.reverse()
+    return checksQueries.getDrChecks(dbFrom(d1), domain, opts)
   }
 
   if (canUseFallbackStore()) {
@@ -895,18 +813,7 @@ export async function listDrChecks(opts = {}) {
 
   const d1 = getD1Database()
   if (d1) {
-    return d1Rows(
-      d1,
-      `
-        SELECT domain, domain_rating, provider, checked_at
-        FROM dr_checks
-        WHERE (? IS NULL OR domain = ?)
-        ORDER BY checked_at ASC, id ASC
-        LIMIT ?
-        OFFSET ?
-      `,
-      [domain, domain, limit, offset]
-    )
+    return checksQueries.listDrChecks(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {
@@ -1241,111 +1148,7 @@ export async function countClaimsByEmail(opts) {
 export async function listSites(opts = {}) {
   const d1 = getD1Database()
   if (d1) {
-    const q = normalizeSearchQuery(opts.query)
-    const sort = opts.sort === 'updated' ? 'updated' : 'dr'
-    const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = clampOffset(opts.offset)
-    if (offset > MAX_LIST_OFFSET) return []
-    const sql =
-      sort === 'updated'
-        ? `
-            WITH domains AS (
-              SELECT domain FROM dr_claims
-              UNION
-              SELECT domain FROM dr_checks
-            ),
-            latest_checks AS (
-              SELECT domain, domain_rating, checked_at AS updated_at
-              FROM (
-                SELECT
-                  domain,
-                  domain_rating,
-                  checked_at,
-                  id,
-                  ROW_NUMBER() OVER (PARTITION BY domain ORDER BY checked_at DESC, id DESC) AS rn
-                FROM dr_checks
-              )
-              WHERE rn = 1
-            ),
-            site_rows AS (
-              SELECT
-                d.domain,
-                COALESCE(c.domain_rating, cl.domain_rating) AS domain_rating,
-                cl.site_title,
-                cl.meta_description,
-                cl.site_url,
-                cl.screenshot_url,
-                CASE
-                  WHEN c.updated_at IS NULL THEN cl.updated_at
-                  WHEN cl.updated_at IS NULL THEN c.updated_at
-                  WHEN c.updated_at > cl.updated_at THEN c.updated_at
-                  ELSE cl.updated_at
-                END AS updated_at
-              FROM domains d
-              LEFT JOIN latest_checks c ON c.domain = d.domain
-              LEFT JOIN dr_claims cl ON cl.domain = d.domain
-              WHERE (? IS NULL OR instr(lower(d.domain), ?) > 0)
-            )
-            SELECT domain, domain_rating, site_title, meta_description, site_url, screenshot_url, updated_at
-            FROM site_rows
-            ORDER BY updated_at IS NULL ASC, updated_at DESC, domain ASC
-            LIMIT ?
-          `
-        : `
-            WITH domains AS (
-              SELECT domain FROM dr_claims
-              UNION
-              SELECT domain FROM dr_checks
-            ),
-            latest_checks AS (
-              SELECT domain, domain_rating, checked_at AS updated_at
-              FROM (
-                SELECT
-                  domain,
-                  domain_rating,
-                  checked_at,
-                  id,
-                  ROW_NUMBER() OVER (PARTITION BY domain ORDER BY checked_at DESC, id DESC) AS rn
-                FROM dr_checks
-              )
-              WHERE rn = 1
-            ),
-            site_rows AS (
-              SELECT
-                d.domain,
-                COALESCE(c.domain_rating, cl.domain_rating) AS domain_rating,
-                cl.site_title,
-                cl.meta_description,
-                cl.site_url,
-                cl.screenshot_url,
-                CASE
-                  WHEN c.updated_at IS NULL THEN cl.updated_at
-                  WHEN cl.updated_at IS NULL THEN c.updated_at
-                  WHEN c.updated_at > cl.updated_at THEN c.updated_at
-                  ELSE cl.updated_at
-                END AS updated_at
-              FROM domains d
-              LEFT JOIN latest_checks c ON c.domain = d.domain
-              LEFT JOIN dr_claims cl ON cl.domain = d.domain
-              WHERE (? IS NULL OR instr(lower(d.domain), ?) > 0)
-            )
-            SELECT domain, domain_rating, site_title, meta_description, site_url, screenshot_url, updated_at
-            FROM site_rows
-            ORDER BY domain_rating IS NULL ASC, domain_rating DESC, updated_at IS NULL ASC, updated_at DESC, domain ASC
-            LIMIT ?
-          `
-    // Listability uses JavaScript rules (domain validation and the spam filter), so it runs on a
-    // bounded read: the rows up to the page plus slack, read further only when unlistable rows
-    // leave the page short and more rows remain.
-    let scan = offset + limit + LISTABLE_SCAN_SLACK
-    for (;;) {
-      const rawRows = await d1Rows(d1, sql, [q, q, scan])
-      const rows = filterListableSiteRows(rawRows)
-      const shortfall = offset + limit - rows.length
-      if (shortfall <= 0 || rawRows.length < scan) return rows.slice(offset, offset + limit)
-      // Grow geometrically, so a search whose matches are mostly unlistable costs a few queries.
-      scan = Math.max(scan * 2, scan + shortfall + LISTABLE_SCAN_SLACK)
-    }
+    return sitesQueries.listSites(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {
@@ -1419,22 +1222,7 @@ export async function listSites(opts = {}) {
 export async function countSites(opts = {}) {
   const d1 = getD1Database()
   if (d1) {
-    const q = normalizeSearchQuery(opts.query)
-    const rows = await d1Rows(
-      d1,
-      `
-        SELECT d.domain, cl.site_title
-        FROM (
-          SELECT domain FROM dr_claims
-          UNION
-          SELECT domain FROM dr_checks
-        ) d
-        LEFT JOIN dr_claims cl ON cl.domain = d.domain
-        WHERE (? IS NULL OR instr(lower(d.domain), ?) > 0)
-      `,
-      [q, q]
-    )
-    return filterListableSiteRows(rows).length
+    return sitesQueries.countSites(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {
@@ -1464,29 +1252,7 @@ export async function countSites(opts = {}) {
 export async function listSitemapSites() {
   const d1 = getD1Database()
   if (d1) {
-    const rows = await d1Rows(
-      d1,
-      `
-        WITH domains AS (
-          SELECT domain FROM dr_claims
-          UNION
-          SELECT domain FROM dr_checks
-        ),
-        last_checks AS (
-          SELECT domain, MAX(checked_at) AS checked_at FROM dr_checks GROUP BY domain
-        )
-        SELECT d.domain, cl.site_title, lc.checked_at AS updated_at
-        FROM domains d
-        LEFT JOIN last_checks lc ON lc.domain = d.domain
-        LEFT JOIN dr_claims cl ON cl.domain = d.domain
-        ORDER BY d.domain
-      `,
-      []
-    )
-    return filterListableSiteRows(rows).map(row => ({
-      domain: row.domain,
-      updated_at: isoText(row.updated_at)
-    }))
+    return sitesQueries.listSitemapSites(dbFrom(d1))
   }
 
   if (canUseFallbackStore()) {
@@ -1523,97 +1289,7 @@ export async function purgeInvalidSiteDomains(opts = {}) {
 
   const d1 = getD1Database()
   if (d1) {
-    const invalidDomains = requested
-      ? Array.from(
-          new Set(
-            requested
-              .map(domain =>
-                String(domain ?? '')
-                  .trim()
-                  .toLowerCase()
-              )
-              .filter(domain => domain && !isValidDomainTarget(domain))
-          )
-        )
-      : Array.from(
-          new Set(
-            (
-              await d1Rows(
-                d1,
-                `
-                SELECT d.domain, cl.site_title, cl.email
-                FROM (
-                  SELECT domain FROM dr_claims
-                  UNION
-                  SELECT domain FROM dr_checks
-                ) d
-                LEFT JOIN dr_claims cl ON cl.domain = d.domain
-              `
-              )
-            )
-              .filter(isPurgeableSiteRow)
-              .map(row => String(row.domain).trim().toLowerCase())
-          )
-        )
-
-    if (!invalidDomains.length) {
-      return {
-        claimCount: 0,
-        checkCount: 0,
-        domains: [],
-        dryRun
-      }
-    }
-
-    let claimCount = 0
-    let checkCount = 0
-    for (const domain of invalidDomains) {
-      const claimRow = await d1First(
-        d1,
-        `
-          SELECT COUNT(*) AS count
-          FROM dr_claims
-          WHERE domain = ?
-        `,
-        [domain]
-      )
-      const checkRow = await d1First(
-        d1,
-        `
-          SELECT COUNT(*) AS count
-          FROM dr_checks
-          WHERE domain = ?
-        `,
-        [domain]
-      )
-      claimCount += Number(claimRow?.count) || 0
-      checkCount += Number(checkRow?.count) || 0
-    }
-
-    if (dryRun) return { claimCount, checkCount, domains: invalidDomains, dryRun }
-
-    for (const domain of invalidDomains) {
-      await d1Batch(d1, [
-        d1Statement(
-          d1,
-          `
-            DELETE FROM dr_checks
-            WHERE domain = ?
-          `,
-          [domain]
-        ),
-        d1Statement(
-          d1,
-          `
-            DELETE FROM dr_claims
-            WHERE domain = ?
-          `,
-          [domain]
-        )
-      ])
-    }
-
-    return { claimCount, checkCount, domains: invalidDomains, dryRun }
+    return sitesQueries.purgeInvalidSiteDomains(dbFrom(d1), opts)
   }
 
   const invalidDomains = requested

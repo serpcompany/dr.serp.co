@@ -34,7 +34,7 @@ logic lives in `src/server/rate-limit-do.mjs`.
 `/sitemap-sites.xml` are route handlers built from `src/lib/sitemap.ts`. Production's robots.txt
 allows crawling (except `/api/` and `/billing`) and names the sitemap index; any other `SITE_ENV`
 disallows everything, and `worker.ts` also sends `X-Robots-Tag: noindex` there. The sites sitemap
-lists every listable `/sites/<domain>` page (`listSitemapSites` in `db.mjs`), with its last DR check
+lists every listable `/sites/<domain>` page (`listSitemapSites` in `src/db/sites.ts`), with its last DR check
 as lastmod. Past 50,000 sites the group needs a second file, and the route logs when that happens.
 
 ## Layers
@@ -52,8 +52,10 @@ as lastmod. Past 50,000 sites the group needs a second file, and the route logs 
   useSend, Ahrefs, D1 or missing config can name internal details.
 - **`src/server/`** holds the domain logic and is server-only: data access, DR providers, site
   metadata, domain validation, the spam filter, sign-in tokens and sessions, entitlements and rate
-  limits. It never imports pages, route handlers or components. `src/server/db.mjs` is the only
-  module with SQL.
+  limits. It never imports pages, route handlers or components.
+- **`src/db/`** is the data layer: the Drizzle schema and the typed queries, by area (`sites.ts`,
+  `checks.ts`), each taking a Drizzle client. It is the only place with SQL; `src/server/db.mjs`
+  still holds the claims, subscriptions and billing-audit queries until #107 moves them.
 - **`src/lib/`** holds shared helpers: pricing tiers, the Stripe client, env validation and the
   browser's list of recently viewed sites.
 
@@ -82,7 +84,8 @@ by the migrations in `drizzle/`:
 - `dr_subscriptions` and `dr_billing_audit`: Stripe state and the webhook log
   ([Billing](billing.md)).
 
-`src/server/db.mjs` reads the binding through `getCloudflareContext()` on each call. Without a
+`src/server/db.mjs` reads the binding through `getCloudflareContext()` on each call and passes a
+Drizzle client to `src/db` for the queries already moved there. Without a
 Cloudflare context outside production, which is `next dev`, it uses an in-memory store saved to
 `.cache/dr-fallback.json`, so `next dev` never touches D1. `pnpm preview` runs against
 local D1 in `.wrangler/`. In production, a missing binding throws. Replacing the fallback with

@@ -58,6 +58,16 @@ export function hasAdminApi(env = loadAdminEnv()) {
   return Boolean(env.baseUrl && env.token)
 }
 
+// Operator scripts reach data only through the deployed Worker's admin API (or `pnpm dev`'s): the
+// data layer is TypeScript behind the Worker, not something a Node script can import.
+export function requireAdminApi(env = loadAdminEnv()) {
+  if (hasAdminApi(env)) return env
+  console.error(
+    'Set DR_ADMIN_TOKEN and DR_ADMIN_BASE_URL (or DR_PUBLIC_BASE_URL) to the site to run this, for example a running `pnpm dev` or Production.'
+  )
+  process.exit(1)
+}
+
 export async function callAdminApi(
   pathname,
   { body = {}, method = 'POST', env = loadAdminEnv() } = {}

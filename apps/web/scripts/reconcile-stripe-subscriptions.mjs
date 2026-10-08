@@ -1,8 +1,8 @@
 import Stripe from 'stripe'
 
-import { callAdminApi, hasAdminApi, loadAdminEnv } from './_admin-api.mjs'
+import { callAdminApi, requireAdminApi } from './_admin-api.mjs'
 
-const adminEnv = loadAdminEnv()
+const adminEnv = requireAdminApi()
 const stripeKey = process.env.STRIPE_SECRET_KEY
 
 if (!stripeKey) {
@@ -35,35 +35,22 @@ function subscriptionPriceId(subscription) {
 }
 
 async function loadAllDbSubscriptions() {
-  if (hasAdminApi(adminEnv)) {
-    const payload = await callAdminApi('/api/admin/subscriptions', {
-      method: 'GET',
-      env: adminEnv
-    })
-    return (payload.report ?? []).map(row => ({
-      email: row.email,
-      stripe_subscription_id: row.stripeSubscriptionId,
-      stripe_customer_id: row.stripeCustomerId,
-      stripe_price_id: row.stripePriceId,
-      billing_interval: row.billingInterval,
-      domains_limit: row.domainsLimit,
-      status: row.status,
-      current_period_end: row.currentPeriodEnd,
-      cancel_at_period_end: row.cancelAtPeriodEnd,
-      updated_at: row.updatedAt
-    }))
-  }
-
-  const rows = []
-  const { listSubscriptions } = await import('../src/server/db.mjs')
-  let offset = 0
-  while (true) {
-    const batch = await listSubscriptions({ limit: 200, offset })
-    if (!batch.length) break
-    rows.push(...batch)
-    offset += batch.length
-  }
-  return rows
+  const payload = await callAdminApi('/api/admin/subscriptions', {
+    method: 'GET',
+    env: adminEnv
+  })
+  return (payload.report ?? []).map(row => ({
+    email: row.email,
+    stripe_subscription_id: row.stripeSubscriptionId,
+    stripe_customer_id: row.stripeCustomerId,
+    stripe_price_id: row.stripePriceId,
+    billing_interval: row.billingInterval,
+    domains_limit: row.domainsLimit,
+    status: row.status,
+    current_period_end: row.currentPeriodEnd,
+    cancel_at_period_end: row.cancelAtPeriodEnd,
+    updated_at: row.updatedAt
+  }))
 }
 
 async function loadAllStripeSubscriptions() {
