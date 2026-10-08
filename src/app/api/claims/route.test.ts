@@ -18,7 +18,7 @@ vi.mock("@/server/entitlements.mjs", () => ({
 }))
 
 function claimRequest(body: Record<string, unknown>, { email, method = "POST" }: { email?: string; method?: string } = {}) {
-  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  const headers: Record<string, string> = { "Content-Type": "application/json", Origin: "http://localhost" }
   if (email) headers.cookie = `dr_session=${createSessionToken(email, { secret: "test-secret" })}`
   return new Request("http://localhost/api/claims", { method, headers, body: JSON.stringify(body) })
 }
@@ -53,7 +53,7 @@ describe("/api/claims", () => {
     const response = await POST(
       new Request("http://localhost/api/claims", {
         method: "POST",
-        headers: { "Content-Type": "application/json", cookie: `dr_session=${forged}` },
+        headers: { "Content-Type": "application/json", Origin: "http://localhost", cookie: `dr_session=${forged}` },
         body: JSON.stringify({ domain: "example.com" }),
       })
     )

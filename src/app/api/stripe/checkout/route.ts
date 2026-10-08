@@ -4,15 +4,19 @@ import { getPublicBaseUrl } from "@/lib/public-url"
 import { getStripe } from "@/lib/stripe"
 import { getPriceId } from "@/lib/stripe-pricing"
 import type { BillingPeriod } from "@/lib/pricing"
-import { readRequestJsonRecord } from "@/lib/read-json"
 import { getSessionEmail } from "@/server/auth-session.mjs"
 import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
+import { readWriteRequest } from "@/server/write-route"
+import { CheckoutBody } from "@/server/write-schemas"
 
 const ALLOWED_DOMAINS = [12, 25, 50, 100] as const
 const RATE_LIMIT_POINTS = Number(process.env.CHECKOUT_RATE_LIMIT_POINTS ?? 20)
 const RATE_LIMIT_DURATION = Number(process.env.CHECKOUT_RATE_LIMIT_DURATION ?? 60)
 
 export async function POST(request: Request) {
+  const read = await readWriteRequest(request, CheckoutBody)
+  if (!read.ok) return read.response
+
   try {
     const rateKey = getRateLimitKey(request, "stripe-checkout")
     const rate = await checkRateLimit({ key: rateKey, points: RATE_LIMIT_POINTS, duration: RATE_LIMIT_DURATION })
@@ -24,9 +28,8 @@ export async function POST(request: Request) {
       )
     }
 
-    const body = await readRequestJsonRecord(request)
-    const domains = Number(body?.domains)
-    const billing = body?.billing as BillingPeriod
+    const domains = read.data.domains
+    const billing = read.data.billing as BillingPeriod
     // Subscriptions are matched to accounts by email, so only use the signed-in email; Stripe collects one otherwise.
     const email = getSessionEmail(request)
 

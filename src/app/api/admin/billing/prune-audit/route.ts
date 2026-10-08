@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 
-import { readRequestJsonRecord } from "@/lib/read-json"
 import { countPrunableBillingAudit, pruneBillingAudit } from "@/server/db.mjs"
 import { checkAdminToken } from "@/server/admin-auth.mjs"
+import { readWriteRequest } from "@/server/write-route"
+import { PruneAuditBody } from "@/server/write-schemas"
 
 export const runtime = "nodejs"
 
@@ -15,7 +16,10 @@ export async function POST(request: Request) {
   const denied = checkAdminToken(request)
   if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status })
 
-  const body = await readRequestJsonRecord(request)
+  // Operator scripts call admin routes with a token, not a browser cookie, so no Origin check.
+  const read = await readWriteRequest(request, PruneAuditBody, { checkOrigin: false })
+  if (!read.ok) return read.response
+  const body = read.data
   const envDays = parseRetentionDays(process.env.BILLING_AUDIT_RETENTION_DAYS)
   const bodyDays = parseRetentionDays(body?.olderThanDays)
   const olderThanDays = bodyDays ?? envDays ?? 180

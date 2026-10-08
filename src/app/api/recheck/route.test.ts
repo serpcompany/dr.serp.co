@@ -62,7 +62,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "phpinfo.php" }),
     })
 
@@ -84,7 +84,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "example.com" }),
     })
 
@@ -105,7 +105,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "example.com" }),
     })
 
@@ -126,7 +126,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "never-seen.example" }),
     })
 
@@ -146,7 +146,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "example.com" }),
     })
 
@@ -160,7 +160,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "best-casino-bonus.com" }),
     })
 
@@ -180,7 +180,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "example.com" }),
     })
 
@@ -201,7 +201,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "example.com" }),
     })
 
@@ -230,7 +230,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "example.com" }),
     })
 
@@ -280,7 +280,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "https://www.Example.com/path?q=1" }),
     })
 
@@ -334,7 +334,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "example.com" }),
     })
 
@@ -362,7 +362,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "example.com" }),
     })
 
@@ -384,7 +384,7 @@ describe("POST /api/recheck", () => {
     const { POST } = await import("./route")
     const request = new Request("http://localhost/api/recheck", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
       body: JSON.stringify({ domain: "example.com" }),
     })
 

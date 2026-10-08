@@ -27,7 +27,9 @@ logic lives in `src/server/`, and each part has tests next to it.
 - **Pages** (`src/app/**/page.tsx`) are server components that read through `src/server/`.
   Client components are for interaction only and call route handlers with `fetch`.
 - **Route handlers** (`src/app/api/**/route.ts`) do every write a visitor asks for. There are no
-  Server Actions. Two reads also write: rendering `/sites/<domain>` stores a lookup while the
+  Server Actions. Each reads its request through `readWriteRequest` (`src/server/write-route.ts`):
+  a zod schema, a 16 KB body cap and, except on admin routes, an `Origin` check, because every
+  `*.serp.co` site is same-site to this one. The Stripe webhook checks its signature instead. Two reads also write: rendering `/sites/<domain>` stores a lookup while the
   domain has no DR, and metadata while its title, description or URL is missing, within the
   new-lookup caps for a domain with no DR ([DR lookups](dr-lookups.md#when-ahrefs-is-called)), and
   `GET /badge/<domain>` copies the latest `dr_checks` reading into `dr_claims` when that row has no

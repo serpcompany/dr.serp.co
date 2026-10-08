@@ -1,22 +1,25 @@
 import { NextResponse } from "next/server"
 
-import { readRequestJsonRecord } from "@/lib/read-json"
 import { getSessionEmail } from "@/server/auth-session.mjs"
 import { countClaimsByEmail, listClaimsByEmail } from "@/server/db.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
+import { readWriteRequest } from "@/server/write-route"
+import { MySitesBody } from "@/server/write-schemas"
 
 export const runtime = "nodejs"
 
 export async function POST(request: Request) {
+  const read = await readWriteRequest(request, MySitesBody)
+  if (!read.ok) return read.response
+
   const email = getSessionEmail(request)
   if (!email) {
     return NextResponse.json({ error: "Sign in required.", code: "auth_required" }, { status: 401 })
   }
 
-  const body = await readRequestJsonRecord(request)
-  const query = String(body?.query || "").trim()
-  const limitRaw = Number(body?.limit)
-  const offsetRaw = Number(body?.offset)
+  const query = (read.data.query ?? "").trim()
+  const limitRaw = Number(read.data.limit)
+  const offsetRaw = Number(read.data.offset)
 
   const entitlement = await resolveEntitlement({ email })
   if (!entitlement?.canAccessPaidFeatures) {

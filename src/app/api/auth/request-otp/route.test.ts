@@ -7,7 +7,7 @@ vi.mock("@/server/otp-store.mjs", () => ({ createOtp }))
 function otpRequest() {
   return new Request("http://localhost/api/auth/request-otp", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: "http://localhost" },
     body: JSON.stringify({ email: "user@example.com" }),
   })
 }

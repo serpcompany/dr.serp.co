@@ -36,7 +36,7 @@ describe("POST /api/my-sites", () => {
     const response = await POST(
       new Request("http://localhost/api/my-sites", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Origin: "http://localhost" },
         body: JSON.stringify({ email: "victim@example.com" }),
       })
     )
@@ -57,7 +57,7 @@ describe("POST /api/my-sites", () => {
     const response = await POST(
       new Request("http://localhost/api/my-sites", {
         method: "POST",
-        headers: { "Content-Type": "application/json", cookie: sessionCookie("user@example.com") },
+        headers: { "Content-Type": "application/json", Origin: "http://localhost", cookie: sessionCookie("user@example.com") },
         body: JSON.stringify({}),
       })
     )
@@ -87,7 +87,7 @@ describe("POST /api/my-sites", () => {
     const response = await POST(
       new Request("http://localhost/api/my-sites", {
         method: "POST",
-        headers: { "Content-Type": "application/json", cookie: sessionCookie("user@example.com") },
+        headers: { "Content-Type": "application/json", Origin: "http://localhost", cookie: sessionCookie("user@example.com") },
         body: JSON.stringify({ email: "someone-else@example.com", query: "ex", limit: 12, offset: 0 }),
       })
     )

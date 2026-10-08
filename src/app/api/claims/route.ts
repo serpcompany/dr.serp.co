@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server"
 
-import { readRequestJsonRecord } from "@/lib/read-json"
 import { getSessionEmail } from "@/server/auth-session.mjs"
 import { normalizeTarget } from "@/server/dr-providers.mjs"
 import { clearClaimEmail, getClaim, setClaimEmail } from "@/server/db.mjs"
 import { resolveEntitlement } from "@/server/entitlements.mjs"
+import { readWriteRequest } from "@/server/write-route"
+import { DomainBody } from "@/server/write-schemas"
 
 export const runtime = "nodejs"
 
@@ -20,11 +21,13 @@ function claimedByOther() {
 }
 
 export async function POST(request: Request) {
+  const read = await readWriteRequest(request, DomainBody)
+  if (!read.ok) return read.response
+
   const email = getSessionEmail(request)
   if (!email) return authRequired()
 
-  const body = await readRequestJsonRecord(request)
-  const domain = normalizeTarget(String(body?.domain || ""))
+  const domain = normalizeTarget(read.data.domain)
   if (!domain) {
     return NextResponse.json({ error: "Valid domain required" }, { status: 400 })
   }
@@ -54,11 +57,13 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const read = await readWriteRequest(request, DomainBody)
+  if (!read.ok) return read.response
+
   const email = getSessionEmail(request)
   if (!email) return authRequired()
 
-  const body = await readRequestJsonRecord(request)
-  const domain = normalizeTarget(String(body?.domain || ""))
+  const domain = normalizeTarget(read.data.domain)
   if (!domain) {
     return NextResponse.json({ error: "Valid domain required" }, { status: 400 })
   }
