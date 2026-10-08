@@ -52,9 +52,11 @@ describe('wrangler.jsonc', () => {
             'DR_BADGE_BASE_URL',
             'DR_PUBLIC_BASE_URL',
             'NEXTJS_ENV',
+            'SITE_ENV',
             'STRIPE_PORTAL_CONFIGURATION_ID'
           ].sort()
         )
+        expect(config.vars.SITE_ENV).toBe(env)
         expect(config.vars.DR_PUBLIC_BASE_URL).toBe(canonical)
         expect(config.vars.DR_BADGE_BASE_URL).toBe(canonical)
         expect(config.secrets?.required?.slice().sort()).toEqual(
@@ -80,7 +82,8 @@ describe('wrangler.jsonc', () => {
     const { scripts } = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as {
       scripts: Record<string, string>
     }
-    const remote = /(wrangler deploy|opennextjs-cloudflare deploy|wrangler secret|--remote)/
+    const remote =
+      /(wrangler (deploy|versions|rollback|secret)|opennextjs-cloudflare (deploy|upload)|--remote)/
     const commands = Object.values(scripts)
       .flatMap(script => script.split('&&').map(command => command.trim()))
       .filter(command => remote.test(command))

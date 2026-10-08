@@ -52,6 +52,7 @@
   ],
   "vars": {
     "NEXTJS_ENV": "production",
+    "SITE_ENV": "local",
     "DR_PUBLIC_BASE_URL": "http://localhost:8787",
     "DR_BADGE_BASE_URL": "http://localhost:8787"
   },
@@ -104,6 +105,7 @@
       },
       "vars": {
         "NEXTJS_ENV": "production",
+        "SITE_ENV": "staging",
         "DR_PUBLIC_BASE_URL": "https://staging-dr.serp.co",
         "DR_BADGE_BASE_URL": "https://staging-dr.serp.co",
         // Empty: Stripe's default portal configuration. Set an id in the same mode (live or test) as
@@ -157,6 +159,7 @@
       },
       "vars": {
         "NEXTJS_ENV": "production",
+        "SITE_ENV": "production",
         "DR_PUBLIC_BASE_URL": "https://dr.serp.co",
         "DR_BADGE_BASE_URL": "https://dr.serp.co",
         // dr.serp.co's portal configuration on the shared live Stripe account; the default one is SERP Lists'.

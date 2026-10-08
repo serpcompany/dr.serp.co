@@ -5,7 +5,7 @@ come from. The site is one Next.js App Router app built by OpenNext into a Cloud
 
 ## The request path
 
-Every request reaches the Worker entry, `worker.ts`, which does three things around OpenNext. Each
+Every request reaches the Worker entry, `worker.ts`, which does four things around OpenNext. Each
 lives in `src/lib/` with its tests:
 
 1. **Edge redirects** (`edge-redirect.ts`), in one hop. A `*.workers.dev` host goes to the
@@ -15,9 +15,12 @@ lives in `src/lib/` with its tests:
    [#51](https://github.com/serpcompany/dr.serp.co/issues/51) decides the rule.
 2. **Next.js,** through `.open-next/worker.js`, imported under the `open-next-worker` alias in
    `wrangler.jsonc` so the type checker never loads the build output.
-3. **Cache header parity** (`cache-control-parity.ts`). A `GET` or `HEAD` response with no `Cache-Control`, or with OpenNext's
-   default `s-maxage=31536000`, gets `public, max-age=0, must-revalidate`. Skipped for `/_next/*`,
-   `/favicon.ico`, `/api/admin/*`, 5xx responses and responses that set a cookie.
+3. **Cache header parity** (`cache-control-parity.ts`). A `GET` or `HEAD` response with no
+   `Cache-Control`, or with OpenNext's default `s-maxage=31536000`, gets
+   `public, max-age=0, must-revalidate`. Skipped for `/_next/*`, `/favicon.ico`, `/api/admin/*`,
+   5xx responses and responses that set a cookie.
+4. **noindex outside Production** (`site-env.ts`). Unless `SITE_ENV` is exactly `production`,
+   every response, redirects included, carries `X-Robots-Tag: noindex`. #45 adds `robots.txt`.
 
 The entry also exports `RateLimitDurableObject`, the class behind the `RATE_LIMITER` binding. Its
 logic lives in `src/server/rate-limit-do.mjs`.
