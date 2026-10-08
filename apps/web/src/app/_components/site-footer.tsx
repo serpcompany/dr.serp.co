@@ -28,6 +28,7 @@ export function SiteFooter() {
         rel="noopener noreferrer"
         title="Featured on SERP"
       >
+        {/* biome-ignore lint/performance/noImgElement: a remote SVG badge */}
         <img
           src="https://serp.co/badge/featured-on-serp.co-light.svg"
           alt="Featured on SERP"

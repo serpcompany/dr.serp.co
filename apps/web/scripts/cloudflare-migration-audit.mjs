@@ -78,9 +78,9 @@ function unique(values) {
 
 function collectStrings(value, acc = []) {
   if (typeof value === 'string') acc.push(value)
-  else if (Array.isArray(value)) value.forEach(item => collectStrings(item, acc))
+  else if (Array.isArray(value)) for (const item of value) collectStrings(item, acc)
   else if (value && typeof value === 'object')
-    Object.values(value).forEach(item => collectStrings(item, acc))
+    for (const item of Object.values(value)) collectStrings(item, acc)
   return acc
 }
 

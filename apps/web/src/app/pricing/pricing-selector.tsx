@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,13 +43,13 @@ export function PricingSelector() {
   const [onHold, setOnHold] = useState(false)
 
   // Start the selector on the subscriber's own plan, so nothing is one click from a downgrade.
-  const showCurrentPlan = (plan: CurrentPlan | null) => {
+  const showCurrentPlan = useCallback((plan: CurrentPlan | null) => {
     if (!plan) return
     setCurrentPlan(plan)
     const index = PRICING_TIERS.findIndex(item => item.domains === plan.domains)
     if (index >= 0) setTierIndex(index)
     setIsAnnual(plan.billing === 'annual')
-  }
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -69,7 +69,7 @@ export function PricingSelector() {
       })
       .catch(() => {})
     return () => controller.abort()
-  }, [])
+  }, [showCurrentPlan])
 
   const tier = PRICING_TIERS[tierIndex]
   const price = isAnnual ? tier.annual : tier.monthly

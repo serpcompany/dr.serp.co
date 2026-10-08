@@ -46,7 +46,7 @@ export function SitesSearch({ initialQuery }: { initialQuery: string }) {
     }, 250)
 
     return () => window.clearTimeout(handle)
-  }, [router, searchParams, startTransition, value])
+  }, [router, searchParams, value])
 
   return (
     <div className="relative w-full sm:w-[320px]">

@@ -38,15 +38,17 @@ function getD1Database() {
 // In dev/local runs, a database is often not configured. Keep a global in-memory fallback so
 // checked domains still appear on /sites during the session (even across webpack bundles).
 const fallbackStoreKey = '__dr_serp_fallback_store__'
-/** @type {{ claims: Map<string, any>, checks: Map<string, any>, subscriptions: Map<string, any>, billingAudit: Array<any> }} */
-const fallbackStore =
-  /** @type {any} */ (globalThis)[fallbackStoreKey] ||
-  /** @type {any} */ ((globalThis)[fallbackStoreKey] = {
+const globalStore = /** @type {any} */ (globalThis)
+if (!globalStore[fallbackStoreKey]) {
+  globalStore[fallbackStoreKey] = {
     claims: new Map(),
     checks: new Map(),
     subscriptions: new Map(),
     billingAudit: []
-  })
+  }
+}
+/** @type {{ claims: Map<string, any>, checks: Map<string, any>, subscriptions: Map<string, any>, billingAudit: Array<any> }} */
+const fallbackStore = globalStore[fallbackStoreKey]
 
 /** @type {Map<string, {domain: string, email: (string|null), domain_rating: (number|null), provider: (string|null), site_title: (string|null), meta_description: (string|null), site_url: (string|null), screenshot_url: (string|null), claimed_at: Date, updated_at: Date}>} */
 const fallbackClaims = fallbackStore.claims
@@ -170,11 +172,10 @@ async function hydrateFromDisk() {
 
 function schedulePersist() {
   if (!canUseFallbackStore()) return
-  const existing = /** @type {any} */ (globalThis)[persistTimerKey]
-  if (existing) return
+  if (globalStore[persistTimerKey]) return
 
-  /** @type {any} */ ;(globalThis)[persistTimerKey] = setTimeout(async () => {
-    /** @type {any} */ ;(globalThis)[persistTimerKey] = null
+  globalStore[persistTimerKey] = setTimeout(async () => {
+    globalStore[persistTimerKey] = null
     try {
       const fs = await import('node:fs/promises')
       await fs.mkdir(persistDir, { recursive: true })

@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/table'
 import { readJsonRecord } from '@/lib/read-json'
 
+const SKELETON_KEYS = ['s1', 's2', 's3', 's4', 's5', 's6']
+
 type SiteRow = {
   domain: string
   domain_rating: number | null
@@ -90,8 +92,8 @@ export function AllSites() {
       <CardContent>
         {loading && sites.length === 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="h-20 animate-pulse rounded-lg bg-muted" />
+            {SKELETON_KEYS.map(key => (
+              <div key={key} className="h-20 animate-pulse rounded-lg bg-muted" />
             ))}
           </div>
         ) : error ? (

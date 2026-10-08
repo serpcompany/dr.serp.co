@@ -15,7 +15,8 @@
       "!.open-next",
       "!.wrangler",
       "!cloudflare-env.d.ts",
-      "!next-env.d.ts"
+      "!next-env.d.ts",
+      "!svgs"
     ]
   },
   "formatter": {
@@ -41,6 +42,29 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["src/components/ui/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off",
+            "useFocusableInteractive": "off",
+            "noRedundantRoles": "off"
+          },
+          "correctness": {
+            "useExhaustiveDependencies": "off"
+          },
+          "security": {
+            "noDangerouslySetInnerHtml": "off"
+          },
+          "suspicious": {
+            "noArrayIndexKey": "off",
+            "noDocumentCookie": "off",
+            "noDoubleEquals": "off"
+          }
+        }
+      }
+    },
     {
       "includes": ["src/lib/**", "src/server/**", "!**/*.test.ts", "!**/*.test.tsx"],
       "linter": {

@@ -47,6 +47,7 @@ export function BadgeEmbed({ domain, dr, linkUrl, badgeUrl }: BadgeEmbedProps) {
         aria-label="Copy badge embed code"
         type="button"
       >
+        {/* biome-ignore lint/performance/noImgElement: the badge is an SVG the badge route serves */}
         <img
           src={badgeUrl}
           alt={

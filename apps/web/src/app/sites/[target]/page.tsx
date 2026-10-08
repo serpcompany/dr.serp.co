@@ -184,7 +184,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
               className="block overflow-hidden rounded-xl border"
               {...outboundLinkProps}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {/* biome-ignore lint/performance/noImgElement: a remote screenshot; the Worker has no image optimizer */}
               <img
                 src={screenshotUrl}
                 alt={`${pageSiteTitle} homepage preview`}
