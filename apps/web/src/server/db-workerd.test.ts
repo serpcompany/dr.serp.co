@@ -1,7 +1,7 @@
-// Runs the data layer against D1 on workerd, which enforces limits that the mock in db-d1.test.ts
-// can't, such as D1's 50-byte LIKE pattern limit. The binding comes from Wrangler's
-// getPlatformProxy and wrangler.jsonc's local configuration, so it runs the same workerd as
-// preview and deploys.
+// Runs the data layer's real SQL against D1 on workerd (SQLite semantics, instr(), window
+// functions, byte lengths), which the mock in db-d1.test.ts can't. Local workerd doesn't enforce
+// D1's 50-byte LIKE limit; sql-patterns.test.ts guards that in the source. The binding comes from
+// Wrangler's getPlatformProxy and wrangler.jsonc's local configuration, in memory.
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'

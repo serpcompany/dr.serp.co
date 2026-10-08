@@ -24,7 +24,7 @@ const listFiles = (...pathspecs) =>
     .split("\n")
     .filter((path, index, all) => path && existsSync(path) && all.indexOf(path) === index);
 
-const files = listFiles("AGENTS.md", "README.md", "docs/*.md");
+const files = listFiles("AGENTS.md", "README.md", "docs/*.md", "apps/web/AGENTS.md");
 
 const wrappedLines = (text) =>
   text

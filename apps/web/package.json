@@ -8,7 +8,7 @@
     "node": "^22.12.0"
   },
   "scripts": {
-    "predev": "node scripts/clean-next.mjs",
+    "predev": "node scripts/check-node.mjs",
     "dev": "node scripts/dev.mjs",
     "build": "next build",
     "lint": "biome check",
@@ -33,7 +33,7 @@
     "r2:replace-badges": "node scripts/replace-r2-badge-assets.mjs",
     "sites:purge-invalid": "node scripts/purge-invalid-site-domains.mjs",
     "sites:backfill-metadata": "node scripts/backfill-site-metadata.mjs",
-    "docs:check": "node ../../.github/scripts/check-docs.mjs && remark \"../../*.md\" \"../../docs/**/*.md\" --frail --quiet --use remark-validate-links",
+    "docs:check": "node ../../.github/scripts/check-docs.mjs && remark \"../../*.md\" \"../../docs/**/*.md\" AGENTS.md --frail --quiet --use remark-validate-links",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm cf:audit --strict --pretty && pnpm cf:build && pnpm docs:check"
   },
   "dependencies": {
