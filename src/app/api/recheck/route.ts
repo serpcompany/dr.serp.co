@@ -6,16 +6,24 @@ import { getClaim, getDrChecks, recordDrCheck, recordDrHistoryChecks, upsertClai
 import { resolveEntitlement } from "@/server/entitlements.mjs"
 import { checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
 import { formatRecheckCadenceError, resolveRecheckCadence } from "@/server/recheck-cadence.mjs"
+import { isSpamSite } from "@/server/site-spam.mjs"
 
 export const runtime = "nodejs"
 const RATE_LIMIT_POINTS = Number(process.env.RECHECK_RATE_LIMIT_POINTS ?? 10)
 const RATE_LIMIT_DURATION = Number(process.env.RECHECK_RATE_LIMIT_DURATION ?? 60)
+
+function hasStoredRating(value: unknown) {
+  return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value))
+}
 
 export async function POST(request: Request) {
   const body = await readRequestJsonRecord(request)
   const domain = normalizeTarget(String(body?.domain || ""))
   if (!domain) {
     return NextResponse.json({ error: "Valid domain required" }, { status: 400 })
+  }
+  if (isSpamSite({ domain })) {
+    return NextResponse.json({ error: "Domain not found" }, { status: 404 })
   }
 
   const rateKey = getRateLimitKey(request, "dr-recheck")
@@ -30,8 +38,23 @@ export async function POST(request: Request) {
 
   try {
     const [claim, checks] = await Promise.all([getClaim(domain), getDrChecks(domain, { limit: 1 })])
-    const entitlement = claim?.email ? await resolveEntitlement({ email: claim.email }) : null
+    if (isSpamSite({ domain, siteTitle: claim?.site_title })) {
+      return NextResponse.json({ error: "Domain not found" }, { status: 404 })
+    }
+    // Only a domain with a stored DR can be rechecked. A first lookup goes through its site page,
+    // which applies the new-lookup caps.
     const lastCheck = Array.isArray(checks) ? checks.at(-1) : null
+    if (!hasStoredRating(claim?.domain_rating) && !hasStoredRating(lastCheck?.domain_rating)) {
+      return NextResponse.json(
+        {
+          error: "This site has no DR yet. Reload its page to look it up.",
+          sitePath: `/sites/${encodeURIComponent(domain)}`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const entitlement = claim?.email ? await resolveEntitlement({ email: claim.email }) : null
     const cadence = resolveRecheckCadence({
       isPaid: Boolean(entitlement?.canAccessPaidFeatures),
       lastCheckedAt: lastCheck?.checked_at ?? claim?.updated_at ?? null,

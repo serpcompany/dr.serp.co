@@ -57,7 +57,7 @@ export async function generateMetadata({
 export default async function SitePage({ params }: { params: Promise<{ target: string }> }) {
   const { target } = await params
   const domain = normalizeTarget(target)
-  // Spam domains get no page (and no paid DR lookup); spam titles are only known after the first lookup.
+  // Spam domains get no page and no paid DR lookup; loadSiteSnapshot skips the lookup for spam titles.
   if (!domain || isSpamSite({ domain })) notFound()
 
   const embedBase = process.env.DR_PUBLIC_BASE_URL || "https://dr.serp.co"
@@ -129,13 +129,16 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <RecheckButton
-              domain={domain}
-              canRecheck={recheckCadence.canRecheck}
-              nextAllowedAt={recheckCadence.nextAllowedAt?.toISOString() ?? null}
-              intervalDays={recheckCadence.intervalDays}
-              tier={recheckCadence.tier === "paid" ? "paid" : "free"}
-            />
+            {domainRating !== null ? (
+              // Only a stored DR can be rechecked; a first lookup happens when the page loads.
+              <RecheckButton
+                domain={domain}
+                canRecheck={recheckCadence.canRecheck}
+                nextAllowedAt={recheckCadence.nextAllowedAt?.toISOString() ?? null}
+                intervalDays={recheckCadence.intervalDays}
+                tier={recheckCadence.tier === "paid" ? "paid" : "free"}
+              />
+            ) : null}
             <ClaimClient domain={domain} claimStatus={claimStatus} signedIn={Boolean(viewerEmail)} />
           </div>
         </div>

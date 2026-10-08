@@ -99,6 +99,100 @@ describe("POST /api/recheck", () => {
     expect(fetchDomainRatingHistory).not.toHaveBeenCalled()
   })
 
+  it("refuses a domain with no stored DR without calling the provider", async () => {
+    getClaim.mockResolvedValue({ domain: "example.com", domain_rating: null, updated_at: "2026-04-16T00:00:00.000Z" })
+
+    const { POST } = await import("./route")
+    const request = new Request("http://localhost/api/recheck", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain: "example.com" }),
+    })
+
+    const response = await POST(request)
+    const payload = await response.json()
+
+    expect(response.status).toBe(404)
+    expect(payload).toEqual({
+      error: "This site has no DR yet. Reload its page to look it up.",
+      sitePath: "/sites/example.com",
+    })
+    expect(fetchDomainRating).not.toHaveBeenCalled()
+    expect(upsertClaim).not.toHaveBeenCalled()
+    expect(recordDrCheck).not.toHaveBeenCalled()
+  })
+
+  it("refuses a domain the site has never stored without calling the provider", async () => {
+    const { POST } = await import("./route")
+    const request = new Request("http://localhost/api/recheck", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain: "never-seen.example" }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(404)
+    expect(fetchDomainRating).not.toHaveBeenCalled()
+  })
+
+  it("rechecks a domain whose only stored DR is in its checks", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-06-20T00:00:00.000Z"))
+    getDrChecks.mockResolvedValue([{ checked_at: "2026-05-01T00:00:00.000Z", domain_rating: 70 }])
+    fetchDomainRating.mockResolvedValue({ target: "example.com", provider: "ahrefs", domainRating: 71 })
+    upsertClaim.mockResolvedValue({ updated_at: "2026-06-20T00:00:00.000Z" })
+
+    const { POST } = await import("./route")
+    const request = new Request("http://localhost/api/recheck", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain: "example.com" }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(fetchDomainRating).toHaveBeenCalledWith({ target: "example.com" })
+  })
+
+  it("refuses a spam domain before the rate limit or any provider call", async () => {
+    const { POST } = await import("./route")
+    const request = new Request("http://localhost/api/recheck", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain: "best-casino-bonus.com" }),
+    })
+
+    const response = await POST(request)
+    const payload = await response.json()
+
+    expect(response.status).toBe(404)
+    expect(payload).toEqual({ error: "Domain not found" })
+    expect(checkRateLimit).not.toHaveBeenCalled()
+    expect(getClaim).not.toHaveBeenCalled()
+    expect(fetchDomainRating).not.toHaveBeenCalled()
+  })
+
+  it("refuses a domain whose stored title is spam without calling the provider", async () => {
+    getClaim.mockResolvedValue({ domain: "example.com", domain_rating: 30, site_title: "Situs Slot Gacor Terpercaya" })
+
+    const { POST } = await import("./route")
+    const request = new Request("http://localhost/api/recheck", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain: "example.com" }),
+    })
+
+    const response = await POST(request)
+    const payload = await response.json()
+
+    expect(response.status).toBe(404)
+    expect(payload).toEqual({ error: "Domain not found" })
+    expect(fetchDomainRating).not.toHaveBeenCalled()
+    expect(upsertClaim).not.toHaveBeenCalled()
+  })
+
   it("blocks free rechecks before the monthly cadence allows another provider call", async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-06-20T00:00:00.000Z"))
@@ -157,7 +251,7 @@ describe("POST /api/recheck", () => {
   })
 
   it("records Ahrefs monthly history after a successful recheck of a claimed domain", async () => {
-    getClaim.mockResolvedValue({ domain: "example.com", email: "owner@example.com" })
+    getClaim.mockResolvedValue({ domain: "example.com", email: "owner@example.com", domain_rating: 70 })
     fetchDomainRating.mockResolvedValue({
       target: "example.com",
       provider: "ahrefs",
@@ -229,6 +323,7 @@ describe("POST /api/recheck", () => {
   })
 
   it("skips the paid Ahrefs history import when rechecking an unclaimed domain", async () => {
+    getClaim.mockResolvedValue({ domain: "example.com", domain_rating: 70 })
     fetchDomainRating.mockResolvedValue({
       target: "example.com",
       provider: "ahrefs",
