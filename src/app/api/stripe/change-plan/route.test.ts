@@ -33,6 +33,8 @@ function changePlan(body: unknown) {
 
 const subscriber = {
   canAccessPaidFeatures: true,
+  hasLivePlan: true,
+  domainsUsed: 3,
   subscription: { stripeSubscriptionId: "sub_1", domainsLimit: 12, billingInterval: "monthly" },
 }
 
@@ -42,7 +44,11 @@ describe("POST /api/stripe/change-plan", () => {
     mocks.getSessionEmail.mockReturnValue("owner@example.com")
     mocks.resolveEntitlement.mockResolvedValue(subscriber)
     mocks.checkRateLimit.mockResolvedValue({ allowed: true, unavailable: false, remaining: 9, retryAfterMs: 0 })
-    mocks.retrieve.mockResolvedValue({ id: "sub_1", items: { data: [{ id: "si_1", price: { id: "price_12m" } }] } })
+    mocks.retrieve.mockResolvedValue({
+      id: "sub_1",
+      status: "active",
+      items: { data: [{ id: "si_1", price: { id: "price_12m" } }] },
+    })
     mocks.update.mockResolvedValue({ id: "sub_1" })
   })
 
@@ -55,7 +61,7 @@ describe("POST /api/stripe/change-plan", () => {
     expect(mocks.update).toHaveBeenCalledWith("sub_1", {
       items: [{ id: "si_1", price: "price_25a" }],
       proration_behavior: "always_invoice",
-      cancel_at_period_end: false,
+      payment_behavior: "error_if_incomplete",
     })
   })
 
@@ -68,7 +74,7 @@ describe("POST /api/stripe/change-plan", () => {
   })
 
   it("refuses without a plan, sending the buyer to checkout", async () => {
-    mocks.resolveEntitlement.mockResolvedValue({ canAccessPaidFeatures: false, subscription: null })
+    mocks.resolveEntitlement.mockResolvedValue({ canAccessPaidFeatures: false, hasLivePlan: false, subscription: null })
     const { POST } = await import("./route")
     const response = await POST(changePlan({ domains: 25, billing: "monthly" }))
 
@@ -78,11 +84,61 @@ describe("POST /api/stripe/change-plan", () => {
   })
 
   it("never moves another product's subscription", async () => {
-    mocks.retrieve.mockResolvedValue({ id: "sub_1", items: { data: [{ id: "si_1", price: { id: "price_lists" } }] } })
+    mocks.retrieve.mockResolvedValue({
+      id: "sub_1",
+      status: "active",
+      items: { data: [{ id: "si_1", price: { id: "price_lists" } }] },
+    })
     const { POST } = await import("./route")
 
     expect((await POST(changePlan({ domains: 25, billing: "monthly" }))).status).toBe(409)
     expect(mocks.update).not.toHaveBeenCalled()
+  })
+
+  it("refuses a canceled subscription that still has paid access, sending the buyer to checkout", async () => {
+    // D1 can lag behind Stripe, so the live status decides too.
+    mocks.retrieve.mockResolvedValue({
+      id: "sub_1",
+      status: "canceled",
+      items: { data: [{ id: "si_1", price: { id: "price_12m" } }] },
+    })
+    const { POST } = await import("./route")
+    const response = await POST(changePlan({ domains: 25, billing: "monthly" }))
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ code: "no_plan" })
+    expect(mocks.update).not.toHaveBeenCalled()
+  })
+
+  it("refuses when D1 has no live plan, even with paid access in grace", async () => {
+    mocks.resolveEntitlement.mockResolvedValue({ ...subscriber, hasLivePlan: false })
+    const { POST } = await import("./route")
+
+    expect((await POST(changePlan({ domains: 25, billing: "monthly" }))).status).toBe(409)
+    expect(mocks.retrieve).not.toHaveBeenCalled()
+  })
+
+  it("refuses a plan smaller than the domains already claimed", async () => {
+    mocks.resolveEntitlement.mockResolvedValue({
+      ...subscriber,
+      domainsUsed: 30,
+      subscription: { ...subscriber.subscription, domainsLimit: 50 },
+    })
+    const { POST } = await import("./route")
+    const response = await POST(changePlan({ domains: 25, billing: "monthly" }))
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ code: "too_many_claims" })
+    expect(mocks.update).not.toHaveBeenCalled()
+  })
+
+  it("leaves the plan unchanged and says so when the prorated charge fails", async () => {
+    mocks.update.mockRejectedValue(Object.assign(new Error("Your card was declined."), { statusCode: 402 }))
+    const { POST } = await import("./route")
+    const response = await POST(changePlan({ domains: 25, billing: "monthly" }))
+
+    expect(response.status).toBe(402)
+    expect(await response.json()).toMatchObject({ code: "payment_failed" })
   })
 
   it("refuses the plan the subscriber already has", async () => {
@@ -110,7 +166,7 @@ describe("POST /api/stripe/change-plan", () => {
 
   it("logs Stripe's error and returns a fixed message", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {})
-    mocks.update.mockRejectedValue(new Error("Your card was declined."))
+    mocks.update.mockRejectedValue(new Error("connect ETIMEDOUT"))
     const { POST } = await import("./route")
     const response = await POST(changePlan({ domains: 25, billing: "monthly" }))
 

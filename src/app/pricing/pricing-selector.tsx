@@ -38,6 +38,15 @@ export function PricingSelector() {
   const [currentPlan, setCurrentPlan] = useState<CurrentPlan | null>(null)
   const [changed, setChanged] = useState<CurrentPlan | null>(null)
 
+  // Start the selector on the subscriber's own plan, so nothing is one click from a downgrade.
+  const showCurrentPlan = (plan: CurrentPlan | null) => {
+    if (!plan) return
+    setCurrentPlan(plan)
+    const index = PRICING_TIERS.findIndex((item) => item.domains === plan.domains)
+    if (index >= 0) setTierIndex(index)
+    setIsAnnual(plan.billing === "annual")
+  }
+
   useEffect(() => {
     const controller = new AbortController()
     fetch("/api/billing/status", { method: "POST", signal: controller.signal })
@@ -45,8 +54,8 @@ export function PricingSelector() {
         if (!response.ok) return
         const payload = await readJsonRecord(response)
         const entitlement = payload?.entitlement
-        if (!entitlement?.canAccessPaidFeatures || !entitlement?.subscription) return
-        setCurrentPlan(
+        if (!entitlement?.hasLivePlan || !entitlement?.subscription) return
+        showCurrentPlan(
           readPlan({ domains: entitlement.subscription.domainsLimit, billing: entitlement.subscription.billingInterval })
         )
       })
@@ -111,7 +120,7 @@ export function PricingSelector() {
         // A subscriber whose plan the page didn't know yet: show it and offer the switch instead.
         const plan = payload?.code === "has_plan" ? readPlan(payload.plan) : null
         if (plan) {
-          setCurrentPlan(plan)
+          showCurrentPlan(plan)
           return
         }
         throw new Error(payload?.error ?? "Unable to start checkout.")

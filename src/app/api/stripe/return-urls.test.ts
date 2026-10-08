@@ -49,7 +49,7 @@ describe("Stripe return URLs", () => {
     vi.stubEnv("DR_PUBLIC_BASE_URL", "https://staging.dr.example/")
     vi.stubEnv("STRIPE_PORTAL_RETURN_URL", "")
     vi.stubEnv("STRIPE_PORTAL_CONFIGURATION_ID", "")
-    resolveEntitlement.mockReset().mockResolvedValue({ canAccessPaidFeatures: false, subscription: null })
+    resolveEntitlement.mockReset().mockResolvedValue({ canAccessPaidFeatures: false, hasLivePlan: false, subscription: null })
     createCheckoutSession.mockReset().mockResolvedValue({ url: "https://checkout.stripe.com/c/1" })
     createPortalSession.mockReset().mockResolvedValue({ url: "https://billing.stripe.com/p/1" })
   })
@@ -129,6 +129,7 @@ describe("Stripe return URLs", () => {
   it("refuses a second checkout for a subscriber, naming their plan", async () => {
     resolveEntitlement.mockResolvedValue({
       canAccessPaidFeatures: true,
+      hasLivePlan: true,
       subscription: { stripeSubscriptionId: "sub_1", domainsLimit: 12, billingInterval: "monthly" },
     })
     const { POST } = await import("./checkout/route")
@@ -137,5 +138,18 @@ describe("Stripe return URLs", () => {
     expect(response.status).toBe(409)
     expect(await response.json()).toMatchObject({ code: "has_plan", plan: { domains: 12, billing: "monthly" } })
     expect(createCheckoutSession).not.toHaveBeenCalled()
+  })
+
+  it("lets a lapsed subscriber still in grace buy again", async () => {
+    resolveEntitlement.mockResolvedValue({
+      canAccessPaidFeatures: true,
+      hasLivePlan: false,
+      subscription: { stripeSubscriptionId: "sub_1", status: "canceled", domainsLimit: 12, billingInterval: "annual" },
+    })
+    const { POST } = await import("./checkout/route")
+    const response = await POST(siteRequest("/api/stripe/checkout", { domains: 25, billing: "monthly" }))
+
+    expect(response.status).toBe(200)
+    expect(createCheckoutSession).toHaveBeenCalled()
   })
 })

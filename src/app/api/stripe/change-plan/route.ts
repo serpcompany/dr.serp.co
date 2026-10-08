@@ -14,6 +14,8 @@ export const runtime = "nodejs"
 const ALLOWED_DOMAINS = [12, 25, 50, 100] as const
 const RATE_LIMIT_POINTS = Number(process.env.CHANGE_PLAN_RATE_LIMIT_POINTS ?? 10)
 const RATE_LIMIT_DURATION = Number(process.env.CHANGE_PLAN_RATE_LIMIT_DURATION ?? 60)
+const LIVE_STATUSES = new Set(["active", "trialing", "past_due"])
+const NO_PLAN_MESSAGE = "You don't have a plan to change yet."
 
 // Moves a subscriber's existing subscription to another size or billing interval. Stripe's portal
 // can't do it (one price per interval for each product), and a second checkout would bill twice.
@@ -53,8 +55,18 @@ export async function POST(request: Request) {
 
   const entitlement = await resolveEntitlement({ email })
   const subscriptionId = entitlement?.subscription?.stripeSubscriptionId
-  if (!entitlement?.canAccessPaidFeatures || !subscriptionId) {
-    return NextResponse.json({ error: "You don't have a plan to change yet.", code: "no_plan" }, { status: 409 })
+  if (!entitlement?.hasLivePlan || !subscriptionId) {
+    return NextResponse.json({ error: NO_PLAN_MESSAGE, code: "no_plan" }, { status: 409 })
+  }
+  // A smaller plan can't hold the domains already claimed; the subscriber removes some under My sites first.
+  if (entitlement.domainsUsed > domains) {
+    return NextResponse.json(
+      {
+        error: `You've claimed ${entitlement.domainsUsed} domains. Remove some under My sites before switching to ${domains}.`,
+        code: "too_many_claims",
+      },
+      { status: 409 }
+    )
   }
 
   try {
@@ -62,22 +74,35 @@ export async function POST(request: Request) {
     const priceId = getPriceId(domains, billing)
     const subscription = await stripe.subscriptions.retrieve(subscriptionId)
     const item = subscription.items.data[0]
-    // Only ever move a dr.serp.co subscription; the Stripe account also sells other products.
-    if (!item?.price?.id || !getTierForPriceId(item.price.id)) {
-      return NextResponse.json({ error: "You don't have a plan to change yet.", code: "no_plan" }, { status: 409 })
+    // Only ever move a live dr.serp.co subscription; the Stripe account also sells other products,
+    // and D1 can lag behind Stripe.
+    if (!LIVE_STATUSES.has(subscription.status) || !item?.price?.id || !getTierForPriceId(item.price.id)) {
+      return NextResponse.json({ error: NO_PLAN_MESSAGE, code: "no_plan" }, { status: 409 })
     }
     if (item.price.id === priceId) {
       return NextResponse.json({ error: "You're already on this plan.", code: "same_plan" }, { status: 400 })
     }
 
+    // error_if_incomplete: if the prorated charge fails, Stripe leaves the plan as it was and
+    // answers 402, instead of switching it and leaving the invoice unpaid. A cancellation the
+    // subscriber scheduled in the portal stays scheduled.
     await stripe.subscriptions.update(subscriptionId, {
       items: [{ id: item.id, price: priceId }],
       proration_behavior: "always_invoice",
-      cancel_at_period_end: false,
+      payment_behavior: "error_if_incomplete",
     })
 
     return NextResponse.json({ ok: true, plan: { domains, billing } })
   } catch (error) {
+    if ((error as { statusCode?: number })?.statusCode === 402) {
+      return NextResponse.json(
+        {
+          error: "The payment for the new plan didn't go through, so your plan is unchanged. Update your card on the billing page and try again.",
+          code: "payment_failed",
+        },
+        { status: 402 }
+      )
+    }
     console.error("stripe.change-plan: subscription update failed", error)
     return NextResponse.json(
       { error: "Your plan couldn't be changed right now. Please try again later." },

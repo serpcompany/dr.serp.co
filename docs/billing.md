@@ -43,14 +43,19 @@ None of them reads an email from the request body. The portal, plan changes and 
 need a session; checkout uses the session's email when there is one.
 
 - `POST /api/stripe/checkout` opens a subscription-mode Checkout Session, returning to
-  `/pricing?checkout=success` or `/pricing?checkout=cancelled`. A signed-in subscriber gets 409
-  `has_plan` with their plan instead, because a second checkout would bill twice. A signed-out
-  buyer types their email into Stripe, so this can't stop them buying a second plan.
-- `POST /api/stripe/change-plan` moves a subscriber's existing subscription to another size or
-  billing period (`subscriptions.update` with `proration_behavior: "always_invoice"`, so the
-  difference is charged or credited at once). It refuses another product's subscription and the
-  plan they already have; the webhook syncs the new plan. `/pricing` shows a subscriber their plan
-  and a "Switch plan" button instead of checkout.
+  `/pricing?checkout=success` or `/pricing?checkout=cancelled`. A signed-in subscriber with a live
+  plan (`active`, `trialing` or `past_due`, the entitlement's `hasLivePlan`) gets 409 `has_plan`
+  with their plan instead, because a second checkout would bill twice. A canceled subscription
+  still in its paid period doesn't count, so its owner can buy again. A signed-out buyer types
+  their email into Stripe, so this can't stop them buying a second plan.
+- `POST /api/stripe/change-plan` moves a subscriber's live subscription to another size or billing
+  period (`subscriptions.update` with `proration_behavior: "always_invoice"`, so the difference is
+  charged or credited at once). With `payment_behavior: "error_if_incomplete"`, a failed charge
+  leaves the plan unchanged and answers 402 `payment_failed`. It refuses with 409 `no_plan` when
+  there's no live dr.serp.co subscription in D1 or in Stripe, 409 `too_many_claims` for a size
+  below the domains already claimed, and 400 `same_plan`. A cancellation scheduled in the portal
+  stays scheduled. The webhook syncs the new plan. `/pricing` starts on a subscriber's plan and
+  shows a "Switch plan" button instead of checkout.
 - `POST /api/stripe/portal` opens the Stripe customer portal for payment details, invoices and
   cancellation, returning to `STRIPE_PORTAL_RETURN_URL` or `/billing`. Production passes
   dr.serp.co's portal configuration (`STRIPE_PORTAL_CONFIGURATION_ID` in `wrangler.jsonc`), because

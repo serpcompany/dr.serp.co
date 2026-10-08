@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     if (email) {
       const entitlement = await resolveEntitlement({ email })
       const current = entitlement?.subscription
-      if (entitlement?.canAccessPaidFeatures && current?.stripeSubscriptionId) {
+      if (entitlement?.hasLivePlan && current) {
         return NextResponse.json(
           {
             error: "You already have a plan. Switch it instead of buying a second one.",

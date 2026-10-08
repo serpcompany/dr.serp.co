@@ -156,4 +156,37 @@ describe("resolveEntitlement", () => {
 
     expect(result).toMatchObject({ status: "none", canAccessPaidFeatures: false, canClaim: false })
   })
+
+  it.each([
+    ["active", "2026-02-01T00:00:00Z", true],
+    ["trialing", "2026-02-01T00:00:00Z", true],
+    ["past_due", "2026-02-01T00:00:00Z", true],
+    ["past_due", "2025-12-15T00:00:00Z", true],
+    ["canceled", "2026-12-01T00:00:00Z", false],
+    ["incomplete_expired", "2026-02-01T00:00:00Z", false],
+  ])("counts a %s subscription ending %s as a live plan: %s", async (status, periodEnd, live) => {
+    mocks.getLatestSubscriptionByEmail.mockResolvedValue({
+      stripe_subscription_id: "sub_1",
+      stripe_price_id: "price_25m",
+      status,
+      domains_limit: 25,
+      billing_interval: "monthly",
+      current_period_end: new Date(periodEnd),
+    })
+
+    const result = await resolveEntitlement({ email: "plan@example.com", now: baseNow })
+
+    expect(result?.hasLivePlan).toBe(live)
+  })
+
+  it("never counts another product's subscription as a live plan", async () => {
+    mocks.getLatestSubscriptionByEmail.mockResolvedValue({
+      stripe_subscription_id: "sub_lists",
+      stripe_price_id: "price_lists",
+      status: "active",
+      current_period_end: new Date("2026-02-01T00:00:00Z"),
+    })
+
+    expect((await resolveEntitlement({ email: "lists@example.com", now: baseNow }))?.hasLivePlan).toBe(false)
+  })
 })
