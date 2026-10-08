@@ -1,13 +1,12 @@
-"use client"
+'use client'
 
-import { useEffect, useMemo, useState } from "react"
-import Link from "next/link"
-
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { BillingPortalButton } from "@/app/_components/billing-portal-button"
-import { readJsonRecord } from "@/lib/read-json"
+import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
+import { BillingPortalButton } from '@/app/_components/billing-portal-button'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { readJsonRecord } from '@/lib/read-json'
 
 type Entitlement = {
   status: string
@@ -30,28 +29,32 @@ type Entitlement = {
 }
 
 function readEmail() {
-  return window.localStorage.getItem("dr-auth-email")?.trim().toLowerCase() || ""
+  return window.localStorage.getItem('dr-auth-email')?.trim().toLowerCase() || ''
 }
 
 function formatDate(value: string | null | undefined) {
   if (!value) return null
   const date = new Date(value)
   if (!Number.isFinite(date.getTime())) return null
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date)
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(date)
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  active: "Active",
-  trialing: "Trialing",
-  grace: "In grace period",
-  past_due: "Past due",
-  canceled: "Canceled",
-  inactive: "Inactive",
-  none: "No subscription",
+  active: 'Active',
+  trialing: 'Trialing',
+  grace: 'In grace period',
+  past_due: 'Past due',
+  canceled: 'Canceled',
+  inactive: 'Inactive',
+  none: 'No subscription'
 }
 
 export function BillingStatusCard() {
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState('')
   const [entitlement, setEntitlement] = useState<Entitlement | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -59,10 +62,10 @@ export function BillingStatusCard() {
   useEffect(() => {
     setEmail(readEmail())
     const onStorage = (event: StorageEvent) => {
-      if (event.key === "dr-auth-email") setEmail(readEmail())
+      if (event.key === 'dr-auth-email') setEmail(readEmail())
     }
-    window.addEventListener("storage", onStorage)
-    return () => window.removeEventListener("storage", onStorage)
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
   }, [])
 
   useEffect(() => {
@@ -77,20 +80,22 @@ export function BillingStatusCard() {
       setLoading(true)
       setError(null)
       try {
-        const response = await fetch("/api/billing/status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        const response = await fetch('/api/billing/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email }),
-          signal: controller.signal,
+          signal: controller.signal
         })
         const payload = await readJsonRecord(response)
         if (!response.ok) {
-          throw new Error(typeof payload?.error === "string" ? payload.error : "Unable to load billing status.")
+          throw new Error(
+            typeof payload?.error === 'string' ? payload.error : 'Unable to load billing status.'
+          )
         }
         setEntitlement(payload?.entitlement ?? null)
       } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return
-        setError(err instanceof Error ? err.message : "Unable to load billing status.")
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        setError(err instanceof Error ? err.message : 'Unable to load billing status.')
       } finally {
         setLoading(false)
       }
@@ -100,23 +105,25 @@ export function BillingStatusCard() {
     return () => controller.abort()
   }, [email])
 
-  const statusLabel = entitlement ? STATUS_LABELS[entitlement.status] || "Unknown" : "No subscription"
+  const statusLabel = entitlement
+    ? STATUS_LABELS[entitlement.status] || 'Unknown'
+    : 'No subscription'
   const renewalDate = formatDate(entitlement?.subscription?.currentPeriodEnd ?? null)
 
   const planLabel = useMemo(() => {
-    if (!entitlement) return "Free"
-    if (entitlement.isUnlimited) return "Unlimited domains"
-    if (!entitlement.domainsLimit) return "Free"
+    if (!entitlement) return 'Free'
+    if (entitlement.isUnlimited) return 'Unlimited domains'
+    if (!entitlement.domainsLimit) return 'Free'
     return `${entitlement.domainsLimit} domains`
   }, [entitlement])
 
   const billingLabel = entitlement?.subscription?.billingInterval
-    ? entitlement.subscription.billingInterval === "annual"
-      ? "Annual"
-      : "Monthly"
+    ? entitlement.subscription.billingInterval === 'annual'
+      ? 'Annual'
+      : 'Monthly'
     : null
 
-  const renewalLabel = entitlement?.subscription?.cancelAtPeriodEnd ? "Ends on" : "Renews on"
+  const renewalLabel = entitlement?.subscription?.cancelAtPeriodEnd ? 'Ends on' : 'Renews on'
 
   if (!email) {
     return (
@@ -148,7 +155,9 @@ export function BillingStatusCard() {
             <div className="h-4 w-32 animate-pulse rounded-md bg-muted" />
           </div>
         ) : error ? (
-          <div className="rounded-lg border bg-muted p-4 text-sm text-muted-foreground">{error}</div>
+          <div className="rounded-lg border bg-muted p-4 text-sm text-muted-foreground">
+            {error}
+          </div>
         ) : (
           <div className="grid gap-3 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -156,10 +165,12 @@ export function BillingStatusCard() {
                 <p className="font-medium text-foreground">Plan</p>
                 <p className="text-muted-foreground">
                   {planLabel}
-                  {billingLabel ? ` • ${billingLabel}` : ""}
+                  {billingLabel ? ` • ${billingLabel}` : ''}
                 </p>
               </div>
-              <Badge variant={entitlement?.canAccessPaidFeatures ? "secondary" : "outline"}>{statusLabel}</Badge>
+              <Badge variant={entitlement?.canAccessPaidFeatures ? 'secondary' : 'outline'}>
+                {statusLabel}
+              </Badge>
             </div>
             <div>
               <p className="font-medium text-foreground">Payment status</p>
@@ -167,13 +178,13 @@ export function BillingStatusCard() {
             </div>
             <div>
               <p className="font-medium text-foreground">{renewalLabel}</p>
-              <p className="text-muted-foreground">{renewalDate || "—"}</p>
+              <p className="text-muted-foreground">{renewalDate || '—'}</p>
             </div>
             <div>
               <p className="font-medium text-foreground">Domains used</p>
               <p className="text-muted-foreground">
                 {entitlement?.domainsUsed ?? 0}/
-                {entitlement?.isUnlimited ? "Unlimited" : entitlement?.domainsLimit ?? 0}
+                {entitlement?.isUnlimited ? 'Unlimited' : (entitlement?.domainsLimit ?? 0)}
               </p>
             </div>
           </div>

@@ -8,7 +8,7 @@ function cookieHeaderFromResponse(response) {
   const setCookies = typeof getSetCookie === 'function' ? getSetCookie.call(response.headers) : []
   if (!Array.isArray(setCookies) || setCookies.length === 0) return ''
   return setCookies
-    .map((c) => c.split(';')[0])
+    .map(c => c.split(';')[0])
     .filter(Boolean)
     .join('; ')
 }
@@ -20,10 +20,10 @@ async function fetchText(url, { cookieHeader = '', headers = {}, method = 'GET',
       accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'user-agent': 'dr.serp.co/dr-proxy',
       ...(cookieHeader ? { cookie: cookieHeader } : {}),
-      ...headers,
+      ...headers
     },
     body,
-    redirect: 'follow',
+    redirect: 'follow'
   })
   const text = await res.text()
   return { res, text }
@@ -67,8 +67,8 @@ function extractApiError(payload, fallback) {
   if (typeof error?.message === 'string' && error.message.trim()) return error.message.trim()
   if (Array.isArray(payload?.errors)) {
     const firstMessage = payload.errors
-      .map((entry) => entry?.message)
-      .find((message) => typeof message === 'string' && message.trim())
+      .map(entry => entry?.message)
+      .find(message => typeof message === 'string' && message.trim())
     if (firstMessage) return firstMessage.trim()
   }
   if (typeof payload?.message === 'string' && payload.message.trim()) return payload.message.trim()
@@ -92,9 +92,9 @@ export async function fetchDrFromAhrefsApi({ target, date = getAhrefsApiDate() }
     method: 'GET',
     headers: {
       authorization: `Bearer ${apiKey}`,
-      accept: 'application/json',
+      accept: 'application/json'
     },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(10000)
   })
 
   const text = await response.text()
@@ -115,7 +115,8 @@ export async function fetchDrFromAhrefsApi({ target, date = getAhrefsApiDate() }
   }
 
   const rawAhrefsRank = payload?.domain_rating?.ahrefs_rank
-  const parsedAhrefsRank = rawAhrefsRank === null || rawAhrefsRank === undefined ? null : Number(rawAhrefsRank)
+  const parsedAhrefsRank =
+    rawAhrefsRank === null || rawAhrefsRank === undefined ? null : Number(rawAhrefsRank)
 
   return {
     provider: 'ahrefs',
@@ -123,8 +124,8 @@ export async function fetchDrFromAhrefsApi({ target, date = getAhrefsApiDate() }
     domainRating,
     extra: {
       ahrefsRank: Number.isFinite(parsedAhrefsRank) ? parsedAhrefsRank : null,
-      date,
-    },
+      date
+    }
   }
 }
 
@@ -135,7 +136,7 @@ export async function fetchDomainRatingHistory({
   target,
   dateFrom,
   dateTo = getAhrefsApiDate(),
-  historyGrouping = 'monthly',
+  historyGrouping = 'monthly'
 } = {}) {
   const normalizedTarget = normalizeTarget(target)
   if (!normalizedTarget) throw new Error('Missing "target"')
@@ -161,9 +162,9 @@ export async function fetchDomainRatingHistory({
     method: 'GET',
     headers: {
       authorization: `Bearer ${apiKey}`,
-      accept: 'application/json',
+      accept: 'application/json'
     },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(10000)
   })
 
   const text = await response.text()
@@ -183,13 +184,13 @@ export async function fetchDomainRatingHistory({
   }
 
   const points = payload.domain_ratings
-    .map((row) => {
+    .map(row => {
       const checkedAt = typeof row?.date === 'string' ? row.date : null
       const domainRating = Number(row?.domain_rating)
       if (!checkedAt || !Number.isFinite(domainRating)) return null
       return { checkedAt, domainRating }
     })
-    .filter((row) => row !== null)
+    .filter(row => row !== null)
 
   return {
     provider: 'ahrefs-history',
@@ -197,7 +198,7 @@ export async function fetchDomainRatingHistory({
     dateFrom: resolvedDateFrom,
     dateTo: resolvedDateTo,
     historyGrouping: resolvedHistoryGrouping,
-    points,
+    points
   }
 }
 
@@ -233,9 +234,9 @@ export async function fetchDrFromRhinoRank({ target, captchaAnswer, captchaHash 
       'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
       origin: 'https://www.rhinorank.io',
       referer: pageUrl,
-      accept: 'application/json',
+      accept: 'application/json'
     },
-    body: form,
+    body: form
   })
 
   if (!apiRes.ok) {
@@ -259,8 +260,8 @@ export async function fetchDrFromRhinoRank({ target, captchaAnswer, captchaHash 
       extra: {
         da: Number(json.data.metrics.da) || null,
         ahrefsRank: Number(json.data.metrics.ahrefs_rank) || null,
-        cached: json.data.cached || null,
-      },
+        cached: json.data.cached || null
+      }
     }
   }
 
@@ -273,7 +274,7 @@ export async function fetchDrFromRhinoRank({ target, captchaAnswer, captchaHash 
       captchaRequired: true,
       captcha: json?.data?.captcha ?? null,
       remainingAttempts: json?.data?.remaining_attempts ?? null,
-      message: typeof message === 'string' ? message : 'CAPTCHA required',
+      message: typeof message === 'string' ? message : 'CAPTCHA required'
     }
   }
 
@@ -304,9 +305,9 @@ export async function fetchDrFromEditorialLink({ target } = {}) {
     headers: {
       'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
       origin: 'https://editorial.link',
-      referer: pageUrl,
+      referer: pageUrl
     },
-    body: form,
+    body: form
   })
 
   if (!postRes.ok) {
@@ -333,11 +334,17 @@ export async function fetchDrFromEditorialLink({ target } = {}) {
     provider: 'editoriallink',
     target: normalizedTarget,
     domainRating: dr,
-    extra: null,
+    extra: null
   }
 }
 
-export async function fetchDomainRating({ target, provider, captchaAnswer, captchaHash, date } = {}) {
+export async function fetchDomainRating({
+  target,
+  provider,
+  captchaAnswer,
+  captchaHash,
+  date
+} = {}) {
   const normalizedTarget = normalizeTarget(target)
   if (!normalizedTarget) throw new Error('Missing "target"')
 
@@ -356,7 +363,5 @@ export async function fetchDomainRating({ target, provider, captchaAnswer, captc
   }
 
   // No working provider available
-  throw new Error(
-    'All providers unavailable: Set AHREFS_API_KEY to enable Ahrefs API'
-  )
+  throw new Error('All providers unavailable: Set AHREFS_API_KEY to enable Ahrefs API')
 }

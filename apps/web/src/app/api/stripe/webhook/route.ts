@@ -1,27 +1,32 @@
-import Stripe from "stripe"
-import { headers } from "next/headers"
-import { NextResponse } from "next/server"
-
-import { getStripe } from "@/lib/stripe"
-import { getTierForPriceId } from "@/lib/stripe-pricing"
+import { headers } from 'next/headers'
+import { NextResponse } from 'next/server'
+import type Stripe from 'stripe'
+import { readNumberEnv } from '@/lib/env'
+import { getStripe } from '@/lib/stripe'
+import { getTierForPriceId } from '@/lib/stripe-pricing'
 import {
   getLatestBillingAuditEvent,
   getLatestBillingAuditFailure,
   insertBillingAudit,
-  upsertSubscription,
-} from "@/server/db.mjs"
-import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
-import { readNumberEnv } from "@/lib/env"
+  upsertSubscription
+} from '@/server/db.mjs'
+import {
+  checkRateLimit,
+  getRateLimitKey,
+  RATE_LIMITER_UNAVAILABLE_MESSAGE
+} from '@/server/rate-limit.mjs'
 
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 function normalizeEmail(value: string | null | undefined) {
-  return String(value ?? "").trim().toLowerCase()
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
 }
 
 function billingFromInterval(interval: string | null | undefined) {
   if (!interval) return null
-  return interval === "year" ? "annual" : "monthly"
+  return interval === 'year' ? 'annual' : 'monthly'
 }
 
 function toDate(value: Date | string | null | undefined) {
@@ -42,12 +47,13 @@ type PeriodEnd = { current_period_end?: number | null }
 function invoiceSubscriptionId(invoice: Stripe.Invoice) {
   const shapes = invoice as unknown as InvoiceShapes
   const value = shapes.subscription ?? shapes.parent?.subscription_details?.subscription
-  return typeof value === "string" ? value : null
+  return typeof value === 'string' ? value : null
 }
 
 function subscriptionPeriodEnd(subscription: Stripe.Subscription) {
   const legacy = (subscription as unknown as PeriodEnd).current_period_end
-  const basil = (subscription.items?.data?.[0] as unknown as PeriodEnd | undefined)?.current_period_end
+  const basil = (subscription.items?.data?.[0] as unknown as PeriodEnd | undefined)
+    ?.current_period_end
   const seconds = legacy ?? basil ?? null
   return seconds ? new Date(seconds * 1000) : null
 }
@@ -55,7 +61,7 @@ function subscriptionPeriodEnd(subscription: Stripe.Subscription) {
 async function resolveCustomerEmail(stripe: Stripe, customerId?: string | null) {
   if (!customerId) return null
   const customer = await stripe.customers.retrieve(customerId)
-  if (customer && !("deleted" in customer)) {
+  if (customer && !('deleted' in customer)) {
     return customer.email ?? null
   }
   return null
@@ -71,7 +77,8 @@ async function buildSubscriptionSnapshot(
   // Null for another product's price. A broken STRIPE_PRICE_IDS throws instead, so the event fails
   // with a 500 and Stripe retries it, rather than being ignored as another product's.
   const tier = priceId ? getTierForPriceId(priceId) : null
-  const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id
+  const customerId =
+    typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id
 
   const emailFromCustomer = await resolveCustomerEmail(stripe, customerId)
   const email = normalizeEmail(emailOverride ?? emailFromCustomer)
@@ -91,19 +98,22 @@ async function buildSubscriptionSnapshot(
     currentPeriodEnd,
     cancelAtPeriodEnd: subscription.cancel_at_period_end ?? null,
     // The Stripe account also sells other SERP products; only dr.serp.co's prices map to a tier.
-    isDrPlan: tier !== null,
+    isDrPlan: tier !== null
   }
 }
 
-const IGNORED_PRICE = "Ignored: not a dr.serp.co price."
+const IGNORED_PRICE = 'Ignored: not a dr.serp.co price.'
 
 async function syncSubscription(snapshot: Awaited<ReturnType<typeof buildSubscriptionSnapshot>>) {
   if (!snapshot.isDrPlan) {
-    console.info("stripe.webhook: ignored a subscription on another product", snapshot.stripePriceId)
+    console.info(
+      'stripe.webhook: ignored a subscription on another product',
+      snapshot.stripePriceId
+    )
     return { record: null, snapshot, ignored: true }
   }
   if (!snapshot.email) {
-    console.warn("stripe.webhook: missing email for subscription", snapshot.stripeSubscriptionId)
+    console.warn('stripe.webhook: missing email for subscription', snapshot.stripeSubscriptionId)
     return { record: null, snapshot, ignored: false }
   }
 
@@ -116,7 +126,7 @@ async function syncSubscription(snapshot: Awaited<ReturnType<typeof buildSubscri
     domainsLimit: snapshot.domainsLimit ?? null,
     status: snapshot.status ?? null,
     currentPeriodEnd: snapshot.currentPeriodEnd ?? null,
-    cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd ?? null,
+    cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd ?? null
   })
 
   return { record, snapshot, ignored: false }
@@ -131,7 +141,7 @@ function auditFields(synced: Awaited<ReturnType<typeof syncSubscription>>) {
       stripeSubscriptionId: snapshot.stripeSubscriptionId ?? null,
       stripePriceId: snapshot.stripePriceId ?? null,
       success: true,
-      error: IGNORED_PRICE,
+      error: IGNORED_PRICE
     }
   }
   return {
@@ -144,16 +154,16 @@ function auditFields(synced: Awaited<ReturnType<typeof syncSubscription>>) {
     status: snapshot.status ?? null,
     currentPeriodEnd: snapshot.currentPeriodEnd ?? null,
     cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd ?? null,
-    success: true,
+    success: true
   }
 }
 
 export async function POST(request: Request) {
-  const rateKey = getRateLimitKey(request, "stripe-webhook")
+  const rateKey = getRateLimitKey(request, 'stripe-webhook')
   const rate = await checkRateLimit({
     key: rateKey,
-    points: readNumberEnv("STRIPE_WEBHOOK_RATE_LIMIT_POINTS", 120),
-    duration: readNumberEnv("STRIPE_WEBHOOK_RATE_LIMIT_DURATION", 60),
+    points: readNumberEnv('STRIPE_WEBHOOK_RATE_LIMIT_POINTS', 120),
+    duration: readNumberEnv('STRIPE_WEBHOOK_RATE_LIMIT_DURATION', 60)
   })
   if (rate.unavailable) {
     return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
@@ -161,18 +171,18 @@ export async function POST(request: Request) {
   if (!rate.allowed) {
     const retryAfter = Math.ceil(rate.retryAfterMs / 1000)
     return NextResponse.json(
-      { error: "Too many webhook requests." },
-      { status: 429, headers: { "Retry-After": String(retryAfter) } }
+      { error: 'Too many webhook requests.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
     )
   }
 
   const stripe = getStripe()
   const headersList = await headers()
-  const signature = headersList.get("stripe-signature")
+  const signature = headersList.get('stripe-signature')
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
   if (!signature || !webhookSecret) {
-    return NextResponse.json({ error: "Stripe webhook not configured." }, { status: 400 })
+    return NextResponse.json({ error: 'Stripe webhook not configured.' }, { status: 400 })
   }
 
   let event: Stripe.Event
@@ -181,27 +191,28 @@ export async function POST(request: Request) {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
   } catch (error) {
     // The request isn't verified yet, so the caller gets no detail; the log keeps it.
-    const message = error instanceof Error ? error.message : "Invalid signature."
-    console.error("stripe.webhook: signature verification failed", message)
-    return NextResponse.json({ error: "Invalid signature." }, { status: 400 })
+    const message = error instanceof Error ? error.message : 'Invalid signature.'
+    console.error('stripe.webhook: signature verification failed', message)
+    return NextResponse.json({ error: 'Invalid signature.' }, { status: 400 })
   }
 
   const eventCreatedAt = event.created ? new Date(event.created * 1000) : null
 
   try {
     switch (event.type) {
-      case "checkout.session.completed": {
+      case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
-        const subscriptionId = typeof session.subscription === "string" ? session.subscription : null
+        const subscriptionId =
+          typeof session.subscription === 'string' ? session.subscription : null
         const email = session.customer_details?.email ?? session.customer_email ?? null
         if (!subscriptionId) {
-          console.warn("stripe.webhook: checkout session missing subscription", session.id)
+          console.warn('stripe.webhook: checkout session missing subscription', session.id)
           await insertBillingAudit({
             stripeEventId: event.id,
             stripeEventType: event.type,
             eventCreatedAt,
             success: false,
-            error: "checkout session missing subscription",
+            error: 'checkout session missing subscription'
           })
           break
         }
@@ -212,13 +223,13 @@ export async function POST(request: Request) {
           stripeEventId: event.id,
           stripeEventType: event.type,
           eventCreatedAt,
-          ...auditFields(synced),
+          ...auditFields(synced)
         })
         break
       }
-      case "customer.subscription.created":
-      case "customer.subscription.updated":
-      case "customer.subscription.deleted": {
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
         const snapshot = await buildSubscriptionSnapshot(stripe, subscription, null)
         const synced = await syncSubscription(snapshot)
@@ -226,12 +237,12 @@ export async function POST(request: Request) {
           stripeEventId: event.id,
           stripeEventType: event.type,
           eventCreatedAt,
-          ...auditFields(synced),
+          ...auditFields(synced)
         })
         break
       }
-      case "invoice.paid":
-      case "invoice.payment_failed": {
+      case 'invoice.paid':
+      case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
         const subscriptionId = invoiceSubscriptionId(invoice)
         if (!subscriptionId) {
@@ -240,7 +251,7 @@ export async function POST(request: Request) {
             stripeEventType: event.type,
             eventCreatedAt,
             success: false,
-            error: "invoice missing subscription",
+            error: 'invoice missing subscription'
           })
           break
         }
@@ -251,7 +262,7 @@ export async function POST(request: Request) {
           stripeEventId: event.id,
           stripeEventType: event.type,
           eventCreatedAt,
-          ...auditFields(synced),
+          ...auditFields(synced)
         })
         break
       }
@@ -260,23 +271,23 @@ export async function POST(request: Request) {
           stripeEventId: event.id,
           stripeEventType: event.type,
           eventCreatedAt,
-          success: true,
+          success: true
         })
         break
       }
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Webhook handler failed."
-    console.error("stripe.webhook: handler error", message)
+    const message = error instanceof Error ? error.message : 'Webhook handler failed.'
+    console.error('stripe.webhook: handler error', message)
     await insertBillingAudit({
       stripeEventId: event?.id ?? null,
-      stripeEventType: event?.type ?? "unknown",
+      stripeEventType: event?.type ?? 'unknown',
       eventCreatedAt,
       success: false,
-      error: message,
+      error: message
     })
     // The audit row keeps the message; the 500 makes Stripe retry.
-    return NextResponse.json({ error: "Webhook handler failed." }, { status: 500 })
+    return NextResponse.json({ error: 'Webhook handler failed.' }, { status: 500 })
   }
 
   return NextResponse.json({ received: true })
@@ -285,31 +296,31 @@ export async function POST(request: Request) {
 export async function GET() {
   const [latest, latestFailure] = await Promise.all([
     getLatestBillingAuditEvent(),
-    getLatestBillingAuditFailure(),
+    getLatestBillingAuditFailure()
   ])
 
   const now = new Date()
   const lastEventAt = toDate(latest?.created_at ?? null)
   const lastFailureAt = toDate(latestFailure?.created_at ?? null)
 
-  const staleHours = readNumberEnv("STRIPE_WEBHOOK_STALE_HOURS", 24)
-  const failureWindowMinutes = readNumberEnv("STRIPE_WEBHOOK_FAILURE_WINDOW_MINUTES", 60)
-  let status = "ok"
+  const staleHours = readNumberEnv('STRIPE_WEBHOOK_STALE_HOURS', 24)
+  const failureWindowMinutes = readNumberEnv('STRIPE_WEBHOOK_FAILURE_WINDOW_MINUTES', 60)
+  let status = 'ok'
   if (!lastEventAt) {
-    status = "missing"
+    status = 'missing'
   } else if (now.getTime() - lastEventAt.getTime() > staleHours * 60 * 60 * 1000) {
-    status = "stale"
+    status = 'stale'
   } else if (
     lastFailureAt &&
     now.getTime() - lastFailureAt.getTime() < failureWindowMinutes * 60 * 1000
   ) {
-    status = "degraded"
+    status = 'degraded'
   }
 
   return NextResponse.json({
-    ok: status === "ok",
+    ok: status === 'ok',
     status,
     lastEventAt: lastEventAt ? lastEventAt.toISOString() : null,
-    lastFailureAt: lastFailureAt ? lastFailureAt.toISOString() : null,
+    lastFailureAt: lastFailureAt ? lastFailureAt.toISOString() : null
   })
 }

@@ -1,49 +1,49 @@
-import fs from "node:fs"
-import path from "node:path"
-import { spawnSync } from "node:child_process"
+import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
 
 function parseArgs(rawArgs) {
   const args = [...rawArgs]
   const options = {
     apply: false,
     remote: true,
-    bucket: process.env.R2_BADGE_BUCKET || "",
-    backupPrefix: "",
-    mapPath: "scripts/r2-badge-replacements.json",
+    bucket: process.env.R2_BADGE_BUCKET || '',
+    backupPrefix: '',
+    mapPath: 'scripts/r2-badge-replacements.json'
   }
 
   while (args.length > 0) {
     const token = args.shift()
 
-    if (token === "--") {
+    if (token === '--') {
       continue
     }
 
-    if (token === "--apply") {
+    if (token === '--apply') {
       options.apply = true
       continue
     }
-    if (token === "--local") {
+    if (token === '--local') {
       options.remote = false
       continue
     }
-    if (token === "--remote") {
+    if (token === '--remote') {
       options.remote = true
       continue
     }
-    if (token === "--bucket") {
-      options.bucket = String(args.shift() || "").trim()
+    if (token === '--bucket') {
+      options.bucket = String(args.shift() || '').trim()
       continue
     }
-    if (token === "--backup-prefix") {
-      options.backupPrefix = String(args.shift() || "").trim()
+    if (token === '--backup-prefix') {
+      options.backupPrefix = String(args.shift() || '').trim()
       continue
     }
-    if (token === "--map") {
-      options.mapPath = String(args.shift() || "").trim()
+    if (token === '--map') {
+      options.mapPath = String(args.shift() || '').trim()
       continue
     }
-    if (token === "-h" || token === "--help") {
+    if (token === '-h' || token === '--help') {
       printHelp()
       process.exit(0)
     }
@@ -79,38 +79,38 @@ function loadReplacementMap(mapPath) {
     throw new Error(`Replacement map not found: ${resolved}`)
   }
 
-  const raw = fs.readFileSync(resolved, "utf8")
+  const raw = fs.readFileSync(resolved, 'utf8')
   const parsed = JSON.parse(raw)
   if (!Array.isArray(parsed) || parsed.length === 0) {
     throw new Error(`Replacement map must be a non-empty array: ${resolved}`)
   }
 
   return parsed.map((entry, index) => {
-    const key = String(entry?.key || "").trim()
-    const source = String(entry?.source || "").trim()
+    const key = String(entry?.key || '').trim()
+    const source = String(entry?.source || '').trim()
     if (!key || !source) {
       throw new Error(`Invalid replacement at index ${index}: ${JSON.stringify(entry)}`)
     }
     return {
       key,
       sourcePath: path.resolve(process.cwd(), source),
-      sourceRaw: source,
+      sourceRaw: source
     }
   })
 }
 
 function runWrangler(args, { apply }) {
-  const cmd = ["exec", "wrangler", "r2", "object", ...args]
-  const printable = `pnpm ${cmd.join(" ")}`
+  const cmd = ['exec', 'wrangler', 'r2', 'object', ...args]
+  const printable = `pnpm ${cmd.join(' ')}`
 
   if (!apply) {
     console.log(`[dry-run] ${printable}`)
     return
   }
 
-  const result = spawnSync("pnpm", cmd, {
+  const result = spawnSync('pnpm', cmd, {
     cwd: process.cwd(),
-    stdio: "inherit",
+    stdio: 'inherit'
   })
   if (result.status !== 0) {
     throw new Error(`Command failed: ${printable}`)
@@ -123,35 +123,35 @@ function ensureDirForFile(filePath) {
 
 function nowStamp() {
   const iso = new Date().toISOString()
-  return iso.replace(/[:.]/g, "-")
+  return iso.replace(/[:.]/g, '-')
 }
 
 function keyToLocalPath(rootDir, key) {
-  const safe = key.split("/").filter(Boolean)
+  const safe = key.split('/').filter(Boolean)
   return path.join(rootDir, ...safe)
 }
 
 const options = parseArgs(process.argv.slice(2))
 
 if (!options.bucket) {
-  throw new Error("Missing bucket. Use --bucket <name> or set R2_BADGE_BUCKET.")
+  throw new Error('Missing bucket. Use --bucket <name> or set R2_BADGE_BUCKET.')
 }
 
 const replacements = loadReplacementMap(options.mapPath)
 const stamp = nowStamp()
 const backupPrefix = options.backupPrefix || `_backup/badges/${stamp}`
-const localBackupRoot = path.resolve(process.cwd(), "tmp", "r2-badge-backups", stamp)
+const localBackupRoot = path.resolve(process.cwd(), 'tmp', 'r2-badge-backups', stamp)
 
-const storageModeFlag = options.remote ? "--remote" : "--local"
+const storageModeFlag = options.remote ? '--remote' : '--local'
 const rollbackNotes = []
 
-console.log("R2 badge replacement plan:")
-console.log(`- mode: ${options.remote ? "remote" : "local"}`)
+console.log('R2 badge replacement plan:')
+console.log(`- mode: ${options.remote ? 'remote' : 'local'}`)
 console.log(`- apply: ${options.apply}`)
 console.log(`- bucket: ${options.bucket}`)
 console.log(`- backup prefix: ${backupPrefix}`)
 console.log(`- local backup dir: ${localBackupRoot}`)
-console.log("")
+console.log('')
 
 for (const item of replacements) {
   if (!fs.existsSync(item.sourcePath)) {
@@ -169,32 +169,32 @@ for (const item of replacements) {
   console.log(`Processing key: ${item.key}`)
   console.log(`- source: ${item.sourceRaw}`)
 
-  runWrangler(["get", objectPath, storageModeFlag, "--file", localBackupFile], {
-    apply: options.apply,
+  runWrangler(['get', objectPath, storageModeFlag, '--file', localBackupFile], {
+    apply: options.apply
   })
 
   runWrangler(
     [
-      "put",
+      'put',
       backupObjectPath,
       storageModeFlag,
-      "--file",
+      '--file',
       localBackupFile,
-      "--content-type",
-      "image/svg+xml",
+      '--content-type',
+      'image/svg+xml'
     ],
     { apply: options.apply }
   )
 
   runWrangler(
     [
-      "put",
+      'put',
       objectPath,
       storageModeFlag,
-      "--file",
+      '--file',
       item.sourcePath,
-      "--content-type",
-      "image/svg+xml",
+      '--content-type',
+      'image/svg+xml'
     ],
     { apply: options.apply }
   )
@@ -203,13 +203,13 @@ for (const item of replacements) {
     `pnpm exec wrangler r2 object put ${objectPath} ${storageModeFlag} --file ${localBackupFile} --content-type image/svg+xml`
   )
 
-  console.log("")
+  console.log('')
 }
 
-console.log("Complete.")
-console.log(options.apply ? "Changes were applied." : "Dry-run only, no changes applied.")
-console.log("")
-console.log("Rollback commands:")
+console.log('Complete.')
+console.log(options.apply ? 'Changes were applied.' : 'Dry-run only, no changes applied.')
+console.log('')
+console.log('Rollback commands:')
 for (const command of rollbackNotes) {
   console.log(`- ${command}`)
 }

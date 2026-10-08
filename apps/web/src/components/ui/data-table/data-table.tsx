@@ -1,6 +1,5 @@
-"use client"
+'use client'
 
-import * as React from "react"
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -15,14 +14,22 @@ import {
   type Row,
   type SortingState,
   useReactTable,
-  type VisibilityState,
-} from "@tanstack/react-table"
+  type VisibilityState
+} from '@tanstack/react-table'
+import * as React from 'react'
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 
-import type { DataTableActionBarProps } from "./data-table-action-bar"
-import type { DataTablePaginationProps } from "./data-table-pagination"
-import type { DataTableToolbarProps } from "./data-table-toobar"
+import type { DataTableActionBarProps } from './data-table-action-bar'
+import type { DataTablePaginationProps } from './data-table-pagination'
+import type { DataTableToolbarProps } from './data-table-toobar'
 
 type ColumnMetaClassNames = {
   headerClassName?: string
@@ -65,11 +72,13 @@ export function DataTable<TData, TValue>({
   columnFilters,
   setColumnFilters,
   sorting,
-  setSorting,
+  setSorting
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(defaultColumnVisibility)
-  const [internalColumnFilters, setInternalColumnFilters] = React.useState<ColumnFiltersState>(defaultColumnFilters)
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>(defaultColumnVisibility)
+  const [internalColumnFilters, setInternalColumnFilters] =
+    React.useState<ColumnFiltersState>(defaultColumnFilters)
   const [internalSorting, setInternalSorting] = React.useState<SortingState>(defaultSorting)
 
   const columnFiltersState = columnFilters ?? internalColumnFilters
@@ -84,13 +93,13 @@ export function DataTable<TData, TValue>({
       sorting: sortingState,
       columnVisibility,
       rowSelection,
-      columnFilters: columnFiltersState,
+      columnFilters: columnFiltersState
     },
     initialState: {
       pagination: {
         pageIndex: defaultPageIndex,
-        pageSize: defaultPageSize,
-      },
+        pageSize: defaultPageSize
+      }
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
@@ -104,7 +113,7 @@ export function DataTable<TData, TValue>({
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getExpandedRowModel: getExpandedRowModel(),
-    getRowCanExpand: () => Boolean(rowComponent),
+    getRowCanExpand: () => Boolean(rowComponent)
   })
 
   return (
@@ -112,14 +121,22 @@ export function DataTable<TData, TValue>({
       {toolbarComponent ? React.createElement(toolbarComponent, { table }) : null}
       <Table>
         <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
+          {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                const meta = header.column.columnDef.meta as unknown as ColumnMetaClassNames | undefined
+              {headerGroup.headers.map(header => {
+                const meta = header.column.columnDef.meta as unknown as
+                  | ColumnMetaClassNames
+                  | undefined
 
                 return (
-                  <TableHead key={header.id} colSpan={header.colSpan} className={meta?.headerClassName}>
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  <TableHead
+                    key={header.id}
+                    colSpan={header.colSpan}
+                    className={meta?.headerClassName}
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 )
               })}
@@ -128,15 +145,17 @@ export function DataTable<TData, TValue>({
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
+            table.getRowModel().rows.map(row => (
               <React.Fragment key={row.id}>
                 <TableRow
-                  data-state={(row.getIsSelected() || row.getIsExpanded()) && "selected"}
+                  data-state={(row.getIsSelected() || row.getIsExpanded()) && 'selected'}
                   onClick={() => onRowClick?.(row)}
                   className="data-[state=selected]:bg-muted/50"
                 >
-                  {row.getVisibleCells().map((cell) => {
-                    const meta = cell.column.columnDef.meta as unknown as ColumnMetaClassNames | undefined
+                  {row.getVisibleCells().map(cell => {
+                    const meta = cell.column.columnDef.meta as unknown as
+                      | ColumnMetaClassNames
+                      | undefined
 
                     return (
                       <TableCell key={cell.id} className={meta?.cellClassName}>

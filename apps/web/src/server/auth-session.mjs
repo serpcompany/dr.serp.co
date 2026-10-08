@@ -8,7 +8,7 @@ export const SESSION_COOKIE_OPTIONS = {
   secure: true,
   sameSite: /** @type {const} */ ('lax'),
   path: '/',
-  maxAge: SESSION_MAX_AGE_SECONDS,
+  maxAge: SESSION_MAX_AGE_SECONDS
 }
 
 export function getAuthSecret() {

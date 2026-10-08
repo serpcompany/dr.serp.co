@@ -4,20 +4,22 @@ export type SiteRow = {
   updated_at: string | null
 }
 
-const STORAGE_PREFIX = "dr-my-sites:"
+const STORAGE_PREFIX = 'dr-my-sites:'
 
 function storageKey(email: string) {
   return `${STORAGE_PREFIX}${email.trim().toLowerCase()}`
 }
 
 function safeIso(value: unknown) {
-  if (typeof value !== "string") return null
+  if (typeof value !== 'string') return null
   const date = new Date(value)
   return Number.isFinite(date.getTime()) ? date.toISOString() : null
 }
 
 function safeDomain(value: unknown) {
-  const domain = String(value ?? "").trim().toLowerCase()
+  const domain = String(value ?? '')
+    .trim()
+    .toLowerCase()
   return domain ? domain : null
 }
 
@@ -30,7 +32,7 @@ function safeDr(value: unknown) {
 }
 
 export function readSiteHistory(email: string): SiteRow[] {
-  if (typeof window === "undefined") return []
+  if (typeof window === 'undefined') return []
   const key = storageKey(email)
   const raw = window.localStorage.getItem(key)
   if (!raw) return []
@@ -44,7 +46,7 @@ export function readSiteHistory(email: string): SiteRow[] {
       rows.push({
         domain,
         domain_rating: safeDr((item as any)?.domain_rating),
-        updated_at: safeIso((item as any)?.updated_at),
+        updated_at: safeIso((item as any)?.updated_at)
       })
     }
     return rows
@@ -54,7 +56,7 @@ export function readSiteHistory(email: string): SiteRow[] {
 }
 
 export function upsertSiteHistory(email: string, site: Partial<SiteRow> & { domain: string }) {
-  if (typeof window === "undefined") return
+  if (typeof window === 'undefined') return
   const key = storageKey(email)
 
   const domain = safeDomain(site.domain)
@@ -64,7 +66,7 @@ export function upsertSiteHistory(email: string, site: Partial<SiteRow> & { doma
   const next: SiteRow = {
     domain,
     domain_rating: safeDr((site as any).domain_rating),
-    updated_at: safeIso((site as any).updated_at) || nowIso,
+    updated_at: safeIso((site as any).updated_at) || nowIso
   }
 
   const existing = readSiteHistory(email)
@@ -77,7 +79,7 @@ export function upsertSiteHistory(email: string, site: Partial<SiteRow> & { doma
     mergedByDomain.set(domain, {
       domain,
       domain_rating: next.domain_rating ?? prev.domain_rating ?? null,
-      updated_at: next.updated_at ?? prev.updated_at ?? nowIso,
+      updated_at: next.updated_at ?? prev.updated_at ?? nowIso
     })
   } else {
     mergedByDomain.set(domain, next)
@@ -96,16 +98,16 @@ export function upsertSiteHistory(email: string, site: Partial<SiteRow> & { doma
 export function filterSiteHistory(email: string, query: string) {
   const q = query.trim().toLowerCase()
   const rows = readSiteHistory(email)
-  return q ? rows.filter((row) => row.domain.includes(q)) : rows
+  return q ? rows.filter(row => row.domain.includes(q)) : rows
 }
 
 export function removeSiteHistory(email: string, domain: string) {
-  if (typeof window === "undefined") return
+  if (typeof window === 'undefined') return
   const key = storageKey(email)
   const normalized = safeDomain(domain)
   if (!normalized) return
 
   const existing = readSiteHistory(email)
-  const next = existing.filter((row) => row.domain !== normalized)
+  const next = existing.filter(row => row.domain !== normalized)
   window.localStorage.setItem(key, JSON.stringify(next.slice(0, 100)))
 }

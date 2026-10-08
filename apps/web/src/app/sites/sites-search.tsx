@@ -1,10 +1,10 @@
-"use client"
+'use client'
 
-import { useEffect, useState, useTransition } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { Search } from "lucide-react"
+import { Search } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState, useTransition } from 'react'
 
-import { Input } from "@/components/ui/input"
+import { Input } from '@/components/ui/input'
 
 export function SitesSearch({ initialQuery }: { initialQuery: string }) {
   const router = useRouter()
@@ -20,23 +20,23 @@ export function SitesSearch({ initialQuery }: { initialQuery: string }) {
   useEffect(() => {
     const handle = window.setTimeout(() => {
       const currentParams = new URLSearchParams(searchParams?.toString())
-      const currentQuery = (currentParams.get("q") ?? "").trim()
+      const currentQuery = (currentParams.get('q') ?? '').trim()
 
       const nextValue = value.trim()
       if (nextValue) {
-        currentParams.set("q", nextValue)
+        currentParams.set('q', nextValue)
       } else {
-        currentParams.delete("q")
+        currentParams.delete('q')
       }
 
       if (nextValue !== currentQuery) {
-        currentParams.delete("page")
+        currentParams.delete('page')
       }
 
       const nextQs = currentParams.toString()
-      const nextUrl = nextQs ? `/sites?${nextQs}` : "/sites"
-      const currentQs = searchParams?.toString() ?? ""
-      const currentUrl = currentQs ? `/sites?${currentQs}` : "/sites"
+      const nextUrl = nextQs ? `/sites?${nextQs}` : '/sites'
+      const currentQs = searchParams?.toString() ?? ''
+      const currentUrl = currentQs ? `/sites?${currentQs}` : '/sites'
 
       if (nextUrl !== currentUrl) {
         startTransition(() => {
@@ -53,7 +53,7 @@ export function SitesSearch({ initialQuery }: { initialQuery: string }) {
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        onChange={event => setValue(event.target.value)}
         placeholder="Search domains…"
         className="pl-9"
         disabled={isPending}

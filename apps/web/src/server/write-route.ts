@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server"
-import { z } from "zod"
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
 
-import { getPublicBaseUrl } from "@/lib/public-url"
+import { getPublicBaseUrl } from '@/lib/public-url'
 
 // Every write route reads its request through readWriteRequest: a zod schema, a body cap and,
 // for a route a browser calls, an Origin check. Every *.serp.co site is same-site to the others,
@@ -27,7 +27,7 @@ function refuse(status: number, error: string): Refusal {
  * with no Origin is refused: browsers send one with every POST and DELETE.
  */
 export function isTrustedOrigin(request: Request) {
-  const origin = request.headers.get("origin")
+  const origin = request.headers.get('origin')
   if (!origin) return false
   return origin === new URL(getPublicBaseUrl()).origin || origin === new URL(request.url).origin
 }
@@ -37,7 +37,7 @@ type Body = { tooLarge: true } | { tooLarge: false; invalid: boolean; value?: un
 // Counts bytes as they stream in, so a chunked body with no Content-Length is cut off at the cap
 // rather than buffered whole.
 async function readBody(request: Request, maxBytes: number): Promise<Body> {
-  if (Number(request.headers.get("content-length") || "0") > maxBytes) return { tooLarge: true }
+  if (Number(request.headers.get('content-length') || '0') > maxBytes) return { tooLarge: true }
   if (!request.body) return { tooLarge: false, invalid: false }
 
   const reader = request.body.getReader()
@@ -76,15 +76,19 @@ async function readBody(request: Request, maxBytes: number): Promise<Body> {
 export async function readWriteRequest<S extends z.ZodTypeAny>(
   request: Request,
   schema: S,
-  { checkOrigin = true, maxBytes = MAX_WRITE_BODY_BYTES }: { checkOrigin?: boolean; maxBytes?: number } = {}
+  {
+    checkOrigin = true,
+    maxBytes = MAX_WRITE_BODY_BYTES
+  }: { checkOrigin?: boolean; maxBytes?: number } = {}
 ): Promise<WriteRequest<z.infer<S>>> {
-  if (checkOrigin && !isTrustedOrigin(request)) return refuse(403, "This request must come from dr.serp.co.")
+  if (checkOrigin && !isTrustedOrigin(request))
+    return refuse(403, 'This request must come from dr.serp.co.')
 
   const body = await readBody(request, maxBytes)
-  if (body.tooLarge) return refuse(413, "The request is too large.")
-  if (body.invalid) return refuse(400, "The request body must be JSON.")
+  if (body.tooLarge) return refuse(413, 'The request is too large.')
+  if (body.invalid) return refuse(400, 'The request body must be JSON.')
 
   const parsed = schema.safeParse(body.value === undefined ? {} : body.value)
-  if (!parsed.success) return refuse(400, parsed.error.issues[0]?.message ?? "Invalid request.")
+  if (!parsed.success) return refuse(400, parsed.error.issues[0]?.message ?? 'Invalid request.')
   return { ok: true, data: parsed.data }
 }

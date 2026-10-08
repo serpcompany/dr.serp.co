@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { useMemo } from "react"
-import { Copy } from "lucide-react"
-import { toast } from "sonner"
+import { Copy } from 'lucide-react'
+import { useMemo } from 'react'
+import { toast } from 'sonner'
 
 type BadgeEmbedProps = {
   domain: string
@@ -12,21 +12,19 @@ type BadgeEmbedProps = {
 }
 
 function getBadgeLabel(dr: number | null) {
-  return typeof dr === "number" && Number.isFinite(dr) ? Math.max(0, Math.min(100, Math.floor(dr))) : null
+  return typeof dr === 'number' && Number.isFinite(dr)
+    ? Math.max(0, Math.min(100, Math.floor(dr)))
+    : null
 }
 
 export function getBadgeEmbedCode({ domain, dr, linkUrl, badgeUrl }: BadgeEmbedProps) {
   const label = getBadgeLabel(dr)
-  const alt = label === null ? `Verified DR unavailable for ${domain}` : `Verified DR ${label} for ${domain}`
+  const alt =
+    label === null ? `Verified DR unavailable for ${domain}` : `Verified DR ${label} for ${domain}`
   return `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer"><img src="${badgeUrl}" alt="${alt}" width="200" height="50"></a>`
 }
 
-export function BadgeEmbed({
-  domain,
-  dr,
-  linkUrl,
-  badgeUrl,
-}: BadgeEmbedProps) {
+export function BadgeEmbed({ domain, dr, linkUrl, badgeUrl }: BadgeEmbedProps) {
   const label = getBadgeLabel(dr)
 
   const badgeEmbedCode = useMemo(() => {
@@ -36,9 +34,9 @@ export function BadgeEmbed({
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(badgeEmbedCode)
-      toast.success("Badge embed code copied to clipboard!")
+      toast.success('Badge embed code copied to clipboard!')
     } catch {
-      toast.error("Failed to copy embed code")
+      toast.error('Failed to copy embed code')
     }
   }
   return (
@@ -51,7 +49,11 @@ export function BadgeEmbed({
       >
         <img
           src={badgeUrl}
-          alt={label === null ? `Verified DR unavailable for ${domain}` : `Verified DR ${label} for ${domain}`}
+          alt={
+            label === null
+              ? `Verified DR unavailable for ${domain}`
+              : `Verified DR ${label} for ${domain}`
+          }
           width={200}
           height={50}
         />

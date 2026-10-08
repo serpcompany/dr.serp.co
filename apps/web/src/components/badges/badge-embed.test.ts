@@ -1,14 +1,14 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from 'vitest'
 
-import { getBadgeEmbedCode } from "./badge-embed"
+import { getBadgeEmbedCode } from './badge-embed'
 
-describe("getBadgeEmbedCode", () => {
-  it("links to the exact site profile URL", () => {
+describe('getBadgeEmbedCode', () => {
+  it('links to the exact site profile URL', () => {
     const html = getBadgeEmbedCode({
-      domain: "example.com",
+      domain: 'example.com',
       dr: 42.9,
-      linkUrl: "https://dr.serp.co/sites/example.com",
-      badgeUrl: "https://dr.serp.co/badge/example.com?style=serp-dr-v3",
+      linkUrl: 'https://dr.serp.co/sites/example.com',
+      badgeUrl: 'https://dr.serp.co/badge/example.com?style=serp-dr-v3'
     })
 
     expect(html).toBe(

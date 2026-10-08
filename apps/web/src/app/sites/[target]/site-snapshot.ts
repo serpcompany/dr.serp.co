@@ -1,35 +1,37 @@
+import { readNumberEnv } from '@/lib/env'
 import {
   getClaim,
   getDrChecks,
   recordDrCheck,
   recordDrHistoryChecks,
   setClaimSiteMetadata,
-  upsertClaim,
-} from "@/server/db.mjs"
-import { fetchDomainRating, fetchDomainRatingHistory } from "@/server/dr-providers.mjs"
-import { checkRateLimit } from "@/server/rate-limit.mjs"
-import { resolveSitePresentation } from "@/server/site-presentation.mjs"
-import { isSpamSite } from "@/server/site-spam.mjs"
-import { readNumberEnv } from "@/lib/env"
+  upsertClaim
+} from '@/server/db.mjs'
+import { fetchDomainRating, fetchDomainRatingHistory } from '@/server/dr-providers.mjs'
+import { checkRateLimit } from '@/server/rate-limit.mjs'
+import { resolveSitePresentation } from '@/server/site-presentation.mjs'
+import { isSpamSite } from '@/server/site-spam.mjs'
 
 // First visits to unknown domains trigger paid Ahrefs lookups, so cap them per client and globally.
-const NEW_SITE_LOOKUP_LIMITED_MESSAGE = "Too many new site lookups right now. Please try again later."
-const NEW_SITE_LOOKUP_UNAVAILABLE_MESSAGE = "New site lookups are unavailable right now. Please try again shortly."
+const NEW_SITE_LOOKUP_LIMITED_MESSAGE =
+  'Too many new site lookups right now. Please try again later.'
+const NEW_SITE_LOOKUP_UNAVAILABLE_MESSAGE =
+  'New site lookups are unavailable right now. Please try again shortly.'
 
 /** Null when a new lookup may go ahead, else the message to show instead. */
 async function newSiteLookupRefusal(rateLimitKey: string) {
   const perClient = await checkRateLimit({
     key: rateLimitKey,
-    points: readNumberEnv("NEW_SITE_LOOKUP_RATE_LIMIT_POINTS", 10),
-    duration: readNumberEnv("NEW_SITE_LOOKUP_RATE_LIMIT_DURATION", 3600),
+    points: readNumberEnv('NEW_SITE_LOOKUP_RATE_LIMIT_POINTS', 10),
+    duration: readNumberEnv('NEW_SITE_LOOKUP_RATE_LIMIT_DURATION', 3600)
   })
   if (perClient.unavailable) return NEW_SITE_LOOKUP_UNAVAILABLE_MESSAGE
   if (!perClient.allowed) return NEW_SITE_LOOKUP_LIMITED_MESSAGE
 
   const global = await checkRateLimit({
-    key: "new-site-lookup:global",
-    points: readNumberEnv("NEW_SITE_LOOKUP_DAILY_LIMIT", 100),
-    duration: 24 * 60 * 60,
+    key: 'new-site-lookup:global',
+    points: readNumberEnv('NEW_SITE_LOOKUP_DAILY_LIMIT', 100),
+    duration: 24 * 60 * 60
   })
   if (global.unavailable) return NEW_SITE_LOOKUP_UNAVAILABLE_MESSAGE
   return global.allowed ? null : NEW_SITE_LOOKUP_LIMITED_MESSAGE
@@ -58,7 +60,7 @@ type StoredCheck = {
 }
 
 function clampDomainRating(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") return null
+  if (value === null || value === undefined || value === '') return null
   const parsed = Number(value)
   if (!Number.isFinite(parsed)) return null
   return Math.max(0, Math.min(100, Math.floor(parsed)))
@@ -66,18 +68,18 @@ function clampDomainRating(value: unknown): number | null {
 
 function chartPointsFromChecks(checks: StoredCheck[]): ChartPoint[] {
   return checks
-    .map((row) => {
+    .map(row => {
       const rating = clampDomainRating(row.domain_rating)
       if (rating === null) return null
 
-      const date = new Date(row.checked_at ?? "")
+      const date = new Date(row.checked_at ?? '')
       const ts = date.getTime()
       if (!Number.isFinite(ts)) return null
 
       return {
         ts,
         checkedAt: date.toISOString(),
-        domainRating: rating,
+        domainRating: rating
       }
     })
     .filter((row): row is ChartPoint & { ts: number } => row !== null)
@@ -88,12 +90,9 @@ function chartPointsFromChecks(checks: StoredCheck[]): ChartPoint[] {
 
 export async function loadSiteSnapshot(
   domain: string,
-  { rateLimitKey = "new-site-lookup:unknown" }: { rateLimitKey?: string } = {}
+  { rateLimitKey = 'new-site-lookup:unknown' }: { rateLimitKey?: string } = {}
 ): Promise<SiteSnapshot> {
-  const [checks, claim] = await Promise.all([
-    getDrChecks(domain, { limit: 365 }),
-    getClaim(domain),
-  ])
+  const [checks, claim] = await Promise.all([getDrChecks(domain, { limit: 365 }), getClaim(domain)])
   const storedChartPoints = chartPointsFromChecks(checks)
 
   let domainRating = claim ? clampDomainRating(claim.domain_rating) : null
@@ -119,8 +118,8 @@ export async function loadSiteSnapshot(
         ? [
             {
               checkedAt: (lastCheckedAt || new Date()).toISOString(),
-              domainRating,
-            },
+              domainRating
+            }
           ]
         : []
 
@@ -149,7 +148,7 @@ export async function loadSiteSnapshot(
         siteTitle: resolved.siteTitle ?? null,
         metaDescription: resolved.metaDescription ?? null,
         siteUrl: resolved.siteUrl ?? null,
-        screenshotUrl: resolved.screenshotUrl ?? null,
+        screenshotUrl: resolved.screenshotUrl ?? null
       })
 
       siteTitle = persisted?.site_title ?? resolved.siteTitle ?? siteTitle
@@ -167,7 +166,9 @@ export async function loadSiteSnapshot(
       const result = await fetchDomainRating({ target: domain })
       if (!(result as { captchaRequired?: boolean })?.captchaRequired) {
         const provider = (result as { provider?: string | null })?.provider ?? null
-        const fetchedRating = clampDomainRating((result as { domainRating?: number | null })?.domainRating)
+        const fetchedRating = clampDomainRating(
+          (result as { domainRating?: number | null })?.domainRating
+        )
         if (fetchedRating !== null) {
           const updated = await upsertClaim({ domain, domainRating: fetchedRating, provider })
           const checkedAt = updated?.updated_at ? new Date(updated.updated_at) : new Date()
@@ -177,25 +178,28 @@ export async function loadSiteSnapshot(
           chartPoints = [
             {
               checkedAt: checkedAt.toISOString(),
-              domainRating: fetchedRating,
-            },
+              domainRating: fetchedRating
+            }
           ]
           // History import is a second paid call; only spend it on claimed domains.
-          const isAhrefs = provider === "ahrefs" || provider === "ahrefs-api" || Boolean(process.env.AHREFS_API_KEY)
+          const isAhrefs =
+            provider === 'ahrefs' ||
+            provider === 'ahrefs-api' ||
+            Boolean(process.env.AHREFS_API_KEY)
           if (claim?.email && isAhrefs) {
             try {
               const history = await fetchDomainRatingHistory({ target: domain })
               const recorded = await recordDrHistoryChecks({
                 domain,
-                provider: (history as any)?.provider ?? "ahrefs-history",
-                points: Array.isArray((history as any)?.points) ? (history as any).points : [],
+                provider: (history as any)?.provider ?? 'ahrefs-history',
+                points: Array.isArray((history as any)?.points) ? (history as any).points : []
               })
               chartPoints = chartPointsFromChecks([
                 ...recorded,
                 {
                   checked_at: checkedAt,
-                  domain_rating: fetchedRating,
-                },
+                  domain_rating: fetchedRating
+                }
               ])
             } catch {
               // Historical Ahrefs import is best-effort; the current DR is enough to render.
@@ -205,19 +209,25 @@ export async function loadSiteSnapshot(
       }
     } catch (error) {
       // Provider errors can name internal env vars; log them server-side only.
-      console.error("DR lookup failed", { domain, error: error instanceof Error ? error.message : error })
+      console.error('DR lookup failed', {
+        domain,
+        error: error instanceof Error ? error.message : error
+      })
     }
   }
 
   return {
     chartPoints,
     domainRating,
-    lastCheckedAt: lastCheckedAt && Number.isFinite(lastCheckedAt.getTime()) ? lastCheckedAt.toISOString() : null,
+    lastCheckedAt:
+      lastCheckedAt && Number.isFinite(lastCheckedAt.getTime())
+        ? lastCheckedAt.toISOString()
+        : null,
     claimEmail: claim?.email ?? null,
     siteTitle,
     metaDescription,
     siteUrl,
     screenshotUrl,
-    lookupError,
+    lookupError
   }
 }

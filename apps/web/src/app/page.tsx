@@ -1,4 +1,4 @@
-export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
-export { default } from "./sites/page"
+export { default } from './sites/page'

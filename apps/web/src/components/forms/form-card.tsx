@@ -1,6 +1,5 @@
-import type { ComponentProps, ReactNode } from "react"
-
-import { cva, type VariantProps } from "class-variance-authority"
+import { cva, type VariantProps } from 'class-variance-authority'
+import type { ComponentProps, ReactNode } from 'react'
 
 import {
   Card,
@@ -8,20 +7,20 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { cn } from "@/lib/utils"
+  CardTitle
+} from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 
-const formCardVariants = cva("group relative w-full overflow-hidden", {
+const formCardVariants = cva('group relative w-full overflow-hidden', {
   variants: {
     variant: {
-      default: "",
-      destructive: "border-destructive",
-    },
+      default: '',
+      destructive: 'border-destructive'
+    }
   },
   defaultVariants: {
-    variant: "default",
-  },
+    variant: 'default'
+  }
 })
 
 export function FormCard({
@@ -29,7 +28,7 @@ export function FormCard({
   className,
   variant,
   ...props
-}: ComponentProps<"div"> & VariantProps<typeof formCardVariants>) {
+}: ComponentProps<'div'> & VariantProps<typeof formCardVariants>) {
   return (
     <Card className={cn(formCardVariants({ variant }), className)} {...props}>
       {children}
@@ -37,7 +36,7 @@ export function FormCard({
   )
 }
 
-export function FormCardHeader({ children, className, ...props }: ComponentProps<"div">) {
+export function FormCardHeader({ children, className, ...props }: ComponentProps<'div'>) {
   return (
     <CardHeader className={cn(className)} {...props}>
       {children}
@@ -53,7 +52,7 @@ export function FormCardDescription({ children }: { children: ReactNode }) {
   return <CardDescription>{children}</CardDescription>
 }
 
-export function FormCardContent({ children, className, ...props }: ComponentProps<"div">) {
+export function FormCardContent({ children, className, ...props }: ComponentProps<'div'>) {
   return (
     <CardContent className={cn(className)} {...props}>
       {children}
@@ -65,16 +64,16 @@ export function FormCardSeparator() {
   return <div className="border-t" />
 }
 
-const formCardFooterVariants = cva("", {
+const formCardFooterVariants = cva('', {
   variants: {
     variant: {
-      default: "",
-      destructive: "bg-destructive/5",
-    },
+      default: '',
+      destructive: 'bg-destructive/5'
+    }
   },
   defaultVariants: {
-    variant: "default",
-  },
+    variant: 'default'
+  }
 })
 
 export function FormCardFooter({
@@ -82,7 +81,7 @@ export function FormCardFooter({
   className,
   variant,
   ...props
-}: ComponentProps<"div"> & VariantProps<typeof formCardFooterVariants>) {
+}: ComponentProps<'div'> & VariantProps<typeof formCardFooterVariants>) {
   return (
     <CardFooter className={cn(formCardFooterVariants({ variant }), className)} {...props}>
       {children}
@@ -90,11 +89,11 @@ export function FormCardFooter({
   )
 }
 
-export function FormCardFooterInfo({ children, className, ...props }: ComponentProps<"div">) {
+export function FormCardFooterInfo({ children, className, ...props }: ComponentProps<'div'>) {
   return (
     <div
       data-slot="card-footer-info"
-      className={cn("text-muted-foreground text-sm", className)}
+      className={cn('text-muted-foreground text-sm', className)}
       {...props}
     >
       {children}
@@ -102,28 +101,28 @@ export function FormCardFooterInfo({ children, className, ...props }: ComponentP
   )
 }
 
-export function FormCardGroup({ children, className, ...props }: ComponentProps<"div">) {
+export function FormCardGroup({ children, className, ...props }: ComponentProps<'div'>) {
   return (
-    <div data-slot="card-group" className={cn("flex flex-col gap-6", className)} {...props}>
+    <div data-slot="card-group" className={cn('flex flex-col gap-6', className)} {...props}>
       {children}
     </div>
   )
 }
 
-export function FormCardUpgrade({ children, className, ...props }: ComponentProps<"div">) {
+export function FormCardUpgrade({ children, className, ...props }: ComponentProps<'div'>) {
   return (
-    <div data-slot="card-upgrade" className={cn("hidden", className)} {...props}>
+    <div data-slot="card-upgrade" className={cn('hidden', className)} {...props}>
       {children}
     </div>
   )
 }
 
-export function FormCardEmpty({ children, className, ...props }: ComponentProps<"div">) {
+export function FormCardEmpty({ children, className, ...props }: ComponentProps<'div'>) {
   return (
     <div
       data-slot="card-empty"
       className={cn(
-        "pointer-events-none absolute inset-0 z-10 bg-background/70 backdrop-blur-sm",
+        'pointer-events-none absolute inset-0 z-10 bg-background/70 backdrop-blur-sm',
         className
       )}
       {...props}

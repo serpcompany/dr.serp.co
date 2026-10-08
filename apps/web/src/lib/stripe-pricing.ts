@@ -1,5 +1,5 @@
-import { getServerEnv } from "@/lib/env"
-import type { BillingPeriod } from "@/lib/pricing"
+import { getServerEnv } from '@/lib/env'
+import type { BillingPeriod } from '@/lib/pricing'
 
 const REQUIRED_TIERS = [12, 25, 50, 100] as const
 
@@ -20,11 +20,11 @@ function parsePriceConfig(): PriceConfig {
   try {
     parsed = JSON.parse(raw) as PriceConfig
   } catch {
-    throw new Error("STRIPE_PRICE_IDS must be valid JSON")
+    throw new Error('STRIPE_PRICE_IDS must be valid JSON')
   }
 
   if (!parsed?.monthly || !parsed?.annual) {
-    throw new Error("STRIPE_PRICE_IDS must include monthly and annual price maps")
+    throw new Error('STRIPE_PRICE_IDS must include monthly and annual price maps')
   }
 
   for (const tier of REQUIRED_TIERS) {
@@ -41,31 +41,33 @@ function parsePriceConfig(): PriceConfig {
 export function getPriceId(domains: number, billing: BillingPeriod): string {
   const config = parsePriceConfig()
   const key = String(domains)
-  const priceId = billing === "annual" ? config.annual[key] : config.monthly[key]
+  const priceId = billing === 'annual' ? config.annual[key] : config.monthly[key]
 
   if (!priceId) {
-    throw new Error("Unsupported pricing tier")
+    throw new Error('Unsupported pricing tier')
   }
 
   return priceId
 }
 
-export function getTierForPriceId(priceId: string): { domains: number; billing: BillingPeriod } | null {
+export function getTierForPriceId(
+  priceId: string
+): { domains: number; billing: BillingPeriod } | null {
   const config = parsePriceConfig()
   const entries = [
     ...Object.entries(config.monthly).map(([domains, id]) => ({
       domains: Number(domains),
-      billing: "monthly" as const,
-      id,
+      billing: 'monthly' as const,
+      id
     })),
     ...Object.entries(config.annual).map(([domains, id]) => ({
       domains: Number(domains),
-      billing: "annual" as const,
-      id,
-    })),
+      billing: 'annual' as const,
+      id
+    }))
   ]
 
-  const match = entries.find((entry) => entry.id === priceId)
+  const match = entries.find(entry => entry.id === priceId)
   if (!match || !Number.isFinite(match.domains)) return null
   return { domains: match.domains, billing: match.billing }
 }

@@ -1,24 +1,29 @@
-"use client"
+'use client'
 
-import { CartesianGrid, LabelList, Line, LineChart, XAxis } from "recharts"
+import { CartesianGrid, LabelList, Line, LineChart, XAxis } from 'recharts'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent
+} from '@/components/ui/chart'
 
 type Point = { checkedAt: string; domainRating: number }
 
 const chartConfig = {
   desktop: {
-    label: "DR",
-    color: "var(--chart-2)",
-  },
+    label: 'DR',
+    color: 'var(--chart-2)'
+  }
 } satisfies ChartConfig
 
 export function DrLineLabel({ points }: { points: Point[] }) {
-  const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" })
+  const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
 
   const chartData = points
-    .map((p) => {
+    .map(p => {
       const domainRating = Number(p.domainRating)
       if (!Number.isFinite(domainRating)) return null
 
@@ -29,10 +34,10 @@ export function DrLineLabel({ points }: { points: Point[] }) {
       return {
         ts,
         label: dateFormatter.format(date),
-        desktop: Math.max(0, Math.min(100, Math.floor(domainRating))),
+        desktop: Math.max(0, Math.min(100, Math.floor(domainRating)))
       }
     })
-    .filter((p) => p !== null)
+    .filter(p => p !== null)
     .sort((a, b) => a.ts - b.ts)
     .slice(-24)
 
@@ -43,7 +48,9 @@ export function DrLineLabel({ points }: { points: Point[] }) {
       </CardHeader>
       <CardContent>
         {chartData.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No checks yet. Reload this page later to look up its DR.</p>
+          <p className="text-sm text-muted-foreground">
+            No checks yet. Reload this page later to look up its DR.
+          </p>
         ) : (
           <ChartContainer config={chartConfig} className="aspect-auto h-[125px] w-full">
             <LineChart
@@ -52,7 +59,7 @@ export function DrLineLabel({ points }: { points: Point[] }) {
               margin={{
                 top: 20,
                 left: 12,
-                right: 12,
+                right: 12
               }}
             >
               <CartesianGrid vertical={false} />
@@ -61,7 +68,7 @@ export function DrLineLabel({ points }: { points: Point[] }) {
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                tickFormatter={(value) => String(value)}
+                tickFormatter={value => String(value)}
               />
               <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
               <Line
@@ -70,10 +77,10 @@ export function DrLineLabel({ points }: { points: Point[] }) {
                 stroke="var(--color-desktop)"
                 strokeWidth={2}
                 dot={{
-                  fill: "var(--color-desktop)",
+                  fill: 'var(--color-desktop)'
                 }}
                 activeDot={{
-                  r: 6,
+                  r: 6
                 }}
               >
                 <LabelList position="top" offset={12} className="fill-foreground" fontSize={12} />

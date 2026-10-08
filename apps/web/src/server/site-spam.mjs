@@ -9,7 +9,7 @@ const SPAM_TITLE_PATTERNS = [
   /먹튀|토토|카지노|스포츠중계|قمار|เว็บตรง|สล็อต|บาคาร่า/,
   /\bescorts?\b/i,
   /dark ?net|dark ?market/i,
-  /cialis|viagra|kamagra/i,
+  /cialis|viagra|kamagra/i
 ]
 
 const SPAM_DOMAIN_PATTERNS = [
@@ -17,16 +17,18 @@ const SPAM_DOMAIN_PATTERNS = [
   /escort/,
   /darknet|darkmarket|darkode/,
   /cialis|viagra|kamagra/,
-  /^tripsc[a-z]*\d+\./,
+  /^tripsc[a-z]*\d+\./
 ]
 
 /**
  * @param {{ domain?: string | null, siteTitle?: string | null }} site
  */
 export function isSpamSite({ domain, siteTitle } = {}) {
-  const host = String(domain ?? '').trim().toLowerCase()
-  if (host && SPAM_DOMAIN_PATTERNS.some((pattern) => pattern.test(host))) return true
+  const host = String(domain ?? '')
+    .trim()
+    .toLowerCase()
+  if (host && SPAM_DOMAIN_PATTERNS.some(pattern => pattern.test(host))) return true
 
   const title = String(siteTitle ?? '')
-  return Boolean(title) && SPAM_TITLE_PATTERNS.some((pattern) => pattern.test(title))
+  return Boolean(title) && SPAM_TITLE_PATTERNS.some(pattern => pattern.test(title))
 }

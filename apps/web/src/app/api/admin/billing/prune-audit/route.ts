@@ -1,11 +1,10 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
+import { checkAdminToken } from '@/server/admin-auth.mjs'
+import { countPrunableBillingAudit, pruneBillingAudit } from '@/server/db.mjs'
+import { readWriteRequest } from '@/server/write-route'
+import { PruneAuditBody } from '@/server/write-schemas'
 
-import { countPrunableBillingAudit, pruneBillingAudit } from "@/server/db.mjs"
-import { checkAdminToken } from "@/server/admin-auth.mjs"
-import { readWriteRequest } from "@/server/write-route"
-import { PruneAuditBody } from "@/server/write-schemas"
-
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 function parseRetentionDays(value: unknown) {
   const parsed = Number(value)
@@ -32,7 +31,7 @@ export async function POST(request: Request) {
       dryRun: true,
       olderThanDays,
       removable: result.count,
-      cutoff: result.cutoff.toISOString(),
+      cutoff: result.cutoff.toISOString()
     })
   }
 
@@ -42,6 +41,6 @@ export async function POST(request: Request) {
     dryRun: false,
     olderThanDays,
     removed: result.removed,
-    cutoff: result.cutoff.toISOString(),
+    cutoff: result.cutoff.toISOString()
   })
 }

@@ -1,4 +1,4 @@
-import { BillingStatusCard } from "@/app/_components/billing-status-card"
+import { BillingStatusCard } from '@/app/_components/billing-status-card'
 
 export default function BillingPage() {
   return (

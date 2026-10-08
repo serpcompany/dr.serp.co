@@ -1,17 +1,20 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
+import { readNumberEnv } from '@/lib/env'
+import type { BillingPeriod } from '@/lib/pricing'
+import { getStripe } from '@/lib/stripe'
+import { getPriceId, getTierForPriceId } from '@/lib/stripe-pricing'
+import { getSessionEmail } from '@/server/auth-session.mjs'
+import { resolveEntitlement } from '@/server/entitlements.mjs'
+import {
+  checkRateLimit,
+  getRateLimitKey,
+  RATE_LIMITER_UNAVAILABLE_MESSAGE
+} from '@/server/rate-limit.mjs'
+import { LIVE_SUBSCRIPTION_STATUSES } from '@/server/subscription-status.mjs'
+import { readWriteRequest } from '@/server/write-route'
+import { CheckoutBody } from '@/server/write-schemas'
 
-import type { BillingPeriod } from "@/lib/pricing"
-import { getStripe } from "@/lib/stripe"
-import { getPriceId, getTierForPriceId } from "@/lib/stripe-pricing"
-import { getSessionEmail } from "@/server/auth-session.mjs"
-import { resolveEntitlement } from "@/server/entitlements.mjs"
-import { LIVE_SUBSCRIPTION_STATUSES } from "@/server/subscription-status.mjs"
-import { RATE_LIMITER_UNAVAILABLE_MESSAGE, checkRateLimit, getRateLimitKey } from "@/server/rate-limit.mjs"
-import { readWriteRequest } from "@/server/write-route"
-import { CheckoutBody } from "@/server/write-schemas"
-import { readNumberEnv } from "@/lib/env"
-
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 const ALLOWED_DOMAINS = [12, 25, 50, 100] as const
 const NO_PLAN_MESSAGE = "You don't have a plan to change yet."
@@ -25,37 +28,37 @@ export async function POST(request: Request) {
 
   const email = getSessionEmail(request)
   if (!email) {
-    return NextResponse.json({ error: "Sign in required.", code: "auth_required" }, { status: 401 })
+    return NextResponse.json({ error: 'Sign in required.', code: 'auth_required' }, { status: 401 })
   }
 
   const rate = await checkRateLimit({
-    key: getRateLimitKey(request, "stripe-change-plan"),
-    points: readNumberEnv("CHANGE_PLAN_RATE_LIMIT_POINTS", 10),
-    duration: readNumberEnv("CHANGE_PLAN_RATE_LIMIT_DURATION", 60),
+    key: getRateLimitKey(request, 'stripe-change-plan'),
+    points: readNumberEnv('CHANGE_PLAN_RATE_LIMIT_POINTS', 10),
+    duration: readNumberEnv('CHANGE_PLAN_RATE_LIMIT_DURATION', 60)
   })
   if (rate.unavailable) {
     return NextResponse.json({ error: RATE_LIMITER_UNAVAILABLE_MESSAGE }, { status: 503 })
   }
   if (!rate.allowed) {
     return NextResponse.json(
-      { error: "Too many plan changes. Please try again shortly." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rate.retryAfterMs / 1000)) } }
+      { error: 'Too many plan changes. Please try again shortly.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rate.retryAfterMs / 1000)) } }
     )
   }
 
   const { domains } = read.data
   const billing = read.data.billing as BillingPeriod
   if (!ALLOWED_DOMAINS.includes(domains as (typeof ALLOWED_DOMAINS)[number])) {
-    return NextResponse.json({ error: "Invalid domain tier." }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid domain tier.' }, { status: 400 })
   }
-  if (billing !== "monthly" && billing !== "annual") {
-    return NextResponse.json({ error: "Invalid billing period." }, { status: 400 })
+  if (billing !== 'monthly' && billing !== 'annual') {
+    return NextResponse.json({ error: 'Invalid billing period.' }, { status: 400 })
   }
 
   const entitlement = await resolveEntitlement({ email })
   const subscriptionId = entitlement?.subscription?.stripeSubscriptionId
   if (!entitlement?.hasLivePlan || !subscriptionId) {
-    return NextResponse.json({ error: NO_PLAN_MESSAGE, code: "no_plan" }, { status: 409 })
+    return NextResponse.json({ error: NO_PLAN_MESSAGE, code: 'no_plan' }, { status: 409 })
   }
   // A smaller plan can't hold the domains already claimed; the subscriber removes some under Your
   // sites first. Claims outlive a lapse, so only a size below the current one is refused.
@@ -64,7 +67,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: `You've claimed ${entitlement.domainsUsed} domains. Remove some under Your sites before switching to ${domains}.`,
-        code: "too_many_claims",
+        code: 'too_many_claims'
       },
       { status: 409 }
     )
@@ -77,22 +80,30 @@ export async function POST(request: Request) {
     const item = subscription.items.data[0]
     // Only ever move a live dr.serp.co subscription; the Stripe account also sells other products,
     // and D1 can lag behind Stripe.
-    if (!LIVE_SUBSCRIPTION_STATUSES.has(subscription.status) || !item?.price?.id || !getTierForPriceId(item.price.id)) {
-      return NextResponse.json({ error: NO_PLAN_MESSAGE, code: "no_plan" }, { status: 409 })
+    if (
+      !LIVE_SUBSCRIPTION_STATUSES.has(subscription.status) ||
+      !item?.price?.id ||
+      !getTierForPriceId(item.price.id)
+    ) {
+      return NextResponse.json({ error: NO_PLAN_MESSAGE, code: 'no_plan' }, { status: 409 })
     }
     // With an open invoice, Stripe's handling of a price change is unclear (it may restart the plan
     // and leave the old invoice open), so the invoice is paid first, in the portal.
-    if (subscription.status === "past_due" || subscription.status === "unpaid") {
+    if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
       return NextResponse.json(
         {
-          error: "Your plan has an unpaid invoice. Pay it with Manage billing on the billing page, then switch.",
-          code: "payment_due",
+          error:
+            'Your plan has an unpaid invoice. Pay it with Manage billing on the billing page, then switch.',
+          code: 'payment_due'
         },
         { status: 409 }
       )
     }
     if (item.price.id === priceId) {
-      return NextResponse.json({ error: "You're already on this plan.", code: "same_plan" }, { status: 400 })
+      return NextResponse.json(
+        { error: "You're already on this plan.", code: 'same_plan' },
+        { status: 400 }
+      )
     }
 
     // error_if_incomplete: if the prorated charge fails, Stripe leaves the plan as it was and
@@ -100,8 +111,8 @@ export async function POST(request: Request) {
     // subscriber scheduled in the portal stays scheduled.
     await stripe.subscriptions.update(subscriptionId, {
       items: [{ id: item.id, price: priceId }],
-      proration_behavior: "always_invoice",
-      payment_behavior: "error_if_incomplete",
+      proration_behavior: 'always_invoice',
+      payment_behavior: 'error_if_incomplete'
     })
 
     return NextResponse.json({ ok: true, plan: { domains, billing } })
@@ -109,13 +120,14 @@ export async function POST(request: Request) {
     if ((error as { statusCode?: number })?.statusCode === 402) {
       return NextResponse.json(
         {
-          error: "The payment for the new plan didn't go through, so your plan is unchanged. Update your card on the billing page and try again.",
-          code: "payment_failed",
+          error:
+            "The payment for the new plan didn't go through, so your plan is unchanged. Update your card on the billing page and try again.",
+          code: 'payment_failed'
         },
         { status: 402 }
       )
     }
-    console.error("stripe.change-plan: subscription update failed", error)
+    console.error('stripe.change-plan: subscription update failed', error)
     return NextResponse.json(
       { error: "Your plan couldn't be changed right now. Please try again later." },
       { status: 500 }

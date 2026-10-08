@@ -1,13 +1,13 @@
-import { readdir, readFile, stat } from "node:fs/promises"
-import path from "node:path"
+import { readdir, readFile, stat } from 'node:fs/promises'
+import path from 'node:path'
 
-const appDir = path.resolve(process.cwd(), "src/app")
+const appDir = path.resolve(process.cwd(), 'src/app')
 const routeFilePattern = /^(page|route)\.(js|jsx|mjs|ts|tsx)$/
 const sampleValues = {
-  domain: "example.com",
-  id: "sample-id",
-  slug: "sample-slug",
-  target: "example.com",
+  domain: 'example.com',
+  id: 'sample-id',
+  slug: 'sample-slug',
+  target: 'example.com'
 }
 
 function printHelp() {
@@ -26,16 +26,16 @@ function parseArgs(argv) {
   const options = { appDir, pretty: false }
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
-    if (arg === "-h" || arg === "--help") {
+    if (arg === '-h' || arg === '--help') {
       return { ...options, help: true }
     }
-    if (arg === "--pretty") {
+    if (arg === '--pretty') {
       options.pretty = true
       continue
     }
-    if (arg === "--app-dir") {
+    if (arg === '--app-dir') {
       const value = argv[index + 1]
-      if (!value) throw new Error("--app-dir requires a path")
+      if (!value) throw new Error('--app-dir requires a path')
       options.appDir = path.resolve(process.cwd(), value)
       index += 1
       continue
@@ -50,10 +50,10 @@ function segmentToPathPart(segment) {
   if (/^@/.test(segment)) return null
 
   const optionalCatchAll = segment.match(/^\[\[\.\.\.(.+)\]\]$/)
-  if (optionalCatchAll) return sampleValues[optionalCatchAll[1]] ?? "sample/path"
+  if (optionalCatchAll) return sampleValues[optionalCatchAll[1]] ?? 'sample/path'
 
   const catchAll = segment.match(/^\[\.\.\.(.+)\]$/)
-  if (catchAll) return sampleValues[catchAll[1]] ?? "sample/path"
+  if (catchAll) return sampleValues[catchAll[1]] ?? 'sample/path'
 
   const dynamic = segment.match(/^\[(.+)\]$/)
   if (dynamic) return sampleValues[dynamic[1]] ?? `sample-${dynamic[1]}`
@@ -62,48 +62,48 @@ function segmentToPathPart(segment) {
 }
 
 function routePathFor(relativeDir) {
-  if (!relativeDir || relativeDir === ".") return "/"
+  if (!relativeDir || relativeDir === '.') return '/'
 
   const parts = relativeDir
     .split(path.sep)
     .map(segmentToPathPart)
-    .filter((part) => part !== null && part !== "")
+    .filter(part => part !== null && part !== '')
 
-  return `/${parts.join("/")}`.replace(/\/+/g, "/")
+  return `/${parts.join('/')}`.replace(/\/+/g, '/')
 }
 
 function routePatternFor(relativeDir) {
-  if (!relativeDir || relativeDir === ".") return "/"
+  if (!relativeDir || relativeDir === '.') return '/'
 
   const parts = relativeDir
     .split(path.sep)
-    .filter((segment) => !/^\(.+\)$/.test(segment) && !/^@/.test(segment))
+    .filter(segment => !/^\(.+\)$/.test(segment) && !/^@/.test(segment))
 
-  return `/${parts.join("/")}`.replace(/\/+/g, "/")
+  return `/${parts.join('/')}`.replace(/\/+/g, '/')
 }
 
 function hasDynamicSegment(relativeDir) {
-  return relativeDir.split(path.sep).some((segment) => segment.includes("["))
+  return relativeDir.split(path.sep).some(segment => segment.includes('['))
 }
 
 function pathVariants(routePath) {
   const variants = new Set([routePath])
-  if (routePath !== "/" && !path.extname(routePath.split("/").at(-1) ?? "")) {
+  if (routePath !== '/' && !path.extname(routePath.split('/').at(-1) ?? '')) {
     variants.add(`${routePath}/`)
   }
   return [...variants].sort()
 }
 
 function exportedMethods(source) {
-  const methods = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-  return methods.filter((method) => {
+  const methods = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+  return methods.filter(method => {
     const patterns = [
       new RegExp(`export\\s+async\\s+function\\s+${method}\\b`),
       new RegExp(`export\\s+function\\s+${method}\\b`),
       new RegExp(`export\\s+const\\s+${method}\\b`),
-      new RegExp(`export\\s*\\{[^}]*\\b${method}\\b[^}]*\\}`),
+      new RegExp(`export\\s*\\{[^}]*\\b${method}\\b[^}]*\\}`)
     ]
-    return patterns.some((pattern) => pattern.test(source))
+    return patterns.some(pattern => pattern.test(source))
   })
 }
 
@@ -112,7 +112,7 @@ async function walk(dir) {
   const files = []
 
   for (const entry of entries) {
-    if (entry.name === ".devin" || entry.name === "node_modules") continue
+    if (entry.name === '.devin' || entry.name === 'node_modules') continue
 
     const fullPath = path.join(dir, entry.name)
     if (entry.isDirectory()) {
@@ -139,9 +139,9 @@ async function generateManifest({ appDir: selectedAppDir }) {
 
   for (const file of files) {
     const filename = path.basename(file)
-    const kind = filename.startsWith("page.") ? "page" : "route"
+    const kind = filename.startsWith('page.') ? 'page' : 'route'
     const relativeDir = path.relative(selectedAppDir, path.dirname(file))
-    const source = kind === "route" ? await readFile(file, "utf8") : ""
+    const source = kind === 'route' ? await readFile(file, 'utf8') : ''
     const routePath = routePathFor(relativeDir)
 
     entries.push({
@@ -150,8 +150,8 @@ async function generateManifest({ appDir: selectedAppDir }) {
       path: routePath,
       variants: pathVariants(routePath),
       dynamic: hasDynamicSegment(relativeDir),
-      methods: kind === "page" ? ["GET", "HEAD"] : exportedMethods(source),
-      file: path.relative(process.cwd(), file).split(path.sep).join("/"),
+      methods: kind === 'page' ? ['GET', 'HEAD'] : exportedMethods(source),
+      file: path.relative(process.cwd(), file).split(path.sep).join('/')
     })
   }
 

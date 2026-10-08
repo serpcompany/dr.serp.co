@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const purgeInvalidSiteDomains = vi.fn()
 
-vi.mock("@/server/db.mjs", () => ({
-  purgeInvalidSiteDomains,
+vi.mock('@/server/db.mjs', () => ({
+  purgeInvalidSiteDomains
 }))
 
 const envBackup = { ...process.env }
@@ -13,39 +13,42 @@ function restoreEnv() {
   Object.assign(process.env, envBackup)
 }
 
-describe("POST /api/admin/sites/cleanup-invalid", () => {
+describe('POST /api/admin/sites/cleanup-invalid', () => {
   beforeEach(() => {
     purgeInvalidSiteDomains.mockReset()
-    process.env.DR_ADMIN_TOKEN = "admin-secret"
+    process.env.DR_ADMIN_TOKEN = 'admin-secret'
   })
 
   afterEach(() => {
     restoreEnv()
   })
 
-  it("requires the admin token", async () => {
-    const { POST } = await import("./route")
-    const request = new Request("http://localhost/api/admin/sites/cleanup-invalid", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+  it('requires the admin token', async () => {
+    const { POST } = await import('./route')
+    const request = new Request('http://localhost/api/admin/sites/cleanup-invalid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
     })
 
     const response = await POST(request)
     const payload = await response.json()
 
     expect(response.status).toBe(401)
-    expect(payload.error).toBe("Unauthorized.")
+    expect(payload.error).toBe('Unauthorized.')
     expect(purgeInvalidSiteDomains).not.toHaveBeenCalled()
   })
 
-  it("refuses the admin token in the query string", async () => {
-    const { POST } = await import("./route")
-    const request = new Request("http://localhost/api/admin/sites/cleanup-invalid?token=admin-secret", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    })
+  it('refuses the admin token in the query string', async () => {
+    const { POST } = await import('./route')
+    const request = new Request(
+      'http://localhost/api/admin/sites/cleanup-invalid?token=admin-secret',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      }
+    )
 
     const response = await POST(request)
 
@@ -53,22 +56,22 @@ describe("POST /api/admin/sites/cleanup-invalid", () => {
     expect(purgeInvalidSiteDomains).not.toHaveBeenCalled()
   })
 
-  it("runs a dry-run cleanup by default", async () => {
+  it('runs a dry-run cleanup by default', async () => {
     purgeInvalidSiteDomains.mockResolvedValue({
       claimCount: 3,
       checkCount: 8,
-      domains: ["phpinfo.php"],
-      dryRun: true,
+      domains: ['phpinfo.php'],
+      dryRun: true
     })
 
-    const { POST } = await import("./route")
-    const request = new Request("http://localhost/api/admin/sites/cleanup-invalid", {
-      method: "POST",
+    const { POST } = await import('./route')
+    const request = new Request('http://localhost/api/admin/sites/cleanup-invalid', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "x-admin-token": "admin-secret",
+        'Content-Type': 'application/json',
+        'x-admin-token': 'admin-secret'
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({})
     })
 
     const response = await POST(request)
@@ -78,7 +81,7 @@ describe("POST /api/admin/sites/cleanup-invalid", () => {
     expect(payload.ok).toBe(true)
     expect(purgeInvalidSiteDomains).toHaveBeenCalledWith(
       expect.objectContaining({
-        dryRun: true,
+        dryRun: true
       })
     )
   })

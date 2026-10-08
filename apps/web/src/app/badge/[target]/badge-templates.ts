@@ -1,5 +1,5 @@
 export const badgeTemplates = {
-  "serp-dr-v3": `<svg width="153" height="44" viewBox="0 0 153 44" xmlns="http://www.w3.org/2000/svg">
+  'serp-dr-v3': `<svg width="153" height="44" viewBox="0 0 153 44" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&amp;display=swap');</style>
       </defs>
@@ -29,7 +29,7 @@ export const badgeTemplates = {
         <text x="16" y="19" text-anchor="middle" dominant-baseline="middle" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="900" fill="#111" letter-spacing="-0.5">__DR__</text>
       </svg>
 </svg>`,
-  "serp-dr-v2": `<svg
+  'serp-dr-v2': `<svg
   xmlns="http://www.w3.org/2000/svg"
   width="200"
   height="50"
@@ -81,7 +81,7 @@ export const badgeTemplates = {
     dominant-baseline="middle"
     fill="#111827"
   >__DR__</text>
-</svg>`,
+</svg>`
 } as const
 
 export type BadgeTemplateKey = keyof typeof badgeTemplates

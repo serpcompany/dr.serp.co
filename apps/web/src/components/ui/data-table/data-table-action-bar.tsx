@@ -1,16 +1,16 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import * as ReactDOM from "react-dom"
-import type { Table } from "@tanstack/react-table"
-import { Loader, X } from "lucide-react"
+import type { Table } from '@tanstack/react-table'
+import { Loader, X } from 'lucide-react'
+import * as React from 'react'
+import * as ReactDOM from 'react-dom'
 
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
-export interface DataTableActionBarProps<TData> extends React.ComponentProps<"div"> {
+export interface DataTableActionBarProps<TData> extends React.ComponentProps<'div'> {
   table: Table<TData>
   visible?: boolean
   container?: Element | DocumentFragment | null
@@ -32,13 +32,13 @@ function DataTableActionBar<TData>({
 
   React.useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         table.toggleAllRowsSelected(false)
       }
     }
 
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [table])
 
   const container = containerProp ?? (mounted ? globalThis.document?.body : null)
@@ -53,7 +53,7 @@ function DataTableActionBar<TData>({
           role="toolbar"
           aria-orientation="horizontal"
           className={cn(
-            "fixed inset-x-0 bottom-6 z-50 mx-auto flex w-fit flex-wrap items-center justify-center gap-2 rounded-md border bg-background p-2 text-foreground shadow-sm",
+            'fixed inset-x-0 bottom-6 z-50 mx-auto flex w-fit flex-wrap items-center justify-center gap-2 rounded-md border bg-background p-2 text-foreground shadow-sm',
             className
           )}
           {...props}
@@ -72,7 +72,7 @@ interface DataTableActionBarActionProps extends React.ComponentProps<typeof Butt
 }
 
 function DataTableActionBarAction({
-  size = "sm",
+  size = 'sm',
   tooltip,
   isPending,
   disabled,
@@ -85,8 +85,8 @@ function DataTableActionBarAction({
       variant="secondary"
       size={size}
       className={cn(
-        "gap-1.5 border border-secondary bg-secondary/50 hover:bg-secondary/70 [&>svg]:size-3.5",
-        size === "icon" ? "size-7" : "h-7",
+        'gap-1.5 border border-secondary bg-secondary/50 hover:bg-secondary/70 [&>svg]:size-3.5',
+        size === 'icon' ? 'size-7' : 'h-7',
         className
       )}
       disabled={disabled || isPending}

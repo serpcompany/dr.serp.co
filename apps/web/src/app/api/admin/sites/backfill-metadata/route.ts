@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
+import { checkAdminToken } from '@/server/admin-auth.mjs'
+import { countSites, listSites, setClaimSiteMetadata } from '@/server/db.mjs'
+import { resolveSitePresentation } from '@/server/site-presentation.mjs'
+import { readWriteRequest } from '@/server/write-route'
+import { BackfillBody } from '@/server/write-schemas'
 
-import { countSites, listSites, setClaimSiteMetadata } from "@/server/db.mjs"
-import { resolveSitePresentation } from "@/server/site-presentation.mjs"
-import { checkAdminToken } from "@/server/admin-auth.mjs"
-import { readWriteRequest } from "@/server/write-route"
-import { BackfillBody } from "@/server/write-schemas"
-
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 type SiteRow = {
   domain: string
@@ -17,18 +16,18 @@ type SiteRow = {
 }
 
 type BackfillResult =
-  | { domain: string; status: "pending" }
-  | { domain: string; status: "updated"; source: string; screenshot: boolean }
-  | { domain: string; status: "failed"; error: string }
+  | { domain: string; status: 'pending' }
+  | { domain: string; status: 'updated'; source: string; screenshot: boolean }
+  | { domain: string; status: 'failed'; error: string }
 
 function asInt(value: unknown, fallback: number, max: number) {
-  const parsed = Number.parseInt(String(value ?? ""), 10)
+  const parsed = Number.parseInt(String(value ?? ''), 10)
   if (!Number.isFinite(parsed)) return fallback
   return Math.max(1, Math.min(max, parsed))
 }
 
 function asOffset(value: unknown) {
-  const parsed = Number.parseInt(String(value ?? ""), 10)
+  const parsed = Number.parseInt(String(value ?? ''), 10)
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0
 }
 
@@ -47,20 +46,20 @@ export async function POST(request: Request) {
   const dryRun = body?.dryRun !== false
   const limit = asInt(body?.limit, 25, 100)
   const offset = asOffset(body?.offset)
-  const query = typeof body?.query === "string" ? body.query.trim() : ""
+  const query = typeof body?.query === 'string' ? body.query.trim() : ''
 
   const [total, siteRows] = await Promise.all([
     countSites({ query }),
-    listSites({ query, limit, offset, sort: "updated" }),
+    listSites({ query, limit, offset, sort: 'updated' })
   ])
   const sites = siteRows as SiteRow[]
 
-  const candidates = sites.filter((site) => !hasPresentationMetadata(site))
+  const candidates = sites.filter(site => !hasPresentationMetadata(site))
   const results: BackfillResult[] = []
 
   for (const site of candidates) {
     if (dryRun) {
-      results.push({ domain: site.domain, status: "pending" })
+      results.push({ domain: site.domain, status: 'pending' })
       continue
     }
 
@@ -71,21 +70,25 @@ export async function POST(request: Request) {
         siteTitle: resolved.siteTitle ?? null,
         metaDescription: resolved.metaDescription ?? null,
         siteUrl: resolved.siteUrl ?? null,
-        screenshotUrl: resolved.screenshotUrl ?? null,
+        screenshotUrl: resolved.screenshotUrl ?? null
       })
       results.push({
         domain: site.domain,
-        status: "updated",
-        source: String(resolved.source ?? "unknown"),
-        screenshot: Boolean(resolved.screenshotUrl),
+        status: 'updated',
+        source: String(resolved.source ?? 'unknown'),
+        screenshot: Boolean(resolved.screenshotUrl)
       })
     } catch (error) {
       // Log the message itself: a nested Error object can reach the Worker logs as {}.
-      console.error("admin.backfill-metadata: metadata lookup failed", {
+      console.error('admin.backfill-metadata: metadata lookup failed', {
         domain: site.domain,
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String(error)
       })
-      results.push({ domain: site.domain, status: "failed", error: "Metadata lookup failed; see the Worker logs." })
+      results.push({
+        domain: site.domain,
+        status: 'failed',
+        error: 'Metadata lookup failed; see the Worker logs.'
+      })
     }
   }
 
@@ -98,9 +101,9 @@ export async function POST(request: Request) {
     scanned: sites.length,
     candidates: candidates.length,
     skipped: sites.length - candidates.length,
-    updated: results.filter((entry) => entry.status === "updated").length,
-    failed: results.filter((entry) => entry.status === "failed").length,
+    updated: results.filter(entry => entry.status === 'updated').length,
+    failed: results.filter(entry => entry.status === 'failed').length,
     hasMore: offset + sites.length < total,
-    results,
+    results
   })
 }
