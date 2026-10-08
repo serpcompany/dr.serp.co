@@ -1,20 +1,22 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare'
+import * as billingAuditQueries from '@/db/billing-audit'
 import * as checksQueries from '@/db/checks'
+import * as claimsQueries from '@/db/claims'
 import { dbFrom } from '@/db/client'
 import { isListableSiteRow, isPurgeableSiteRow, normalizeSearchQuery } from '@/db/listable'
 import * as sitesQueries from '@/db/sites'
+import * as subscriptionsQueries from '@/db/subscriptions'
+import {
+  clampDr,
+  clampOffset,
+  coerceDate,
+  isFiniteNumber,
+  MAX_LIST_OFFSET,
+  normalizeEmail
+} from '@/db/values'
 import { isValidDomainTarget } from './domain-target.mjs'
 
 const D1_BINDING_NAME = 'DB'
-
-/**
- * Number.isFinite, as a type guard.
- * @param {unknown} value
- * @returns {value is number}
- */
-function isFiniteNumber(value) {
-  return typeof value === 'number' && Number.isFinite(value)
-}
 
 function canUseFallbackStore() {
   return process.env.NODE_ENV !== 'production'
@@ -261,74 +263,10 @@ function schedulePersist() {
 
 await hydrateFromDisk()
 
-function clampDr(value) {
-  const dr = Math.max(0, Math.min(100, Math.floor(Number(value))))
-  return Number.isFinite(dr) ? dr : null
-}
-
-function coerceDate(value) {
-  if (value instanceof Date) {
-    return Number.isFinite(value.getTime()) ? value : null
-  }
-  if (typeof value === 'string' || typeof value === 'number') {
-    const date = new Date(value)
-    return Number.isFinite(date.getTime()) ? date : null
-  }
-  return null
-}
-
-/**
- * @param {unknown} value
- * @param {string|null} [fallback]
- */
-function isoText(value, fallback = null) {
-  const date = coerceDate(value)
-  return date ? date.toISOString() : fallback
-}
-
-function nowIsoText() {
-  return new Date().toISOString()
-}
-
-function toD1Boolean(value) {
-  return typeof value === 'boolean' ? (value ? 1 : 0) : null
-}
-
-function fromD1Boolean(value) {
-  if (value === null || value === undefined) return null
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'number') return value !== 0
-  if (typeof value === 'string') return value !== '0' && value.toLowerCase() !== 'false'
-  return Boolean(value)
-}
-
-function normalizeD1SubscriptionRow(row) {
-  if (!row) return null
-  return {
-    ...row,
-    cancel_at_period_end: fromD1Boolean(row.cancel_at_period_end)
-  }
-}
-
-function normalizeD1BillingAuditRow(row) {
-  if (!row) return null
-  return {
-    ...row,
-    cancel_at_period_end: fromD1Boolean(row.cancel_at_period_end),
-    success: fromD1Boolean(row.success)
-  }
-}
+export { normalizeSearchQuery }
 
 function filterListableSiteRows(rows) {
   return rows.filter(isListableSiteRow)
-}
-
-// Deeper pages answer empty, so an unbounded offset never reaches SQL, where D1 refuses a value
-// past 64 bits.
-const MAX_LIST_OFFSET = 100_000
-
-function clampOffset(value) {
-  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
 }
 
 // SQLite's lower() folds only ASCII, so fold only ASCII here too.
@@ -336,35 +274,8 @@ function asciiLower(value) {
   return String(value ?? '').replace(/[A-Z]/g, char => char.toLowerCase())
 }
 
-export { normalizeSearchQuery }
-
 function domainMatches(domain, q) {
   return !q || asciiLower(domain).includes(q)
-}
-
-function rowsFrom(result) {
-  if (!result) return []
-  if (Array.isArray(result)) return result
-  if (Array.isArray(result.rows)) return result.rows
-  if (Array.isArray(result.results)) return result.results
-  return []
-}
-
-function d1Statement(db, sqlText, params = []) {
-  const statement = db.prepare(sqlText)
-  return params.length ? statement.bind(...params) : statement
-}
-
-async function d1Run(db, sqlText, params = []) {
-  return d1Statement(db, sqlText, params).run()
-}
-
-async function d1Rows(db, sqlText, params = []) {
-  return rowsFrom(await d1Run(db, sqlText, params))
-}
-
-async function d1First(db, sqlText, params = []) {
-  return d1Statement(db, sqlText, params).first()
 }
 
 /**
@@ -373,18 +284,7 @@ async function d1First(db, sqlText, params = []) {
 export async function getClaim(domain) {
   const d1 = getD1Database()
   if (d1) {
-    return (
-      (await d1First(
-        d1,
-        `
-          SELECT domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
-          FROM dr_claims
-          WHERE domain = ?
-          LIMIT 1
-        `,
-        [domain]
-      )) || null
-    )
+    return claimsQueries.getClaim(dbFrom(d1), domain)
   }
 
   if (canUseFallbackStore()) {
@@ -401,24 +301,7 @@ export async function getClaim(domain) {
 export async function upsertClaim({ domain, email = null, domainRating, provider = null }) {
   const d1 = getD1Database()
   if (d1) {
-    const now = nowIsoText()
-    return (
-      (await d1First(
-        d1,
-        `
-          INSERT INTO dr_claims (domain, email, domain_rating, provider, updated_at)
-          VALUES (?, ?, ?, ?, ?)
-          ON CONFLICT (domain)
-          DO UPDATE SET
-            email = COALESCE(excluded.email, dr_claims.email),
-            domain_rating = excluded.domain_rating,
-            provider = excluded.provider,
-            updated_at = excluded.updated_at
-          RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
-        `,
-        [domain, email, clampDr(domainRating), provider, now]
-      )) || null
-    )
+    return claimsQueries.upsertClaim(dbFrom(d1), { domain, email, domainRating, provider })
   }
 
   if (canUseFallbackStore()) {
@@ -453,23 +336,7 @@ export async function upsertClaim({ domain, email = null, domainRating, provider
 export async function setClaimEmail({ domain, email }) {
   const d1 = getD1Database()
   if (d1) {
-    const now = nowIsoText()
-    return (
-      (await d1First(
-        d1,
-        `
-          INSERT INTO dr_claims (domain, email, updated_at)
-          VALUES (?, ?, ?)
-          ON CONFLICT (domain)
-          DO UPDATE SET
-            email = excluded.email,
-            updated_at = excluded.updated_at
-          WHERE dr_claims.email IS NULL OR lower(dr_claims.email) = lower(excluded.email)
-          RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
-        `,
-        [domain, email, now]
-      )) || null
-    )
+    return claimsQueries.setClaimEmail(dbFrom(d1), { domain, email })
   }
 
   if (canUseFallbackStore()) {
@@ -521,18 +388,7 @@ export async function clearClaimEmail({ domain, email }) {
 
   const d1 = getD1Database()
   if (d1) {
-    return (
-      (await d1First(
-        d1,
-        `
-          UPDATE dr_claims
-          SET email = NULL, updated_at = ?
-          WHERE domain = ? AND lower(email) = ?
-          RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
-        `,
-        [nowIsoText(), normalizedDomain, normalizedEmail]
-      )) || null
-    )
+    return claimsQueries.clearClaimEmail(dbFrom(d1), { domain, email })
   }
 
   if (canUseFallbackStore()) {
@@ -569,21 +425,7 @@ export async function touchDomain(domain) {
 
   const d1 = getD1Database()
   if (d1) {
-    const now = nowIsoText()
-    return (
-      (await d1First(
-        d1,
-        `
-          INSERT INTO dr_claims (domain, updated_at)
-          VALUES (?, ?)
-          ON CONFLICT (domain)
-          DO UPDATE SET
-            updated_at = excluded.updated_at
-          RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
-        `,
-        [normalized, now]
-      )) || null
-    )
+    return claimsQueries.touchDomain(dbFrom(d1), domain)
   }
 
   if (canUseFallbackStore()) {
@@ -632,25 +474,13 @@ export async function setClaimSiteMetadata({
 
   const d1 = getD1Database()
   if (d1) {
-    const now = nowIsoText()
-    return (
-      (await d1First(
-        d1,
-        `
-          INSERT INTO dr_claims (domain, site_title, meta_description, site_url, screenshot_url, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-          ON CONFLICT (domain)
-          DO UPDATE SET
-            site_title = COALESCE(excluded.site_title, dr_claims.site_title),
-            meta_description = COALESCE(excluded.meta_description, dr_claims.meta_description),
-            site_url = COALESCE(excluded.site_url, dr_claims.site_url),
-            screenshot_url = COALESCE(excluded.screenshot_url, dr_claims.screenshot_url),
-            updated_at = excluded.updated_at
-          RETURNING domain, email, domain_rating, provider, site_title, meta_description, site_url, screenshot_url, claimed_at, updated_at
-        `,
-        [normalizedDomain, siteTitle, metaDescription, siteUrl, screenshotUrl, now]
-      )) || null
-    )
+    return claimsQueries.setClaimSiteMetadata(dbFrom(d1), {
+      domain,
+      siteTitle,
+      metaDescription,
+      siteUrl,
+      screenshotUrl
+    })
   }
 
   if (canUseFallbackStore()) {
@@ -838,33 +668,7 @@ export async function listDrChecks(opts = {}) {
 export async function listClaims(opts = {}) {
   const d1 = getD1Database()
   if (d1) {
-    const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = clampOffset(opts.offset)
-    if (offset > MAX_LIST_OFFSET) return []
-    const q = normalizeSearchQuery(opts.query)
-    const sort = opts.sort === 'updated' ? 'updated' : 'dr'
-
-    return d1Rows(
-      d1,
-      sort === 'updated'
-        ? `
-            SELECT domain, domain_rating, updated_at, site_title, meta_description, site_url, screenshot_url
-            FROM dr_claims
-            WHERE (? IS NULL OR instr(lower(domain), ?) > 0)
-            ORDER BY updated_at IS NULL ASC, updated_at DESC, domain ASC
-            LIMIT ?
-            OFFSET ?
-          `
-        : `
-            SELECT domain, domain_rating, updated_at, site_title, meta_description, site_url, screenshot_url
-            FROM dr_claims
-            WHERE (? IS NULL OR instr(lower(domain), ?) > 0)
-            ORDER BY domain_rating IS NULL ASC, domain_rating DESC, updated_at IS NULL ASC, updated_at DESC, domain ASC
-            LIMIT ?
-            OFFSET ?
-          `,
-      [q, q, limit, offset]
-    )
+    return claimsQueries.listClaims(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {
@@ -916,17 +720,7 @@ export async function listClaims(opts = {}) {
 export async function countClaims(opts = {}) {
   const d1 = getD1Database()
   if (d1) {
-    const q = normalizeSearchQuery(opts.query)
-    const row = await d1First(
-      d1,
-      `
-        SELECT COUNT(*) AS count
-        FROM dr_claims
-        WHERE (? IS NULL OR instr(lower(domain), ?) > 0)
-      `,
-      [q, q]
-    )
-    return Number(row?.count) || 0
+    return claimsQueries.countClaims(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {
@@ -952,27 +746,7 @@ export async function listClaimRows(opts = {}) {
 
   const d1 = getD1Database()
   if (d1) {
-    return d1Rows(
-      d1,
-      `
-        SELECT
-          domain,
-          email,
-          domain_rating,
-          provider,
-          site_title,
-          meta_description,
-          site_url,
-          screenshot_url,
-          claimed_at,
-          updated_at
-        FROM dr_claims
-        ORDER BY domain ASC
-        LIMIT ?
-        OFFSET ?
-      `,
-      [limit, offset]
-    )
+    return claimsQueries.listClaimRows(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {
@@ -1009,33 +783,7 @@ export async function listClaimsByEmail(opts) {
 
   const d1 = getD1Database()
   if (d1) {
-    const limit = isFiniteNumber(opts.limit) ? Math.max(1, Math.min(100, opts.limit)) : 25
-    const offset = clampOffset(opts.offset)
-    if (offset > MAX_LIST_OFFSET) return []
-    const q = normalizeSearchQuery(opts.query)
-    const sort = opts.sort === 'updated' ? 'updated' : 'dr'
-
-    return d1Rows(
-      d1,
-      sort === 'updated'
-        ? `
-            SELECT domain, domain_rating, updated_at, site_title, meta_description, site_url, screenshot_url
-            FROM dr_claims
-            WHERE email = ? AND (? IS NULL OR instr(lower(domain), ?) > 0)
-            ORDER BY updated_at IS NULL ASC, updated_at DESC, domain ASC
-            LIMIT ?
-            OFFSET ?
-          `
-        : `
-            SELECT domain, domain_rating, updated_at, site_title, meta_description, site_url, screenshot_url
-            FROM dr_claims
-            WHERE email = ? AND (? IS NULL OR instr(lower(domain), ?) > 0)
-            ORDER BY domain_rating IS NULL ASC, domain_rating DESC, updated_at IS NULL ASC, updated_at DESC, domain ASC
-            LIMIT ?
-            OFFSET ?
-          `,
-      [email, q, q, limit, offset]
-    )
+    return claimsQueries.listClaimsByEmail(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {
@@ -1100,17 +848,7 @@ export async function countClaimsByEmail(opts) {
 
   const d1 = getD1Database()
   if (d1) {
-    const q = normalizeSearchQuery(opts.query)
-    const row = await d1First(
-      d1,
-      `
-        SELECT COUNT(*) AS count
-        FROM dr_claims
-        WHERE email = ? AND (? IS NULL OR instr(lower(domain), ?) > 0)
-      `,
-      [email, q, q]
-    )
-    return Number(row?.count) || 0
+    return claimsQueries.countClaimsByEmail(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {
@@ -1339,12 +1077,6 @@ export async function purgeInvalidSiteDomains(opts = {}) {
   return persistentDatabaseUnavailable()
 }
 
-function normalizeEmail(value) {
-  return String(value ?? '')
-    .trim()
-    .toLowerCase()
-}
-
 /**
  * Upsert a subscription record keyed by stripe_subscription_id.
  * @param {{
@@ -1376,62 +1108,17 @@ export async function upsertSubscription({
 
   const d1 = getD1Database()
   if (d1) {
-    const now = nowIsoText()
-    return normalizeD1SubscriptionRow(
-      await d1First(
-        d1,
-        `
-          INSERT INTO dr_subscriptions (
-            email,
-            stripe_customer_id,
-            stripe_subscription_id,
-            stripe_price_id,
-            billing_interval,
-            domains_limit,
-            status,
-            current_period_end,
-            cancel_at_period_end,
-            updated_at
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT (stripe_subscription_id)
-          DO UPDATE SET
-            email = COALESCE(excluded.email, dr_subscriptions.email),
-            stripe_customer_id = COALESCE(excluded.stripe_customer_id, dr_subscriptions.stripe_customer_id),
-            stripe_price_id = COALESCE(excluded.stripe_price_id, dr_subscriptions.stripe_price_id),
-            billing_interval = COALESCE(excluded.billing_interval, dr_subscriptions.billing_interval),
-            domains_limit = COALESCE(excluded.domains_limit, dr_subscriptions.domains_limit),
-            status = COALESCE(excluded.status, dr_subscriptions.status),
-            current_period_end = COALESCE(excluded.current_period_end, dr_subscriptions.current_period_end),
-            cancel_at_period_end = COALESCE(excluded.cancel_at_period_end, dr_subscriptions.cancel_at_period_end),
-            updated_at = excluded.updated_at
-          RETURNING
-            email,
-            stripe_customer_id,
-            stripe_subscription_id,
-            stripe_price_id,
-            billing_interval,
-            domains_limit,
-            status,
-            current_period_end,
-            cancel_at_period_end,
-            created_at,
-            updated_at
-        `,
-        [
-          normalizedEmail,
-          stripeCustomerId,
-          subscriptionId,
-          stripePriceId,
-          billingInterval,
-          domainsLimit,
-          status,
-          isoText(currentPeriodEnd),
-          toD1Boolean(cancelAtPeriodEnd),
-          now
-        ]
-      )
-    )
+    return subscriptionsQueries.upsertSubscription(dbFrom(d1), {
+      email,
+      stripeCustomerId,
+      stripeSubscriptionId,
+      stripePriceId,
+      billingInterval,
+      domainsLimit,
+      status,
+      currentPeriodEnd,
+      cancelAtPeriodEnd
+    })
   }
 
   if (canUseFallbackStore()) {
@@ -1468,32 +1155,7 @@ export async function getActiveSubscriptionByEmail(email) {
 
   const d1 = getD1Database()
   if (d1) {
-    return normalizeD1SubscriptionRow(
-      await d1First(
-        d1,
-        `
-          SELECT
-            email,
-            stripe_customer_id,
-            stripe_subscription_id,
-            stripe_price_id,
-            billing_interval,
-            domains_limit,
-            status,
-            current_period_end,
-            cancel_at_period_end,
-            created_at,
-            updated_at
-          FROM dr_subscriptions
-          WHERE email = ?
-            AND status IN ('active', 'trialing')
-            AND (current_period_end IS NULL OR current_period_end > ?)
-          ORDER BY updated_at DESC
-          LIMIT 1
-        `,
-        [normalizedEmail, nowIsoText()]
-      )
-    )
+    return subscriptionsQueries.getActiveSubscriptionByEmail(dbFrom(d1), email)
   }
 
   if (canUseFallbackStore()) {
@@ -1518,30 +1180,7 @@ export async function getLatestSubscriptionByEmail(email) {
 
   const d1 = getD1Database()
   if (d1) {
-    return normalizeD1SubscriptionRow(
-      await d1First(
-        d1,
-        `
-          SELECT
-            email,
-            stripe_customer_id,
-            stripe_subscription_id,
-            stripe_price_id,
-            billing_interval,
-            domains_limit,
-            status,
-            current_period_end,
-            cancel_at_period_end,
-            created_at,
-            updated_at
-          FROM dr_subscriptions
-          WHERE email = ?
-          ORDER BY updated_at DESC
-          LIMIT 1
-        `,
-        [normalizedEmail]
-      )
-    )
+    return subscriptionsQueries.getLatestSubscriptionByEmail(dbFrom(d1), email)
   }
 
   if (canUseFallbackStore()) {
@@ -1567,30 +1206,7 @@ export async function listSubscriptions(opts = {}) {
 
   const d1 = getD1Database()
   if (d1) {
-    const rows = await d1Rows(
-      d1,
-      `
-        SELECT
-          email,
-          stripe_customer_id,
-          stripe_subscription_id,
-          stripe_price_id,
-          billing_interval,
-          domains_limit,
-          status,
-          current_period_end,
-          cancel_at_period_end,
-          created_at,
-          updated_at
-        FROM dr_subscriptions
-        WHERE (? IS NULL OR email = ?)
-        ORDER BY updated_at DESC
-        LIMIT ?
-        OFFSET ?
-      `,
-      [email, email, limit, offset]
-    )
-    return rows.map(normalizeD1SubscriptionRow)
+    return subscriptionsQueries.listSubscriptions(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {
@@ -1642,80 +1258,22 @@ export async function insertBillingAudit({
 
   const d1 = getD1Database()
   if (d1) {
-    return normalizeD1BillingAuditRow(
-      await d1First(
-        d1,
-        `
-          INSERT INTO dr_billing_audit (
-            stripe_event_id,
-            stripe_event_type,
-            stripe_customer_id,
-            stripe_subscription_id,
-            stripe_price_id,
-            email,
-            billing_interval,
-            domains_limit,
-            status,
-            current_period_end,
-            cancel_at_period_end,
-            event_created_at,
-            success,
-            error,
-            created_at
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT (stripe_event_id) WHERE stripe_event_id IS NOT NULL
-          DO UPDATE SET
-            stripe_event_type = excluded.stripe_event_type,
-            stripe_customer_id = COALESCE(excluded.stripe_customer_id, dr_billing_audit.stripe_customer_id),
-            stripe_subscription_id = COALESCE(excluded.stripe_subscription_id, dr_billing_audit.stripe_subscription_id),
-            stripe_price_id = COALESCE(excluded.stripe_price_id, dr_billing_audit.stripe_price_id),
-            email = COALESCE(excluded.email, dr_billing_audit.email),
-            billing_interval = COALESCE(excluded.billing_interval, dr_billing_audit.billing_interval),
-            domains_limit = COALESCE(excluded.domains_limit, dr_billing_audit.domains_limit),
-            status = COALESCE(excluded.status, dr_billing_audit.status),
-            current_period_end = COALESCE(excluded.current_period_end, dr_billing_audit.current_period_end),
-            cancel_at_period_end = COALESCE(excluded.cancel_at_period_end, dr_billing_audit.cancel_at_period_end),
-            event_created_at = COALESCE(excluded.event_created_at, dr_billing_audit.event_created_at),
-            success = COALESCE(excluded.success, dr_billing_audit.success),
-            error = excluded.error,
-            created_at = excluded.created_at
-          RETURNING
-            stripe_event_id,
-            stripe_event_type,
-            stripe_customer_id,
-            stripe_subscription_id,
-            stripe_price_id,
-            email,
-            billing_interval,
-            domains_limit,
-            status,
-            current_period_end,
-            cancel_at_period_end,
-            event_created_at,
-            success,
-            error,
-            created_at
-        `,
-        [
-          stripeEventId,
-          stripeEventType,
-          stripeCustomerId,
-          stripeSubscriptionId,
-          stripePriceId,
-          email ? normalizeEmail(email) : null,
-          billingInterval,
-          domainsLimit,
-          status,
-          isoText(currentPeriodEnd),
-          toD1Boolean(cancelAtPeriodEnd),
-          isoText(eventCreatedAt),
-          typeof success === 'boolean' ? toD1Boolean(success) : 1,
-          error,
-          nowIsoText()
-        ]
-      )
-    )
+    return billingAuditQueries.insertBillingAudit(dbFrom(d1), {
+      stripeEventId,
+      stripeEventType,
+      stripeCustomerId,
+      stripeSubscriptionId,
+      stripePriceId,
+      email,
+      billingInterval,
+      domainsLimit,
+      status,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+      eventCreatedAt,
+      success,
+      error
+    })
   }
 
   if (canUseFallbackStore()) {
@@ -1756,37 +1314,7 @@ export async function getLatestBillingAuditEvent(opts = {}) {
 
   const d1 = getD1Database()
   if (d1) {
-    return normalizeD1BillingAuditRow(
-      await d1First(
-        d1,
-        `
-          SELECT
-            stripe_event_id,
-            stripe_event_type,
-            stripe_customer_id,
-            stripe_subscription_id,
-            stripe_price_id,
-            email,
-            billing_interval,
-            domains_limit,
-            status,
-            current_period_end,
-            cancel_at_period_end,
-            event_created_at,
-            success,
-            error,
-            created_at
-          FROM dr_billing_audit
-          WHERE (? IS NULL OR success = ?)
-          ORDER BY created_at DESC
-          LIMIT 1
-        `,
-        [
-          success === null ? null : toD1Boolean(success),
-          success === null ? null : toD1Boolean(success)
-        ]
-      )
-    )
+    return billingAuditQueries.getLatestBillingAuditEvent(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {
@@ -1817,39 +1345,7 @@ export async function listBillingAudit(opts = {}) {
 
   const d1 = getD1Database()
   if (d1) {
-    const rows = await d1Rows(
-      d1,
-      `
-        SELECT
-          stripe_event_id,
-          stripe_event_type,
-          stripe_customer_id,
-          stripe_subscription_id,
-          stripe_price_id,
-          email,
-          billing_interval,
-          domains_limit,
-          status,
-          current_period_end,
-          cancel_at_period_end,
-          event_created_at,
-          success,
-          error,
-          created_at
-        FROM dr_billing_audit
-        WHERE (? IS NULL OR success = ?)
-        ORDER BY created_at ASC, id ASC
-        LIMIT ?
-        OFFSET ?
-      `,
-      [
-        success === null ? null : toD1Boolean(success),
-        success === null ? null : toD1Boolean(success),
-        limit,
-        offset
-      ]
-    )
-    return rows.map(normalizeD1BillingAuditRow)
+    return billingAuditQueries.listBillingAudit(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {
@@ -1872,36 +1368,15 @@ export async function listBillingAudit(opts = {}) {
 }
 
 /**
- * Remove billing audit entries older than the provided number of days.
- * @param {{ olderThanDays?: number }} [opts]
- */
-function billingAuditCutoff(opts = {}) {
-  const days = isFiniteNumber(opts?.olderThanDays)
-    ? Math.max(1, Math.floor(opts.olderThanDays))
-    : 180
-  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
-  return { days, cutoff }
-}
-
-/**
  * Count billing audit entries older than the provided number of days without deleting them.
  * @param {{ olderThanDays?: number }} [opts]
  */
 export async function countPrunableBillingAudit(opts = {}) {
-  const { cutoff } = billingAuditCutoff(opts)
+  const { cutoff } = billingAuditQueries.billingAuditCutoff(opts)
 
   const d1 = getD1Database()
   if (d1) {
-    const row = await d1First(
-      d1,
-      `
-        SELECT COUNT(*) AS count
-        FROM dr_billing_audit
-        WHERE created_at < ?
-      `,
-      [cutoff.toISOString()]
-    )
-    return { count: Number(row?.count) || 0, cutoff }
+    return billingAuditQueries.countPrunableBillingAudit(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {
@@ -1916,22 +1391,11 @@ export async function countPrunableBillingAudit(opts = {}) {
 }
 
 export async function pruneBillingAudit(opts = {}) {
-  const { cutoff } = billingAuditCutoff(opts)
+  const { cutoff } = billingAuditQueries.billingAuditCutoff(opts)
 
   const d1 = getD1Database()
   if (d1) {
-    const result = await d1Run(
-      d1,
-      `
-        DELETE FROM dr_billing_audit
-        WHERE created_at < ?
-      `,
-      [cutoff.toISOString()]
-    )
-    const removed = Number(
-      result?.meta?.changes ?? result?.changes ?? result?.rowCount ?? result?.count ?? 0
-    )
-    return { removed, cutoff }
+    return billingAuditQueries.pruneBillingAudit(dbFrom(d1), opts)
   }
 
   if (canUseFallbackStore()) {

@@ -6,7 +6,7 @@ import type { Db } from './client'
 
 import { isListableSiteRow, isPurgeableSiteRow, normalizeSearchQuery } from './listable'
 import { drChecks, drClaims } from './schema'
-import { clampOffset, isFiniteNumber, isoText } from './values'
+import { clampOffset, isFiniteNumber, isoText, MAX_LIST_OFFSET } from './values'
 
 export type SiteRow = {
   domain: string
@@ -18,9 +18,6 @@ export type SiteRow = {
   updated_at: string | null
 }
 
-// Deeper pages answer empty, so an unbounded offset never reaches SQL, where D1 refuses a value
-// past 64 bits.
-const MAX_LIST_OFFSET = 100_000
 // Rows past the requested page read first, so a page stays full when some stored rows are
 // unlistable. When more than that precede the page, the read grows.
 const LISTABLE_SCAN_SLACK = 200
