@@ -25,9 +25,10 @@ Ahrefs is called in three places, and every result is written to `dr_checks`:
 2. **A recheck.** `POST /api/recheck` allows 10 requests per IP per minute, and a domain can be
    rechecked once per 30 days, or once per 7 days when its owner has a paid plan
    (`src/server/recheck-cadence.mjs`), counted from its last check. When the provider fails, the
-   route answers 503; it never reports the stored rating as a fresh one. A domain with no stored
-   DR can be rechecked at once, so this route also looks up new domains outside the first-visit
-   caps, and it doesn't check the spam filter. Closing that gap is
+   route answers 503; it never reports the stored rating as a fresh one. A domain the site has
+   never stored can be rechecked at once, so this route also looks up new domains outside the
+   first-visit caps, and it doesn't check the spam filter. (A stored row with no check counts from
+   its `updated_at`, so such a domain waits out the interval.) Closing that gap is
    [#59](https://github.com/serpcompany/dr.serp.co/issues/59).
 3. **History import.** A second paid call, made only for claimed domains: on a first lookup of a
    domain that is already claimed, and after each recheck. The add-site flow claims a domain after
@@ -80,5 +81,5 @@ only deletes with `-- --apply`, after the owner approves
 
 `resolveSitePresentation` in `src/server/site-presentation.mjs` fetches a site's title,
 description and a homepage screenshot from Microlink, and falls back to fetching the page's HTML.
-It runs on the first visit to a page without metadata, and the result is stored in `dr_claims` so
-it isn't fetched again. `npm run sites:backfill-metadata` fills in older rows.
+It runs on every visit to a page whose title, description or URL is still missing, and stores the
+result in `dr_claims`, so a site whose metadata resolves isn't fetched again. `npm run sites:backfill-metadata` fills in older rows.

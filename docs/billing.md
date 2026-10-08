@@ -79,9 +79,10 @@ success or the error and is unique on the Stripe event ID, so a replayed event i
 
 ## Operations
 
-These scripts call the deployed Worker's admin API when `DR_ADMIN_BASE_URL` (or
-`DR_PUBLIC_BASE_URL`) and `DR_ADMIN_TOKEN` are set. Without them they run against the local
-fallback store, which proves nothing about production.
+These scripts call the admin API at `DR_ADMIN_BASE_URL`, or else at `DR_PUBLIC_BASE_URL` (the
+local dev server in `.dev.vars.example`), when `DR_ADMIN_TOKEN` is set. Only `DR_ADMIN_BASE_URL`
+reaches Production. Without a base URL or token they run against the local fallback store.
+Neither local target proves anything about production.
 
 - `npm run billing:reconcile` compares Stripe's subscriptions with `dr_subscriptions`.
 - `npm run billing:prune-audit -- --days 180` reports audit rows older than 180 days, and deletes

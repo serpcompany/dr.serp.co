@@ -46,9 +46,9 @@ npm run deploy:production
 ```
 
 Each `deploy:*` script builds for its environment, runs the bundle check, then runs
-`opennextjs-cloudflare deploy --env <env>`. Never use `wrangler deploy` directly: it skips the
-build and the bundle check, and the cache upload OpenNext adds once an incremental cache is
-configured. `npm run cf:deploy:dry-run` builds and validates without deploying.
+`opennextjs-cloudflare deploy --env <env>`. Never deploy with a bare `wrangler deploy`: in this
+project Wrangler hands it to `opennextjs-cloudflare deploy`, but skips the build and the bundle
+check, so it ships whatever build is sitting in `.open-next/`. `npm run cf:deploy:dry-run` builds and validates without deploying.
 
 After a deploy, check that Wrangler reported `dr.serp.co (custom domain)`, then smoke-test:
 
@@ -84,9 +84,11 @@ afterwards. Drizzle replaces raw SQL migrations in
 
 ## Operator scripts
 
-These four call the deployed Worker's admin API when `DR_ADMIN_BASE_URL` (or
-`DR_PUBLIC_BASE_URL`) and `DR_ADMIN_TOKEN` are set, and otherwise run against the local fallback
-store, which proves nothing about a deployed environment:
+These four call the admin API at `DR_ADMIN_BASE_URL`, or else at `DR_PUBLIC_BASE_URL`, when
+`DR_ADMIN_TOKEN` is set. `.dev.vars.example` points `DR_PUBLIC_BASE_URL` at the local dev server,
+so only setting `DR_ADMIN_BASE_URL` reaches a deployed Worker. Without a base URL or token they run
+against the local fallback store. Neither local target proves anything about a deployed
+environment:
 
 - `npm run sites:purge-invalid`: invalid and unclaimed spam domains ([DR lookups](dr-lookups.md)).
 - `npm run sites:backfill-metadata`: missing site titles, descriptions and screenshots.
