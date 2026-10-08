@@ -140,7 +140,9 @@
       "vars": {
         "NEXTJS_ENV": "production",
         "DR_PUBLIC_BASE_URL": "https://dr.serp.co",
-        "DR_BADGE_BASE_URL": "https://dr.serp.co"
+        "DR_BADGE_BASE_URL": "https://dr.serp.co",
+        // dr.serp.co's portal configuration on the shared live Stripe account; the default one is SERP Lists'.
+        "STRIPE_PORTAL_CONFIGURATION_ID": "bpc_1UOMK3Ct1irzGjqBrv1778CI"
       },
       "secrets": {
         "required": [

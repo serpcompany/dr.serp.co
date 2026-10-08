@@ -42,9 +42,12 @@ export async function POST(request: Request) {
     const baseUrl = getPublicBaseUrl()
     const returnUrl = process.env.STRIPE_PORTAL_RETURN_URL || `${baseUrl}/billing`
 
+    // The Stripe account's default portal configuration belongs to another SERP product.
+    const configuration = process.env.STRIPE_PORTAL_CONFIGURATION_ID || undefined
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: returnUrl,
+      ...(configuration ? { configuration } : {}),
     })
 
     if (!session.url) {

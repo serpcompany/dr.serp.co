@@ -91,4 +91,12 @@ describe("Stripe return URLs", () => {
     expect(response.status).toBe(403)
     expect(createCheckoutSession).not.toHaveBeenCalled()
   })
+
+  it("the portal uses dr.serp.co's configuration when one is set", async () => {
+    vi.stubEnv("STRIPE_PORTAL_CONFIGURATION_ID", "bpc_dr")
+    const { POST } = await import("./portal/route")
+    await POST(siteRequest("/api/stripe/portal", {}))
+
+    expect(createPortalSession).toHaveBeenCalledWith(expect.objectContaining({ configuration: "bpc_dr" }))
+  })
 })
