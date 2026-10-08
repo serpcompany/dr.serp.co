@@ -12,13 +12,23 @@ change secrets or run remote D1 commands. Moving deploys and migrations into CI 
 | Environment | Worker | D1 database | Host |
 | --- | --- | --- | --- |
 | Local (top level, never deployed) | `serp-dr-local` | `serp-dr-local` | `localhost` |
-| Preview (`--env preview`) | `serp-dr-preview` | `serp-dr-preview` | `serp-dr-preview.serpcompany.workers.dev` |
-| Production (`--env production`) | `serp-dr` | `serp-dr-prod` | `dr.serp.co`, a Worker custom domain on the `serp.co` zone |
+| Staging (`--env staging`) | `serp-dr-preview` | `serp-dr-preview` | `staging-dr.serp.co` |
+| Production (`--env production`) | `serp-dr` | `serp-dr-prod` | `dr.serp.co` |
+
+Both hosts are Worker custom domains on the `serp.co` zone; Wrangler creates the DNS record and
+certificate on deploy. Staging keeps the `serp-dr-preview` names from before it was renamed
+(AGENTS.md, Exceptions).
+
+Each deployed environment also keeps its `*.serpcompany.workers.dev` host (`workers_dev: true`) so
+CI can reach it, and has preview URLs off. `worker.ts` answers a `workers.dev` request with a 308
+to the canonical host, unless it carries the `x-dr-serp-smoke-test` header (any value).
 
 Named environments don't inherit the top level's bindings, vars or services, so each repeats
 them. They do inherit other keys, including `main`, `compatibility_date`, `compatibility_flags`,
-`assets`, `observability` and the Durable Object `migrations`, so changing one of those at the top
-level changes Preview and Production too. Every remote command passes `--env`; without it
+`assets`, `alias`, `upload_source_maps`, `observability` and the Durable Object `migrations`, so
+changing one of those at the top level changes Staging and Production too.
+`src/lib/wrangler-config.test.ts` resolves each environment the way Wrangler does and checks its
+bindings, vars, hosts and flags. Every remote command passes `--env`; without it
 Wrangler uses the local configuration.
 `pnpm cf:audit --strict --pretty` fails when the top level points at a deployed Worker or
 database. After changing bindings or vars, run `pnpm cf-typegen` to regenerate
@@ -27,7 +37,7 @@ database. After changing bindings or vars, run `pnpm cf-typegen` to regenerate
 ## Secrets and local values
 
 - **Deployed:** Worker secrets, set per environment by the owner:
-  `pnpm exec wrangler secret put <NAME> --env <preview|production>`. `secrets.required` in
+  `pnpm exec wrangler secret put <NAME> --env <staging|production>`. `secrets.required` in
   `wrangler.jsonc` lists the ones the site needs.
 - **Local:** `.dev.vars`, copied from `.dev.vars.example` and never committed. Never `.env*`: the
   OpenNext build copies those files into the Worker bundle, and `scripts/check-bundle-env.mjs`
@@ -41,7 +51,7 @@ The owner deploys from a clean, intended commit on `main`, in `apps/web/`:
 
 ```sh
 pnpm check
-pnpm deploy:preview
+pnpm deploy:staging
 pnpm deploy:production
 ```
 
@@ -68,18 +78,18 @@ Migrations are raw SQL in `migrations/`, applied by Wrangler, which records each
 `d1_migrations` table. They are forward-only. Apply locally first:
 
 ```sh
-pnpm exec wrangler d1 migrations apply SERP_DR_DB --local
+pnpm exec wrangler d1 migrations apply DB --local
 ```
 
-The owner applies to Preview, checks the site there, then applies to Production:
+The owner applies to Staging, checks the site there, then applies to Production:
 
 ```sh
-pnpm exec wrangler d1 migrations apply SERP_DR_DB --env preview --remote
-pnpm exec wrangler d1 migrations apply SERP_DR_DB --env production --remote
+pnpm exec wrangler d1 migrations apply DB --env staging --remote
+pnpm exec wrangler d1 migrations apply DB --env production --remote
 ```
 
 Apply a migration before deploying code that depends on it. Data imports follow the same order,
-Preview first, with `wrangler d1 execute ... --file`; keep their files in `tmp/` and delete them
+Staging first, with `wrangler d1 execute ... --file`; keep their files in `tmp/` and delete them
 afterwards. Drizzle replaces raw SQL migrations in
 [#48](https://github.com/serpcompany/dr.serp.co/issues/48).
 
@@ -102,7 +112,7 @@ a deployed environment. Two more scripts:
 - `pnpm r2:replace-badges`: the static R2 badges ([Badges](badges.md)).
 
 `pnpm routes:manifest` lists the site's routes, and `pnpm routes:parity` compares two hosts'
-responses (`BASE_A_URL`, `BASE_B_URL`), for example Production and Preview before a risky deploy.
+responses (`BASE_A_URL`, `BASE_B_URL`), for example Production and Staging before a risky deploy.
 
 ## Rollback
 

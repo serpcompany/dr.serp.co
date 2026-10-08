@@ -48,7 +48,7 @@ The site is in `apps/web/`, with its own `package.json` and pnpm lockfile. Code 
   domain validation, the spam filter, sign-in tokens and sessions, entitlements and rate limits.
 - `src/lib/`: pricing tiers, the Stripe client and shared helpers.
 - `src/components/ui/`: stock shadcn components (`new-york` on Radix until #50).
-- `cloudflare-worker.js`: the Worker entry, wrapping OpenNext.
+- `worker.ts`: the Worker entry, wrapping OpenNext; its concerns live in `src/lib/`.
 - `migrations/`: D1 migrations, raw SQL until #48.
 - `scripts/`: operator and build scripts.
 - `wrangler.jsonc`: Worker environments and bindings.
@@ -91,7 +91,7 @@ Evidence beyond the finish gate:
 - **Local values go in `.dev.vars`, never in `.env*` files.** The OpenNext build copies `.env*`
   values into the Worker bundle, and `scripts/check-bundle-env.mjs` fails the build if any are there.
 - **Agents never deploy or run remote D1 commands** (`--remote`). The owner deploys with
-  `pnpm deploy:preview` or `pnpm deploy:production`, never `wrangler deploy`, until
+  `pnpm deploy:staging` or `pnpm deploy:production`, never `wrangler deploy`, until
   [#44](https://github.com/serpcompany/dr.serp.co/issues/44) moves deploys to CI.
 - **The top level of `wrangler.jsonc` is the local configuration,** and every remote command passes
   `--env`. Environments still inherit some top-level keys, such as `compatibility_date`, so read
@@ -115,5 +115,5 @@ Agents never merge. The owner merges every pull request.
   `apps/web/` (`standards/web-stack/repository-layout.md`), because `apps/web` is the only surface
   and #42 kept them there.
 - **Rate limits** use a Durable Object (`RATE_LIMITER`), not D1.
-- **Environments** are named `preview` and `production`, with `serp-dr*` resource names, until
-  [#43](https://github.com/serpcompany/dr.serp.co/issues/43).
+- **Resource names:** Staging keeps `serp-dr-preview` (Worker and D1), Production `serp-dr` and
+  `serp-dr-prod` (#43: new Workers would need every secret set again; D1 can't be renamed).

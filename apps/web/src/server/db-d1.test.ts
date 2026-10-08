@@ -10,7 +10,7 @@ const cloudflareMocks = vi.hoisted(() => {
   const state: { db: unknown } = { db: null }
   return {
     state,
-    getCloudflareContext: vi.fn(() => ({ env: { SERP_DR_DB: state.db } }))
+    getCloudflareContext: vi.fn(() => ({ env: { DB: state.db } }))
   }
 })
 
@@ -560,7 +560,7 @@ describe('D1 database boundary', () => {
     vi.resetModules()
   })
 
-  it('upserts and reads claims through the SERP_DR_DB binding', async () => {
+  it('upserts and reads claims through the DB binding', async () => {
     const { db, d1 } = await importDbWithD1()
 
     const first = await db.upsertClaim({

@@ -1,11 +1,18 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "main": "./cloudflare-worker.js",
+  "main": "./worker.ts",
   // Top level is local-only (wrangler dev, --local D1, opennextjs-cloudflare preview). It is never
-  // deployed: every remote command passes --env preview or --env production.
+  // deployed: every remote command passes --env staging or --env production. Named environments
+  // inherit main, alias, the compatibility settings, upload_source_maps and observability; each
+  // repeats its own bindings, services and vars (src/lib/wrangler-config.test.ts checks them).
   "name": "serp-dr-local",
   "compatibility_date": "2026-06-20",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // worker.ts imports the OpenNext build through this alias, so TypeScript never loads it.
+  "alias": {
+    "open-next-worker": "./.open-next/worker.js"
+  },
+  "upload_source_maps": true,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -23,7 +30,7 @@
   ],
   "d1_databases": [
     {
-      "binding": "SERP_DR_DB",
+      "binding": "DB",
       "database_name": "serp-dr-local",
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
@@ -61,10 +68,18 @@
     ]
   },
   "env": {
-    "preview": {
+    // Staging keeps the serp-dr-preview Worker and D1 names (AGENTS.md, Exceptions).
+    "staging": {
       "name": "serp-dr-preview",
+      "routes": [
+        {
+          "pattern": "staging-dr.serp.co",
+          "custom_domain": true
+        }
+      ],
+      // workers.dev stays on for CI, and worker.ts sends it to the canonical host.
       "workers_dev": true,
-      "preview_urls": true,
+      "preview_urls": false,
       "services": [
         {
           "binding": "WORKER_SELF_REFERENCE",
@@ -73,7 +88,7 @@
       ],
       "d1_databases": [
         {
-          "binding": "SERP_DR_DB",
+          "binding": "DB",
           "database_name": "serp-dr-preview",
           "database_id": "e461f27e-6d8f-4bd3-9216-537e9642bad5",
           "migrations_dir": "migrations"
@@ -89,10 +104,10 @@
       },
       "vars": {
         "NEXTJS_ENV": "production",
-        "DR_PUBLIC_BASE_URL": "https://serp-dr-preview.serpcompany.workers.dev",
-        "DR_BADGE_BASE_URL": "https://serp-dr-preview.serpcompany.workers.dev",
+        "DR_PUBLIC_BASE_URL": "https://staging-dr.serp.co",
+        "DR_BADGE_BASE_URL": "https://staging-dr.serp.co",
         // Empty: Stripe's default portal configuration. Set an id in the same mode (live or test) as
-        // Preview's STRIPE_SECRET_KEY to use a dr.serp.co one.
+        // Staging's STRIPE_SECRET_KEY to use a dr.serp.co one.
         "STRIPE_PORTAL_CONFIGURATION_ID": ""
       },
       "secrets": {
@@ -110,8 +125,8 @@
     },
     "production": {
       "name": "serp-dr",
-      "workers_dev": false,
-      "preview_urls": true,
+      "workers_dev": true,
+      "preview_urls": false,
       "routes": [
         {
           "pattern": "dr.serp.co",
@@ -126,7 +141,7 @@
       ],
       "d1_databases": [
         {
-          "binding": "SERP_DR_DB",
+          "binding": "DB",
           "database_name": "serp-dr-prod",
           "database_id": "0a6e5e69-60e4-4145-a84a-3f8c9177ad0c",
           "migrations_dir": "migrations"

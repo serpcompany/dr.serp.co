@@ -8,7 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 const binding = vi.hoisted(() => ({ db: null as unknown }))
 
 vi.mock('@opennextjs/cloudflare', () => ({
-  getCloudflareContext: () => ({ env: { SERP_DR_DB: binding.db } })
+  getCloudflareContext: () => ({ env: { DB: binding.db } })
 }))
 
 type D1 = {
@@ -55,9 +55,9 @@ beforeAll(async () => {
   mf = new Miniflare({
     modules: true,
     script: "export default { fetch() { return new Response('') } }",
-    d1Databases: ['SERP_DR_DB']
+    d1Databases: ['DB']
   })
-  d1 = (await mf.getD1Database('SERP_DR_DB')) as unknown as D1
+  d1 = (await mf.getD1Database('DB')) as unknown as D1
   binding.db = d1
   await applyMigrations()
 }, 30_000)
