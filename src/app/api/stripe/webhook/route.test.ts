@@ -325,4 +325,53 @@ describe("POST /api/stripe/webhook payload shapes", () => {
     expect(upsertSubscription).not.toHaveBeenCalled()
     expect(insertBillingAudit).toHaveBeenCalledWith(expect.objectContaining({ success: true, error: "Ignored: not a dr.serp.co price." }))
   })
+
+  it("fails with 500 and a failed audit row when STRIPE_PRICE_IDS is broken, so Stripe retries", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    process.env.STRIPE_PRICE_IDS = "{not json"
+    resetServerEnv()
+    resetStripePricingCache()
+    retrieveSubscription.mockResolvedValue(retrievedSubscription)
+
+    const { POST } = await import("./route")
+    const response = await POST(
+      signedRequest({
+        id: "evt_broken_config",
+        type: "invoice.paid",
+        data: { object: { id: "in_5", object: "invoice", subscription: "sub_1" } },
+      })
+    )
+
+    expect(response.status).toBe(500)
+    expect(upsertSubscription).not.toHaveBeenCalled()
+    expect(insertBillingAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ stripeEventId: "evt_broken_config", success: false })
+    )
+  })
+
+  it("syncs a dr.serp.co checkout.session.completed with the session's email", async () => {
+    retrieveSubscription.mockResolvedValue(retrievedSubscription)
+
+    const { POST } = await import("./route")
+    const response = await POST(
+      signedRequest({
+        id: "evt_checkout",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_1",
+            object: "checkout.session",
+            subscription: "sub_1",
+            customer_details: { email: "Buyer@Example.com" },
+          },
+        },
+      })
+    )
+
+    expect(response.status).toBe(200)
+    expect(retrieveSubscription).toHaveBeenCalledWith("sub_1")
+    expect(upsertSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "buyer@example.com", stripeSubscriptionId: "sub_1", domainsLimit: 25 })
+    )
+  })
 })

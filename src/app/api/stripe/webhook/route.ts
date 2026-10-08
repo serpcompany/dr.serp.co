@@ -72,14 +72,9 @@ async function buildSubscriptionSnapshot(
 ) {
   const price = subscription.items.data[0]?.price
   const priceId = price?.id ?? null
-  let tier = null
-  if (priceId) {
-    try {
-      tier = getTierForPriceId(priceId)
-    } catch {
-      tier = null
-    }
-  }
+  // Null for another product's price. A broken STRIPE_PRICE_IDS throws instead, so the event fails
+  // with a 500 and Stripe retries it, rather than being ignored as another product's.
+  const tier = priceId ? getTierForPriceId(priceId) : null
   const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id
 
   const emailFromCustomer = await resolveCustomerEmail(stripe, customerId)
