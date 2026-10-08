@@ -54,8 +54,9 @@ as lastmod. Past 50,000 sites the group needs a second file, and the route logs 
   metadata, domain validation, the spam filter, sign-in tokens and sessions, entitlements and rate
   limits. It never imports pages, route handlers or components.
 - **`src/db/`** is the data layer: the Drizzle schema and the typed queries, by area (`sites.ts`,
-  `checks.ts`), each taking a Drizzle client. It is the only place with SQL; `src/server/db.mjs`
-  still holds the claims, subscriptions and billing-audit queries until #107 moves them.
+  `checks.ts`, `claims.ts`, `subscriptions.ts`, `billing-audit.ts`), each taking a Drizzle client.
+  It is the only place with SQL. Each query runs through `withDbErrors`, so a failure throws D1's
+  own error, not Drizzle's message with the SQL and bound values (emails, Stripe IDs).
 - **`src/lib/`** holds shared helpers: pricing tiers, the Stripe client, env validation and the
   browser's list of recently viewed sites.
 
@@ -85,11 +86,11 @@ by the migrations in `drizzle/`:
   ([Billing](billing.md)).
 
 `src/server/db.mjs` reads the binding through `getCloudflareContext()` on each call and passes a
-Drizzle client to `src/db` for the queries already moved there. Without a
-Cloudflare context outside production, which is `next dev`, it uses an in-memory store saved to
-`.cache/dr-fallback.json`, so `next dev` never touches D1. `pnpm preview` runs against
-local D1 in `.wrangler/`. In production, a missing binding throws. Replacing the fallback with
-local D1 and moving to Drizzle is [#48](https://github.com/serpcompany/dr.serp.co/issues/48).
+Drizzle client to the queries in `src/db`. Without a Cloudflare context outside production, which
+is `next dev`, it uses an in-memory store saved to `.cache/dr-fallback.json`, so `next dev` never
+touches D1. `pnpm preview` runs against local D1 in `.wrangler/`. In production, a missing binding
+throws. Replacing the fallback with local D1 is
+[#108](https://github.com/serpcompany/dr.serp.co/issues/108).
 
 Site search matches the domain with `instr()`, never `LIKE`, because D1 refuses a `LIKE` pattern
 over 50 bytes ([D1 limits](https://github.com/serpcompany/serp/blob/main/docs/engineering/technology/cloudflare-d1-limits.md)).

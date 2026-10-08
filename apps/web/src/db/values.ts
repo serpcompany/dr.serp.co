@@ -29,6 +29,27 @@ export function nowIsoText() {
   return new Date().toISOString()
 }
 
+// Deeper pages answer empty, so an unbounded offset never reaches SQL, where D1 refuses a value
+// past 64 bits.
+export const MAX_LIST_OFFSET = 100_000
+
 export function clampOffset(value: unknown) {
   return isFiniteNumber(value) ? Math.max(0, Math.floor(value)) : 0
+}
+
+// Emails are stored trimmed and lowercased, and looked up the same way.
+export function normalizeEmail(value: unknown) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+}
+
+// Booleans are stored as INTEGER 0 or 1; anything else is stored as NULL.
+export function toD1Boolean(value: unknown): 0 | 1 | null {
+  return typeof value === 'boolean' ? (value ? 1 : 0) : null
+}
+
+// The CHECK constraints keep these columns to 0, 1 or NULL.
+export function fromD1Boolean(value: number | null): boolean | null {
+  return value === null ? null : value !== 0
 }

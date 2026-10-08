@@ -1,7 +1,7 @@
-// Runs the data layer's real SQL against D1 on workerd (SQLite semantics, instr(), window
-// functions, byte lengths), which the mock in db-d1.test.ts can't. Local workerd doesn't enforce
-// D1's 50-byte LIKE limit; sql-patterns.test.ts guards that in the source. The database comes
-// from src/db/local-d1.ts: every migration applied by Wrangler, in a temporary directory.
+// Runs db.mjs against D1 on workerd (SQLite semantics, instr(), window functions, byte lengths),
+// through the same Cloudflare context the site reads. Local workerd doesn't enforce D1's 50-byte
+// LIKE limit; sql-patterns.test.ts guards that in the source. The database comes from
+// src/db/local-d1.ts: every migration applied by Wrangler, in a temporary directory.
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { openMigratedLocalD1 } from '@/db/local-d1'
@@ -13,7 +13,12 @@ vi.mock('@opennextjs/cloudflare', () => ({
 }))
 
 type D1 = {
-  prepare: (sql: string) => { bind: (...values: unknown[]) => { run: () => Promise<unknown> } }
+  prepare: (sql: string) => {
+    bind: (...values: unknown[]) => {
+      run: () => Promise<unknown>
+      all: <T>() => Promise<{ results: T[] }>
+    }
+  }
   batch: (statements: unknown[]) => Promise<unknown>
 }
 
@@ -39,7 +44,11 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
-  await d1.batch([d1.prepare('DELETE FROM dr_claims'), d1.prepare('DELETE FROM dr_checks')])
+  await d1.batch(
+    ['dr_claims', 'dr_checks', 'dr_subscriptions', 'dr_billing_audit'].map(table =>
+      d1.prepare(`DELETE FROM ${table}`)
+    )
+  )
 })
 
 const longLabel = 'a'.repeat(60)
@@ -184,7 +193,6 @@ describe('sitemap sites on workerd D1', () => {
   })
 })
 
-// Moved from db-d1.test.ts, whose fake D1 matches SQL strings and can't run Drizzle's queries.
 describe('sites and checks on workerd D1', () => {
   it('filters invalid site domains before pagination and count', async () => {
     const db = await import('./db.mjs')
@@ -297,5 +305,139 @@ describe('sites and checks on workerd D1', () => {
         expect.objectContaining({ domain_rating: 32, provider: 'ahrefs-history' })
       ])
     )
+  })
+})
+
+describe('claims, subscriptions and billing audit on workerd D1', () => {
+  it('upserts and reads claims through the DB binding', async () => {
+    const db = await import('./db.mjs')
+
+    const first = await db.upsertClaim({
+      domain: 'example.com',
+      email: 'owner@example.com',
+      domainRating: 42.9,
+      provider: 'ahrefs'
+    })
+    const second = await db.upsertClaim({
+      domain: 'example.com',
+      email: null,
+      domainRating: 51,
+      provider: 'moz'
+    })
+    const claim = await db.getClaim('example.com')
+
+    expect(first).toMatchObject({
+      domain: 'example.com',
+      email: 'owner@example.com',
+      domain_rating: 42
+    })
+    expect(second).toMatchObject({
+      domain: 'example.com',
+      email: 'owner@example.com',
+      domain_rating: 51
+    })
+    expect(claim).toMatchObject({
+      domain: 'example.com',
+      email: 'owner@example.com',
+      provider: 'moz'
+    })
+  })
+
+  it('upserts subscriptions and normalizes D1 boolean fields on active/latest reads', async () => {
+    const db = await import('./db.mjs')
+
+    const upserted = await db.upsertSubscription({
+      email: 'Billing@Example.com',
+      stripeCustomerId: 'cus_123',
+      stripeSubscriptionId: 'sub_123',
+      stripePriceId: 'price_123',
+      billingInterval: 'monthly',
+      domainsLimit: 25,
+      status: 'active',
+      currentPeriodEnd: new Date('2999-01-01T00:00:00Z'),
+      cancelAtPeriodEnd: true
+    })
+    await db.upsertSubscription({
+      email: 'expired@example.com',
+      stripeSubscriptionId: 'sub_expired',
+      status: 'active',
+      currentPeriodEnd: new Date('2000-01-01T00:00:00Z'),
+      cancelAtPeriodEnd: false
+    })
+
+    const active = await db.getActiveSubscriptionByEmail('billing@example.com')
+    const latest = await db.getLatestSubscriptionByEmail('billing@example.com')
+    const expired = await db.getActiveSubscriptionByEmail('expired@example.com')
+
+    expect(upserted?.cancel_at_period_end).toBe(true)
+    expect(active?.cancel_at_period_end).toBe(true)
+    expect(latest?.cancel_at_period_end).toBe(true)
+    expect(expired).toBeNull()
+  })
+
+  it('upserts duplicate billing audit events by stripe_event_id and normalizes booleans', async () => {
+    const db = await import('./db.mjs')
+
+    await db.insertBillingAudit({
+      stripeEventId: 'evt_123',
+      stripeEventType: 'customer.subscription.updated',
+      email: 'Billing@Example.com',
+      success: false,
+      cancelAtPeriodEnd: false,
+      error: 'initial failure'
+    })
+    const updated = await db.insertBillingAudit({
+      stripeEventId: 'evt_123',
+      stripeEventType: 'customer.subscription.updated',
+      email: 'billing@example.com',
+      success: true,
+      cancelAtPeriodEnd: true
+    })
+    const latest = await db.getLatestBillingAuditEvent()
+    const failure = await db.getLatestBillingAuditFailure()
+
+    expect(await db.listBillingAudit()).toHaveLength(1)
+    // A replay that succeeds clears the earlier failure's error.
+    expect(updated).toMatchObject({
+      stripe_event_id: 'evt_123',
+      success: true,
+      cancel_at_period_end: true,
+      error: null
+    })
+    expect(latest).toMatchObject({
+      stripe_event_id: 'evt_123',
+      success: true,
+      cancel_at_period_end: true
+    })
+    expect(failure).toBeNull()
+  })
+
+  it('returns the removed count when pruning billing audit rows', async () => {
+    const db = await import('./db.mjs')
+
+    await db.insertBillingAudit({
+      stripeEventId: 'evt_old',
+      stripeEventType: 'customer.subscription.updated',
+      success: true
+    })
+    await db.insertBillingAudit({
+      stripeEventId: 'evt_new',
+      stripeEventType: 'customer.subscription.updated',
+      success: true
+    })
+    await d1
+      .prepare('UPDATE dr_billing_audit SET created_at = ? WHERE stripe_event_id = ?')
+      .bind('2000-01-01T00:00:00.000Z', 'evt_old')
+      .run()
+
+    const dryRun = await db.countPrunableBillingAudit({ olderThanDays: 30 })
+    expect(dryRun.count).toBe(1)
+    expect(await db.listBillingAudit()).toHaveLength(2)
+
+    const result = await db.pruneBillingAudit({ olderThanDays: 30 })
+    expect(result.removed).toBe(1)
+    expect(
+      (await db.listBillingAudit()).map((row: { stripe_event_id: string }) => row.stripe_event_id)
+    ).toEqual(['evt_new'])
   })
 })

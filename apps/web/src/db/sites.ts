@@ -2,11 +2,11 @@
 // and counting filter with the JavaScript rules in listable.ts.
 import { count, eq, sql } from 'drizzle-orm'
 import { isValidDomainTarget } from '@/server/domain-target.mjs'
-import type { Db } from './client'
+import { type Db, withDbErrors } from './client'
 
 import { isListableSiteRow, isPurgeableSiteRow, normalizeSearchQuery } from './listable'
 import { drChecks, drClaims } from './schema'
-import { clampOffset, isFiniteNumber, isoText } from './values'
+import { clampOffset, isFiniteNumber, isoText, MAX_LIST_OFFSET } from './values'
 
 export type SiteRow = {
   domain: string
@@ -18,9 +18,6 @@ export type SiteRow = {
   updated_at: string | null
 }
 
-// Deeper pages answer empty, so an unbounded offset never reaches SQL, where D1 refuses a value
-// past 64 bits.
-const MAX_LIST_OFFSET = 100_000
 // Rows past the requested page read first, so a page stays full when some stored rows are
 // unlistable. When more than that precede the page, the read grows.
 const LISTABLE_SCAN_SLACK = 200
@@ -77,7 +74,7 @@ function siteRowsQuery(q: string | null, sort: 'dr' | 'updated', scan: number) {
   `
 }
 
-export async function listSites(
+export const listSites = withDbErrors(async function listSites(
   db: Db,
   opts: { query?: unknown; limit?: number; offset?: number; sort?: 'dr' | 'updated' } = {}
 ): Promise<SiteRow[]> {
@@ -98,7 +95,7 @@ export async function listSites(
     // Grow geometrically, so a search whose matches are mostly unlistable costs a few queries.
     scan = Math.max(scan * 2, scan + shortfall + LISTABLE_SCAN_SLACK)
   }
-}
+})
 
 type DomainRow = { domain: string; site_title: string | null; email: string | null }
 
@@ -115,14 +112,17 @@ function allSiteDomains(db: Db, q: string | null = null) {
   `)
 }
 
-export async function countSites(db: Db, opts: { query?: unknown } = {}) {
+export const countSites = withDbErrors(async function countSites(
+  db: Db,
+  opts: { query?: unknown } = {}
+) {
   const rows = await allSiteDomains(db, normalizeSearchQuery(opts.query))
   return rows.filter(isListableSiteRow).length
-}
+})
 
 // Every listable site for the sitemap, with its last DR check as lastmod (not the claim's
 // updated_at, which rendering a page can stamp). The sitemap route caps the list per file.
-export async function listSitemapSites(db: Db) {
+export const listSitemapSites = withDbErrors(async function listSitemapSites(db: Db) {
   const rows = await db.all<{
     domain: string
     site_title: string | null
@@ -147,11 +147,11 @@ export async function listSitemapSites(db: Db) {
   return rows
     .filter(isListableSiteRow)
     .map(row => ({ domain: row.domain, updated_at: isoText(row.updated_at) }))
-}
+})
 
 // Deletes invalid domains and unclaimed spam sites (or only the given invalid domains), with
 // their checks. A dry run only counts.
-export async function purgeInvalidSiteDomains(
+export const purgeInvalidSiteDomains = withDbErrors(async function purgeInvalidSiteDomains(
   db: Db,
   opts: { domains?: string[]; dryRun?: boolean } = {}
 ) {
@@ -202,4 +202,4 @@ export async function purgeInvalidSiteDomains(
   }
 
   return { claimCount, checkCount, domains, dryRun }
-}
+})
