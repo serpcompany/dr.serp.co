@@ -1,11 +1,10 @@
 // Runs the data layer's real SQL against D1 on workerd (SQLite semantics, instr(), window
 // functions, byte lengths), which the mock in db-d1.test.ts can't. Local workerd doesn't enforce
-// D1's 50-byte LIKE limit; sql-patterns.test.ts guards that in the source. The binding comes from
-// Wrangler's getPlatformProxy and wrangler.jsonc's local configuration, in memory.
-import { readdirSync, readFileSync } from 'node:fs'
-import path from 'node:path'
+// D1's 50-byte LIKE limit; sql-patterns.test.ts guards that in the source. The database comes
+// from src/db/local-d1.ts: every migration applied by Wrangler, in a temporary directory.
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getPlatformProxy } from 'wrangler'
+
+import { openMigratedLocalD1 } from '@/db/local-d1'
 
 const binding = vi.hoisted(() => ({ db: null as unknown }))
 
@@ -21,24 +20,6 @@ type D1 = {
 let dispose: (() => Promise<void>) | undefined
 let d1: D1
 
-async function applyMigrations() {
-  const dir = path.join(process.cwd(), 'migrations')
-  for (const file of readdirSync(dir)
-    .filter(name => name.endsWith('.sql'))
-    .sort()) {
-    // Comment lines dropped, then split at a semicolon ending a line. A migration with a trigger
-    // (a semicolon inside BEGIN … END) needs a smarter split; setup fails loudly if one lands.
-    const statements = readFileSync(path.join(dir, file), 'utf8')
-      .split('\n')
-      .filter(line => !line.trim().startsWith('--'))
-      .join('\n')
-      .split(/;\s*$/m)
-      .map(sql => sql.trim())
-      .filter(Boolean)
-    await d1.batch(statements.map(sql => d1.prepare(sql)))
-  }
-}
-
 async function insertClaim(domain: string, { email = null as string | null, rating = 50 } = {}) {
   await d1
     .prepare('INSERT INTO dr_claims (domain, email, domain_rating, updated_at) VALUES (?, ?, ?, ?)')
@@ -47,12 +28,10 @@ async function insertClaim(domain: string, { email = null as string | null, rati
 }
 
 beforeAll(async () => {
-  // persist: false keeps the database in memory, apart from any local .wrangler state.
-  const proxy = await getPlatformProxy<{ DB: unknown }>({ persist: false })
-  dispose = proxy.dispose
-  d1 = proxy.env.DB as D1
+  const local = await openMigratedLocalD1()
+  dispose = local.dispose
+  d1 = local.d1 as unknown as D1
   binding.db = d1
-  await applyMigrations()
 }, 30_000)
 
 afterAll(async () => {

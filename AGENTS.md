@@ -50,7 +50,7 @@ only carry the block `next dev` keeps.
 - `src/lib/`: pricing tiers, the Stripe client and shared helpers.
 - `src/components/ui/`: stock shadcn components (`new-york` on Radix until #50).
 - `worker.ts`: the Worker entry, wrapping OpenNext; its concerns live in `src/lib/`.
-- `migrations/`: D1 migrations, raw SQL until #48.
+- `src/db/`: the Drizzle schema (`schema.ts`); `drizzle/`: its migrations. Queries move here in #48.
 - `scripts/`: operator and build scripts.
 - `wrangler.jsonc`: Worker environments and bindings.
 

@@ -1,0 +1,95 @@
+{
+  "source": "Production D1 sqlite_master, read-only query on 2026-10-09; d1_migrations, sqlite_* and _cf_* omitted",
+  "objects": [
+    {
+      "type": "table",
+      "name": "dr_billing_audit",
+      "sql": "CREATE TABLE dr_billing_audit (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  stripe_event_id TEXT,\n  stripe_event_type TEXT NOT NULL,\n  stripe_customer_id TEXT,\n  stripe_subscription_id TEXT,\n  stripe_price_id TEXT,\n  email TEXT,\n  billing_interval TEXT,\n  domains_limit INTEGER CHECK (domains_limit IS NULL OR domains_limit >= 0),\n  status TEXT,\n  current_period_end TEXT,\n  cancel_at_period_end INTEGER DEFAULT 0 CHECK (\n    cancel_at_period_end IS NULL OR cancel_at_period_end IN (0, 1)\n  ),\n  event_created_at TEXT,\n  success INTEGER DEFAULT 1 CHECK (success IS NULL OR success IN (0, 1)),\n  error TEXT,\n  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))\n) STRICT"
+    },
+    {
+      "type": "table",
+      "name": "dr_checks",
+      "sql": "CREATE TABLE dr_checks (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  domain TEXT NOT NULL,\n  domain_rating INTEGER NOT NULL CHECK (domain_rating >= 0 AND domain_rating <= 100),\n  provider TEXT,\n  checked_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))\n) STRICT"
+    },
+    {
+      "type": "table",
+      "name": "dr_claims",
+      "sql": "CREATE TABLE dr_claims (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  domain TEXT NOT NULL,\n  email TEXT,\n  domain_rating INTEGER CHECK (domain_rating IS NULL OR (domain_rating >= 0 AND domain_rating <= 100)),\n  provider TEXT,\n  site_title TEXT,\n  meta_description TEXT,\n  site_url TEXT,\n  screenshot_url TEXT,\n  claimed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))\n) STRICT"
+    },
+    {
+      "type": "table",
+      "name": "dr_subscriptions",
+      "sql": "CREATE TABLE dr_subscriptions (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  email TEXT NOT NULL,\n  stripe_customer_id TEXT,\n  stripe_subscription_id TEXT NOT NULL,\n  stripe_price_id TEXT,\n  billing_interval TEXT,\n  domains_limit INTEGER CHECK (domains_limit IS NULL OR domains_limit >= 0),\n  status TEXT,\n  current_period_end TEXT,\n  cancel_at_period_end INTEGER DEFAULT 0 CHECK (\n    cancel_at_period_end IS NULL OR cancel_at_period_end IN (0, 1)\n  ),\n  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))\n) STRICT"
+    },
+    {
+      "type": "index",
+      "name": "dr_billing_audit_created_idx",
+      "sql": "CREATE INDEX dr_billing_audit_created_idx\n  ON dr_billing_audit (created_at DESC)"
+    },
+    {
+      "type": "index",
+      "name": "dr_billing_audit_email_idx",
+      "sql": "CREATE INDEX dr_billing_audit_email_idx\n  ON dr_billing_audit (email)"
+    },
+    {
+      "type": "index",
+      "name": "dr_billing_audit_stripe_event_id_uq",
+      "sql": "CREATE UNIQUE INDEX dr_billing_audit_stripe_event_id_uq\n  ON dr_billing_audit (stripe_event_id)\n  WHERE stripe_event_id IS NOT NULL"
+    },
+    {
+      "type": "index",
+      "name": "dr_billing_audit_subscription_idx",
+      "sql": "CREATE INDEX dr_billing_audit_subscription_idx\n  ON dr_billing_audit (stripe_subscription_id)"
+    },
+    {
+      "type": "index",
+      "name": "dr_checks_checked_at_idx",
+      "sql": "CREATE INDEX dr_checks_checked_at_idx\n  ON dr_checks (checked_at DESC)"
+    },
+    {
+      "type": "index",
+      "name": "dr_checks_domain_checked_at_idx",
+      "sql": "CREATE INDEX dr_checks_domain_checked_at_idx\n  ON dr_checks (domain, checked_at DESC)"
+    },
+    {
+      "type": "index",
+      "name": "dr_claims_domain_rating_updated_idx",
+      "sql": "CREATE INDEX dr_claims_domain_rating_updated_idx\n  ON dr_claims (domain_rating DESC, updated_at DESC)"
+    },
+    {
+      "type": "index",
+      "name": "dr_claims_domain_uq",
+      "sql": "CREATE UNIQUE INDEX dr_claims_domain_uq\n  ON dr_claims (domain)"
+    },
+    {
+      "type": "index",
+      "name": "dr_claims_email_idx",
+      "sql": "CREATE INDEX dr_claims_email_idx\n  ON dr_claims (email)"
+    },
+    {
+      "type": "index",
+      "name": "dr_claims_updated_idx",
+      "sql": "CREATE INDEX dr_claims_updated_idx\n  ON dr_claims (updated_at DESC)"
+    },
+    {
+      "type": "index",
+      "name": "dr_subscriptions_customer_idx",
+      "sql": "CREATE INDEX dr_subscriptions_customer_idx\n  ON dr_subscriptions (stripe_customer_id)"
+    },
+    {
+      "type": "index",
+      "name": "dr_subscriptions_email_idx",
+      "sql": "CREATE INDEX dr_subscriptions_email_idx\n  ON dr_subscriptions (email)"
+    },
+    {
+      "type": "index",
+      "name": "dr_subscriptions_email_updated_idx",
+      "sql": "CREATE INDEX dr_subscriptions_email_updated_idx\n  ON dr_subscriptions (email, updated_at DESC)"
+    },
+    {
+      "type": "index",
+      "name": "dr_subscriptions_stripe_subscription_id_uq",
+      "sql": "CREATE UNIQUE INDEX dr_subscriptions_stripe_subscription_id_uq\n  ON dr_subscriptions (stripe_subscription_id)"
+    }
+  ]
+}

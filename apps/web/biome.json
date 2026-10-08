@@ -16,7 +16,8 @@
       "!.wrangler",
       "!cloudflare-env.d.ts",
       "!next-env.d.ts",
-      "!svgs"
+      "!svgs",
+      "!drizzle"
     ]
   },
   "formatter": {

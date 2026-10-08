@@ -1,0 +1,559 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "34c54c1d-8236-4bfb-82f6-67250ae4713a",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "dr_billing_audit": {
+      "name": "dr_billing_audit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "stripe_event_id": {
+          "name": "stripe_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "stripe_event_type": {
+          "name": "stripe_event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stripe_customer_id": {
+          "name": "stripe_customer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "stripe_subscription_id": {
+          "name": "stripe_subscription_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "stripe_price_id": {
+          "name": "stripe_price_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "billing_interval": {
+          "name": "billing_interval",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "domains_limit": {
+          "name": "domains_limit",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "current_period_end": {
+          "name": "current_period_end",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cancel_at_period_end": {
+          "name": "cancel_at_period_end",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "event_created_at": {
+          "name": "event_created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "success": {
+          "name": "success",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 1
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        }
+      },
+      "indexes": {
+        "dr_billing_audit_stripe_event_id_uq": {
+          "name": "dr_billing_audit_stripe_event_id_uq",
+          "columns": [
+            "stripe_event_id"
+          ],
+          "isUnique": true,
+          "where": "\"dr_billing_audit\".\"stripe_event_id\" IS NOT NULL"
+        },
+        "dr_billing_audit_created_idx": {
+          "name": "dr_billing_audit_created_idx",
+          "columns": [
+            "\"created_at\" desc"
+          ],
+          "isUnique": false
+        },
+        "dr_billing_audit_email_idx": {
+          "name": "dr_billing_audit_email_idx",
+          "columns": [
+            "email"
+          ],
+          "isUnique": false
+        },
+        "dr_billing_audit_subscription_idx": {
+          "name": "dr_billing_audit_subscription_idx",
+          "columns": [
+            "stripe_subscription_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "dr_billing_audit_domains_limit_min": {
+          "name": "dr_billing_audit_domains_limit_min",
+          "value": "\"dr_billing_audit\".\"domains_limit\" IS NULL OR \"dr_billing_audit\".\"domains_limit\" >= 0"
+        },
+        "dr_billing_audit_cancel_at_period_end_bool": {
+          "name": "dr_billing_audit_cancel_at_period_end_bool",
+          "value": "\"dr_billing_audit\".\"cancel_at_period_end\" IS NULL OR \"dr_billing_audit\".\"cancel_at_period_end\" IN (0, 1)"
+        },
+        "dr_billing_audit_success_bool": {
+          "name": "dr_billing_audit_success_bool",
+          "value": "\"dr_billing_audit\".\"success\" IS NULL OR \"dr_billing_audit\".\"success\" IN (0, 1)"
+        }
+      }
+    },
+    "dr_checks": {
+      "name": "dr_checks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "domain": {
+          "name": "domain",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "domain_rating": {
+          "name": "domain_rating",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "checked_at": {
+          "name": "checked_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        }
+      },
+      "indexes": {
+        "dr_checks_domain_checked_at_idx": {
+          "name": "dr_checks_domain_checked_at_idx",
+          "columns": [
+            "domain",
+            "\"checked_at\" desc"
+          ],
+          "isUnique": false
+        },
+        "dr_checks_checked_at_idx": {
+          "name": "dr_checks_checked_at_idx",
+          "columns": [
+            "\"checked_at\" desc"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "dr_checks_domain_rating_range": {
+          "name": "dr_checks_domain_rating_range",
+          "value": "\"dr_checks\".\"domain_rating\" >= 0 AND \"dr_checks\".\"domain_rating\" <= 100"
+        }
+      }
+    },
+    "dr_claims": {
+      "name": "dr_claims",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "domain": {
+          "name": "domain",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "domain_rating": {
+          "name": "domain_rating",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "site_title": {
+          "name": "site_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "meta_description": {
+          "name": "meta_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "site_url": {
+          "name": "site_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "screenshot_url": {
+          "name": "screenshot_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        }
+      },
+      "indexes": {
+        "dr_claims_domain_uq": {
+          "name": "dr_claims_domain_uq",
+          "columns": [
+            "domain"
+          ],
+          "isUnique": true
+        },
+        "dr_claims_email_idx": {
+          "name": "dr_claims_email_idx",
+          "columns": [
+            "email"
+          ],
+          "isUnique": false
+        },
+        "dr_claims_updated_idx": {
+          "name": "dr_claims_updated_idx",
+          "columns": [
+            "\"updated_at\" desc"
+          ],
+          "isUnique": false
+        },
+        "dr_claims_domain_rating_updated_idx": {
+          "name": "dr_claims_domain_rating_updated_idx",
+          "columns": [
+            "\"domain_rating\" desc",
+            "\"updated_at\" desc"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "dr_claims_domain_rating_range": {
+          "name": "dr_claims_domain_rating_range",
+          "value": "\"dr_claims\".\"domain_rating\" IS NULL OR (\"dr_claims\".\"domain_rating\" >= 0 AND \"dr_claims\".\"domain_rating\" <= 100)"
+        }
+      }
+    },
+    "dr_subscriptions": {
+      "name": "dr_subscriptions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stripe_customer_id": {
+          "name": "stripe_customer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "stripe_subscription_id": {
+          "name": "stripe_subscription_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stripe_price_id": {
+          "name": "stripe_price_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "billing_interval": {
+          "name": "billing_interval",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "domains_limit": {
+          "name": "domains_limit",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "current_period_end": {
+          "name": "current_period_end",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cancel_at_period_end": {
+          "name": "cancel_at_period_end",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        }
+      },
+      "indexes": {
+        "dr_subscriptions_stripe_subscription_id_uq": {
+          "name": "dr_subscriptions_stripe_subscription_id_uq",
+          "columns": [
+            "stripe_subscription_id"
+          ],
+          "isUnique": true
+        },
+        "dr_subscriptions_email_idx": {
+          "name": "dr_subscriptions_email_idx",
+          "columns": [
+            "email"
+          ],
+          "isUnique": false
+        },
+        "dr_subscriptions_customer_idx": {
+          "name": "dr_subscriptions_customer_idx",
+          "columns": [
+            "stripe_customer_id"
+          ],
+          "isUnique": false
+        },
+        "dr_subscriptions_email_updated_idx": {
+          "name": "dr_subscriptions_email_updated_idx",
+          "columns": [
+            "email",
+            "\"updated_at\" desc"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "dr_subscriptions_domains_limit_min": {
+          "name": "dr_subscriptions_domains_limit_min",
+          "value": "\"dr_subscriptions\".\"domains_limit\" IS NULL OR \"dr_subscriptions\".\"domains_limit\" >= 0"
+        },
+        "dr_subscriptions_cancel_at_period_end_bool": {
+          "name": "dr_subscriptions_cancel_at_period_end_bool",
+          "value": "\"dr_subscriptions\".\"cancel_at_period_end\" IS NULL OR \"dr_subscriptions\".\"cancel_at_period_end\" IN (0, 1)"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {
+      "dr_billing_audit_created_idx": {
+        "columns": {
+          "\"created_at\" desc": {
+            "isExpression": true
+          }
+        }
+      },
+      "dr_checks_domain_checked_at_idx": {
+        "columns": {
+          "\"checked_at\" desc": {
+            "isExpression": true
+          }
+        }
+      },
+      "dr_checks_checked_at_idx": {
+        "columns": {
+          "\"checked_at\" desc": {
+            "isExpression": true
+          }
+        }
+      },
+      "dr_claims_updated_idx": {
+        "columns": {
+          "\"updated_at\" desc": {
+            "isExpression": true
+          }
+        }
+      },
+      "dr_claims_domain_rating_updated_idx": {
+        "columns": {
+          "\"domain_rating\" desc": {
+            "isExpression": true
+          },
+          "\"updated_at\" desc": {
+            "isExpression": true
+          }
+        }
+      },
+      "dr_subscriptions_email_updated_idx": {
+        "columns": {
+          "\"updated_at\" desc": {
+            "isExpression": true
+          }
+        }
+      }
+    }
+  }
+}

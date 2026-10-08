@@ -33,7 +33,8 @@
       "binding": "DB",
       "database_name": "serp-dr-local",
       "database_id": "00000000-0000-0000-0000-000000000000",
-      "migrations_dir": "migrations"
+      "migrations_dir": "drizzle",
+      "migrations_table": "d1_migrations"
     }
   ],
   "durable_objects": {
@@ -92,7 +93,8 @@
           "binding": "DB",
           "database_name": "serp-dr-preview",
           "database_id": "e461f27e-6d8f-4bd3-9216-537e9642bad5",
-          "migrations_dir": "migrations"
+          "migrations_dir": "drizzle",
+          "migrations_table": "d1_migrations"
         }
       ],
       "durable_objects": {
@@ -146,7 +148,8 @@
           "binding": "DB",
           "database_name": "serp-dr-prod",
           "database_id": "0a6e5e69-60e4-4145-a84a-3f8c9177ad0c",
-          "migrations_dir": "migrations"
+          "migrations_dir": "drizzle",
+          "migrations_table": "d1_migrations"
         }
       ],
       "durable_objects": {

@@ -5,7 +5,9 @@ const requiredFiles = [
   'open-next.config.ts',
   'worker.ts',
   'wrangler.jsonc',
-  'migrations/0001_initial_d1_schema.sql',
+  'drizzle/0001_initial_d1_schema.sql',
+  'drizzle/meta/_journal.json',
+  'src/db/schema.ts',
   'src/server/rate-limit-do.mjs',
   'src/server/db-d1.test.ts',
   'src/server/rate-limit.test.ts',
@@ -214,7 +216,7 @@ try {
     })
   }
 
-  const schema = await readFile('migrations/0001_initial_d1_schema.sql', 'utf8')
+  const schema = await readFile('drizzle/0001_initial_d1_schema.sql', 'utf8')
   for (const table of ['dr_claims', 'dr_checks', 'dr_subscriptions', 'dr_billing_audit']) {
     if (!schema.includes(`CREATE TABLE IF NOT EXISTS ${table}`)) {
       findings.push({ severity: 'error', area: 'schema', message: `Missing D1 table ${table}` })
