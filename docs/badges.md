@@ -1,115 +1,50 @@
 # Badges
 
-This app supports two badge delivery paths: dynamic badges rendered by the app, and static badges hosted on R2.
+A badge is an SVG that shows a domain's DR, embedded on other people's sites with a link back to
+the domain's page here. Because the badge URL is pasted into third-party HTML, its path and query
+parameters are a public contract: changing them breaks live embeds.
 
-## Dynamic Badges (Recommended)
+## The badge route
 
-Dynamic badges are rendered by the app route and replace the `__DR__` placeholder at request time.
+`GET /badge/<domain>` (`src/app/badge/[target]/route.ts`) renders the badge from an inline SVG
+template in `badge-templates.ts`.
 
-- **Route:** `GET /badge/:domain`
-- **Code:** [src/app/badge/[target]/route.ts](../src/app/badge/[target]/route.ts)
-- **Templates:** `svgs/badges/verified-dr.svg`, `svgs/badges/serp-dr-v2.svg`
-- **Style selection:** `?style=serp-dr-v3` (default), `?style=verified`, `?style=badge1` (alias), `?style=serp-dr-v2`
-- **Optional override:** `?dr=NN` to force a number (useful for previews)
+- **Styles:** `?style=serp-dr-v3` (the default) and `?style=serp-dr-v2`. `verified` and `badge1`
+  are aliases of `serp-dr-v3`, kept because existing embeds use them. An unknown style falls back
+  to the default.
+- **The number** is the stored DR from `dr_claims`, or else the latest row in `dr_checks`. The
+  route never calls Ahrefs, so a badge can't spend API units ([DR lookups](dr-lookups.md)).
+- **No DR yet** renders `?`, as does a database error.
+- **`?dr=NN`** forces a number (clamped to 0–100) for previews, with no lookup.
+- **Caching:** a badge with a known DR, or `?`, is sent with `Cache-Control: public`. Previews and
+  errors are `no-store`.
+- An invalid domain returns 400.
 
-Example:
+The `serp-dr-v3` template asks for the Inter font from Google Fonts, but an SVG shown through
+`<img>` can't load external fonts, so browsers fall back to the template's other font families.
 
-```
-https://dr.serp.co/badge/example.com?style=serp-dr-v2
-```
+## The embed code
 
-### How Other Projects Should Embed a Specific Design
-
-Use the `style` query param on the `/badge/:domain` route. This is the recommended way for other projects to reference a specific badge design.
-
-HTML example (serp-dr-v2):
+`/sites/<domain>` shows the embed code (`src/components/badges/badge-embed.tsx`). The snippet links
+to `DR_PUBLIC_BASE_URL/sites/<domain>` and loads the image from
+`DR_BADGE_BASE_URL/badge/<domain>?style=serp-dr-v3`. `DR_BADGE_BASE_URL` falls back to
+`DR_PUBLIC_BASE_URL`, then to `https://dr.serp.co`; each environment in `wrangler.jsonc` sets both
+to its own origin. The page shows the live badge from that URL, as a button that copies the code.
 
 ```html
-<a href="https://dr.serp.co/sites/example.com" target="_blank" rel="noopener noreferrer">
-  <img
-    src="https://dr.serp.co/badge/example.com?style=serp-dr-v2"
-    alt="Verified DR 24 for example.com"
-    width="200"
-    height="50"
-  />
-</a>
+<a href="https://dr.serp.co/sites/example.com" target="_blank" rel="noopener noreferrer"><img
+  src="https://dr.serp.co/badge/example.com?style=serp-dr-v3" alt="Verified DR 24 for example.com"
+  width="200" height="50"></a>
 ```
 
-Other styles:
+## Static badges on R2
 
-- Serp DR v3 (default): `https://dr.serp.co/badge/example.com`
-- Verified (explicit): `https://dr.serp.co/badge/example.com?style=verified`
-- Verified (alias): `https://dr.serp.co/badge/example.com?style=badge1`
+Older embeds load fixed SVGs from R2, such as `https://embeds.serp.co/serp-dr-small.svg`. They
+are served by a separate Worker, `badge-api`, from the `serp-embeds` bucket, not by this site, and
+any number in them was fixed at upload. They don't support `style` or a live DR.
 
-Preview override (no domain lookup):
-
-```
-https://dr.serp.co/badge/example.com?style=serp-dr-v2&dr=24
-```
-
-## Static Badges (R2)
-
-R2 hosts static SVGs (e.g. `https://embeds.serp.co/serp-dr-small.svg`). These files are **not** dynamically updated.
-If the SVG contains a number, that number is fixed in the file at upload time.
-
-Production mapping:
-
-- Worker: `badge-api`
-- Worker binding: `BADGE_STORAGE` -> bucket `serp-embeds`
-- Static key currently used: `serp-dr-small.svg`
-
-To use static badges, set:
-
-```env
-DR_BADGE_BASE_URL=https://embeds.serp.co
-```
-
-If another project needs static R2 assets, it must use the exact R2 file URL. Those files are fixed and do not
-support `style` or dynamic `__DR__` replacement.
-
-### Safely Replacing Static R2 Badge Files
-
-Use the built-in script to replace existing keys without breaking current embeds:
-
-```bash
-# 1) Dry-run (recommended first)
-pnpm r2:replace-badges -- --bucket <your-r2-bucket>
-
-# 2) Apply for real (backs up old objects first, then overwrites keys)
-pnpm r2:replace-badges -- --bucket <your-r2-bucket> --apply
-```
-
-Current production bucket:
-
-```bash
-pnpm r2:replace-badges -- --bucket serp-embeds --apply
-```
-
-Defaults:
-
-- Replacement map: `scripts/r2-badge-replacements.json`
-- Current key mapping: `serp-dr-small.svg` -> `svgs/badges/verified-dr.svg`
-- Backup prefix: `_backup/badges/<timestamp>/...` in the same bucket
-- Local backup files: `tmp/r2-badge-backups/<timestamp>/...`
-
-The script prints rollback commands after each run.
-
-## Site Page Embed Behavior
-
-On `/sites/:domain`, the badge preview is a custom HTML button rendered by [src/components/badges/badge-embed.tsx](../src/components/badges/badge-embed.tsx)
-(not the actual SVG). The embed code uses the `badgeUrl` built in [src/app/sites/[target]/page.tsx](../src/app/sites/[target]/page.tsx):
-
-- `DR_PUBLIC_BASE_URL` sets the public base used to build the `/sites/:domain` link target
-- `DR_BADGE_BASE_URL` sets the `<img src>` used by the embed code
-
-If you want the embed code to use dynamic badges, point `DR_BADGE_BASE_URL` at `DR_PUBLIC_BASE_URL`
-and keep the generated `?style=serp-dr-v3` badge URL.
-
-## Available Styles
-
-| Style | URL |
-|-------|-----|
-| Serp DR v3 (default) | `https://dr.serp.co/badge/example.com` |
-| Serp DR v3 (explicit) | `https://dr.serp.co/badge/example.com?style=serp-dr-v3` |
-| Verified (explicit) | `https://dr.serp.co/badge/example.com?style=verified` |
-| Badge1 (alias) | `https://dr.serp.co/badge/example.com?style=badge1` |
+`npm run r2:replace-badges -- --bucket serp-embeds` replaces those files from `svgs/badges/`,
+following the map in `scripts/r2-badge-replacements.json`. Without `--apply` it only reports what
+it would do. With `--apply` it first backs up each object under `_backup/badges/<timestamp>/` in
+the bucket and to `tmp/r2-badge-backups/`, then prints the commands to roll back. It writes to a
+production bucket, so only the owner runs it with `--apply`.

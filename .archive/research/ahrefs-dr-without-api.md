@@ -1,5 +1,7 @@
 # How to Get Ahrefs DR Without API
 
+Archived 2026-10: no caller reaches these scrapers any more (see docs/dr-lookups.md).
+
 Research notes on public DR checker services that can be scraped for Domain Rating data.
 
 ## RhinoRank
@@ -23,4 +25,4 @@ Research notes on public DR checker services that can be scraped for Domain Rati
 
 ## Implementation
 
-The actual scraping implementation is in [src/server/dr-providers.mjs](../../src/server/dr-providers.mjs).
+The actual scraping implementation is in `src/server/dr-providers.mjs`.
