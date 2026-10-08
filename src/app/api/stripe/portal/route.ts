@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { getPublicBaseUrl } from "@/lib/public-url"
 import { getStripe } from "@/lib/stripe"
 import { getSessionEmail } from "@/server/auth-session.mjs"
 import { getLatestSubscriptionByEmail } from "@/server/db.mjs"
@@ -34,9 +35,7 @@ export async function POST(request: Request) {
 
   try {
     const stripe = getStripe()
-    const origin = request.headers.get("origin")
-    const baseUrl =
-      origin ?? process.env.DR_PUBLIC_BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
+    const baseUrl = getPublicBaseUrl()
     const returnUrl = process.env.STRIPE_PORTAL_RETURN_URL || `${baseUrl}/billing`
 
     const session = await stripe.billingPortal.sessions.create({

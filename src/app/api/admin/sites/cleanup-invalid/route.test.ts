@@ -39,6 +39,20 @@ describe("POST /api/admin/sites/cleanup-invalid", () => {
     expect(purgeInvalidSiteDomains).not.toHaveBeenCalled()
   })
 
+  it("refuses the admin token in the query string", async () => {
+    const { POST } = await import("./route")
+    const request = new Request("http://localhost/api/admin/sites/cleanup-invalid?token=admin-secret", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(401)
+    expect(purgeInvalidSiteDomains).not.toHaveBeenCalled()
+  })
+
   it("runs a dry-run cleanup by default", async () => {
     purgeInvalidSiteDomains.mockResolvedValue({
       claimCount: 3,

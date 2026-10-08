@@ -64,8 +64,7 @@ An admin allowlist in D1 replaces them in #54.
 
 ## Admin access
 
-Admin endpoints under `/api/admin/` compare a token with `DR_ADMIN_TOKEN`; there is no admin UI
-yet. [Billing](billing.md) and [DR lookups](dr-lookups.md) list what each endpoint does.
-Accepting the token only in the `x-admin-token` header, with a constant-time comparison, is
-[#46](https://github.com/serpcompany/dr.serp.co/issues/46); admin accounts and an `/admin`
-dashboard are #54.
+Admin endpoints under `/api/admin/` accept a token only in the `x-admin-token` header, never the
+query string, and compare it with `DR_ADMIN_TOKEN` in constant time (`src/server/admin-auth.mjs`).
+There is no admin UI yet. [Billing](billing.md) and [DR lookups](dr-lookups.md) list what each
+endpoint does; admin accounts and an `/admin` dashboard are #54.

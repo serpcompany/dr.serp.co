@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { readRequestJsonRecord } from "@/lib/read-json"
 import { countSites, listSites, setClaimSiteMetadata } from "@/server/db.mjs"
 import { resolveSitePresentation } from "@/server/site-presentation.mjs"
+import { checkAdminToken } from "@/server/admin-auth.mjs"
 
 export const runtime = "nodejs"
 
@@ -34,20 +35,9 @@ function hasPresentationMetadata(site: SiteRow) {
   return Boolean(site.site_title || site.meta_description || site.site_url || site.screenshot_url)
 }
 
-function adminTokenFrom(request: Request) {
-  const url = new URL(request.url)
-  return request.headers.get("x-admin-token") || url.searchParams.get("token") || ""
-}
-
 export async function POST(request: Request) {
-  const adminToken = process.env.DR_ADMIN_TOKEN
-  if (!adminToken) {
-    return NextResponse.json({ error: "Admin token not configured." }, { status: 500 })
-  }
-
-  if (adminTokenFrom(request) !== adminToken) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 })
-  }
+  const denied = checkAdminToken(request)
+  if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status })
 
   const body = await readRequestJsonRecord(request)
   const dryRun = body?.dryRun !== false
