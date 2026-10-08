@@ -117,12 +117,14 @@ export async function GET(request: Request, context: { params: Promise<{ target:
       },
     })
   } catch (error) {
+    // Errors can name internal details, and badges are embedded on third-party sites, so log
+    // them on the server and render the unknown badge.
+    console.error("badge: lookup failed", { error: error instanceof Error ? error.message : error })
     const svg = renderBadgeSvg(templateKey, UNKNOWN_DR_VALUE)
     return new Response(svg, {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",
         "Cache-Control": "no-store",
-        "X-DR-Error": error instanceof Error ? error.message : "Unknown error",
       },
     })
   }

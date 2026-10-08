@@ -322,6 +322,32 @@ describe("POST /api/recheck", () => {
     })
   })
 
+  it("returns a fixed history warning and logs the provider's message when the import fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    vi.stubEnv("AHREFS_API_KEY", "test-key")
+    getClaim.mockResolvedValue({ domain: "example.com", email: "owner@example.com", domain_rating: 70 })
+    fetchDomainRating.mockResolvedValue({ target: "example.com", provider: "ahrefs", domainRating: 72 })
+    upsertClaim.mockResolvedValue({ updated_at: "2026-05-28T12:00:00.000Z" })
+    const providerError = new Error("Set AHREFS_API_KEY to enable Ahrefs API")
+    fetchDomainRatingHistory.mockRejectedValue(providerError)
+
+    const { POST } = await import("./route")
+    const request = new Request("http://localhost/api/recheck", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain: "example.com" }),
+    })
+
+    const response = await POST(request)
+    const payload = await response.json()
+    vi.unstubAllEnvs()
+
+    expect(response.status).toBe(200)
+    expect(payload.historyWarning).toBe("History temporarily unavailable")
+    expect(JSON.stringify(payload)).not.toContain("AHREFS_API_KEY")
+    expect(consoleError).toHaveBeenCalledWith("recheck: DR history import failed", providerError)
+  })
+
   it("skips the paid Ahrefs history import when rechecking an unclaimed domain", async () => {
     getClaim.mockResolvedValue({ domain: "example.com", domain_rating: 70 })
     fetchDomainRating.mockResolvedValue({
