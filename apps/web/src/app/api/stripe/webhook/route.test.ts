@@ -17,7 +17,7 @@ const insertBillingAudit = vi.fn()
 const retrieveSubscription = vi.fn()
 const retrieveCustomer = vi.fn()
 
-vi.mock('@/server/db.mjs', () => ({
+vi.mock('@/db', () => ({
   getLatestBillingAuditEvent: vi.fn(),
   getLatestBillingAuditFailure: vi.fn(),
   insertBillingAudit,

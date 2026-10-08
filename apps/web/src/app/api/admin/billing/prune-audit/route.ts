@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
+import { countPrunableBillingAudit, pruneBillingAudit } from '@/db'
 import { checkAdminToken } from '@/server/admin-auth.mjs'
-import { countPrunableBillingAudit, pruneBillingAudit } from '@/server/db.mjs'
 import { readWriteRequest } from '@/server/write-route'
 import { PruneAuditBody } from '@/server/write-schemas'
 

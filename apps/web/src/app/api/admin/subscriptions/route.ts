@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
+import { countClaimsByEmail, listSubscriptions } from '@/db'
 import { checkAdminToken } from '@/server/admin-auth.mjs'
-import { countClaimsByEmail, listSubscriptions } from '@/server/db.mjs'
 
 export const runtime = 'nodejs'
 

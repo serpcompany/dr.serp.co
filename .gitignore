@@ -41,7 +41,6 @@ pids
 .spark-initial-sha
 spark.meta.json
 
-.cache
 .env*.local
 *.env
 .env*

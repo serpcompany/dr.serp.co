@@ -12,7 +12,7 @@ vi.mock('@/server/dr-providers.mjs', () => ({
   normalizeTarget
 }))
 
-vi.mock('@/server/db.mjs', () => ({
+vi.mock('@/db', () => ({
   getClaim,
   getDrChecks,
   recordDrCheck,

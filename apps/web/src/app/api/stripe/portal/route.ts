@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
+import { getLatestSubscriptionByEmail } from '@/db'
 import { readNumberEnv } from '@/lib/env'
 import { getPublicBaseUrl } from '@/lib/public-url'
 import { getStripe } from '@/lib/stripe'
 import { getSessionEmail } from '@/server/auth-session.mjs'
-import { getLatestSubscriptionByEmail } from '@/server/db.mjs'
 import {
   checkRateLimit,
   getRateLimitKey,

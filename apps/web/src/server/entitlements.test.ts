@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   countClaimsByEmail: vi.fn()
 }))
 
-vi.mock('@/server/db.mjs', () => ({
+vi.mock('@/db', () => ({
   getLatestSubscriptionByEmail: mocks.getLatestSubscriptionByEmail,
   countClaimsByEmail: mocks.countClaimsByEmail
 }))

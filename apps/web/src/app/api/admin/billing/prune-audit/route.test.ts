@@ -5,7 +5,7 @@ import { readJsonRecord } from '@/lib/read-json'
 const countPrunableBillingAudit = vi.fn()
 const pruneBillingAudit = vi.fn()
 
-vi.mock('@/server/db.mjs', () => ({
+vi.mock('@/db', () => ({
   countPrunableBillingAudit,
   pruneBillingAudit
 }))

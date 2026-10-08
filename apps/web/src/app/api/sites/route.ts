@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { countSites, listSites } from '@/server/db.mjs'
+import { countSites, listSites } from '@/db'
 
 export const runtime = 'nodejs'
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
+import { countSites, listSites, setClaimSiteMetadata } from '@/db'
 import { checkAdminToken } from '@/server/admin-auth.mjs'
-import { countSites, listSites, setClaimSiteMetadata } from '@/server/db.mjs'
 import { resolveSitePresentation } from '@/server/site-presentation.mjs'
 import { readWriteRequest } from '@/server/write-route'
 import { BackfillBody } from '@/server/write-schemas'

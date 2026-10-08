@@ -1,5 +1,5 @@
+import { countClaimsByEmail, getLatestSubscriptionByEmail } from '@/db'
 import { getTierForPriceId } from '@/lib/stripe-pricing'
-import { countClaimsByEmail, getLatestSubscriptionByEmail } from '@/server/db.mjs'
 import { LIVE_SUBSCRIPTION_STATUSES } from '@/server/subscription-status.mjs'
 
 const INTERNAL_PRO_EMAILS = new Set(['devin@serp.co', 'otp@2faslingshot.com'])
@@ -86,9 +86,8 @@ export async function resolveEntitlement({ email, now = new Date() }) {
     ? resolveAccessStatus(subscription?.status ?? null, currentPeriodEnd, now)
     : resolveAccessStatus(null, null, now)
 
-  const domainsLimitRaw = Number.isFinite(Number(subscription?.domains_limit))
-    ? Number(subscription.domains_limit)
-    : (tier?.domains ?? 0)
+  const storedLimit = Number(subscription?.domains_limit)
+  const domainsLimitRaw = Number.isFinite(storedLimit) ? storedLimit : (tier?.domains ?? 0)
   const domainsLimit = Math.max(0, domainsLimitRaw || 0)
 
   const billingInterval = subscription?.billing_interval ?? tier?.billing ?? null
@@ -100,7 +99,7 @@ export async function resolveEntitlement({ email, now = new Date() }) {
   const hasLivePlan = Boolean(
     tier &&
       subscription?.stripe_subscription_id &&
-      LIVE_SUBSCRIPTION_STATUSES.has(subscription.status)
+      LIVE_SUBSCRIPTION_STATUSES.has(subscription.status ?? '')
   )
 
   return {

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-
+import { clearClaimEmail, getClaim, setClaimEmail } from '@/db'
 import { getSessionEmail } from '@/server/auth-session.mjs'
-import { clearClaimEmail, getClaim, setClaimEmail } from '@/server/db.mjs'
 import { normalizeTarget } from '@/server/dr-providers.mjs'
 import { resolveEntitlement } from '@/server/entitlements.mjs'
 import { readWriteRequest } from '@/server/write-route'

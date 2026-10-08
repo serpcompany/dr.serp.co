@@ -4,7 +4,7 @@ import { readJsonRecord } from '@/lib/read-json'
 
 const purgeInvalidSiteDomains = vi.fn()
 
-vi.mock('@/server/db.mjs', () => ({
+vi.mock('@/db', () => ({
   purgeInvalidSiteDomains
 }))
 

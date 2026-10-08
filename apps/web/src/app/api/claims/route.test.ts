@@ -7,7 +7,7 @@ const setClaimEmail = vi.fn()
 const clearClaimEmail = vi.fn()
 const resolveEntitlement = vi.fn()
 
-vi.mock('@/server/db.mjs', () => ({
+vi.mock('@/db', () => ({
   getClaim,
   setClaimEmail,
   clearClaimEmail

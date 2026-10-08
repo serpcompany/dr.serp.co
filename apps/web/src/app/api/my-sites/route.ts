@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-
+import { countClaimsByEmail, listClaimsByEmail } from '@/db'
 import { getSessionEmail } from '@/server/auth-session.mjs'
-import { countClaimsByEmail, listClaimsByEmail } from '@/server/db.mjs'
 import { resolveEntitlement } from '@/server/entitlements.mjs'
 import { readWriteRequest } from '@/server/write-route'
 import { MySitesBody } from '@/server/write-schemas'

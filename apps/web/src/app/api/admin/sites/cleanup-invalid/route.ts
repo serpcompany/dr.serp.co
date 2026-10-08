@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
+import { purgeInvalidSiteDomains } from '@/db'
 import { checkAdminToken } from '@/server/admin-auth.mjs'
-import { purgeInvalidSiteDomains } from '@/server/db.mjs'
 import { readWriteRequest } from '@/server/write-route'
 import { CleanupBody } from '@/server/write-schemas'
 

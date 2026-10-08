@@ -1,10 +1,10 @@
-// Runs db.mjs against D1 on workerd (SQLite semantics, instr(), window functions, byte lengths),
-// through the same Cloudflare context the site reads. Local workerd doesn't enforce D1's 50-byte
+// Runs the site's data layer (@/db) against D1 on workerd (SQLite semantics, instr(), window
+// functions, byte lengths), through the same Cloudflare context the site reads. Local workerd doesn't enforce D1's 50-byte
 // LIKE limit; sql-patterns.test.ts guards that in the source. The database comes from
 // src/db/local-d1.ts: every migration applied by Wrangler, in a temporary directory.
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { openMigratedLocalD1 } from '@/db/local-d1'
+import { openMigratedLocalD1 } from './local-d1'
 
 const binding = vi.hoisted(() => ({ db: null as unknown }))
 
@@ -58,7 +58,7 @@ describe('site search on workerd D1', () => {
   it('finds a matching row for a 200-character search', async () => {
     await insertClaim(longDomain, { email: 'owner@example.com' })
     await insertClaim('example.com', { email: 'owner@example.com' })
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
     // Capped at 100 characters, the query is the first 100 characters of the domain.
     const query = `${longDomain}${'b'.repeat(200)}`.slice(0, 200)
 
@@ -77,7 +77,7 @@ describe('site search on workerd D1', () => {
     const cjk = '例'.repeat(20)
     await insertClaim(`${cjk}.jp`, { email: 'owner@example.com' })
     await insertClaim('example.com', { email: 'owner@example.com' })
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
 
     expect(await db.listClaims({ query: cjk })).toEqual([
       expect.objectContaining({ domain: `${cjk}.jp` })
@@ -91,7 +91,7 @@ describe('site search on workerd D1', () => {
 
   it('folds ASCII case and collapses whitespace', async () => {
     await insertClaim('example.com')
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
 
     expect(await db.listSites({ query: '  EXAMPLE  ' })).toEqual([
       expect.objectContaining({ domain: 'example.com' })
@@ -103,7 +103,7 @@ describe('site search on workerd D1', () => {
     await insertClaim('phpinfo.php', { rating: 80 })
     await insertClaim('example.com', { rating: 70 })
     await insertClaim('example.org', { rating: 60 })
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
 
     expect((await db.listSites({ limit: 1 })).map((row: { domain: string }) => row.domain)).toEqual(
       ['example.com']
@@ -123,7 +123,7 @@ describe('site search on workerd D1', () => {
     await d1.batch(spam)
     await insertClaim('example.com', { rating: 70 })
     await insertClaim('example.org', { rating: 60 })
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
 
     expect((await db.listSites({ limit: 1 })).map((row: { domain: string }) => row.domain)).toEqual(
       ['example.com']
@@ -137,7 +137,7 @@ describe('site search on workerd D1', () => {
 
   it('answers an empty page for an offset past the cap, never the capped page', async () => {
     await insertClaim('example.com', { email: 'owner@example.com' })
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
 
     // 100,000 is the last offset served. Past it the page is empty without a query, rather than
     // the page at 100,000.
@@ -180,7 +180,7 @@ describe('sitemap sites on workerd D1', () => {
       )
       .bind('checked-only.org', 40, 'ahrefs', '2026-09-01T00:00:00.000Z')
       .run()
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
 
     await insertClaim('claimed-only.net', { rating: 30 })
 
@@ -195,7 +195,7 @@ describe('sitemap sites on workerd D1', () => {
 
 describe('sites and checks on workerd D1', () => {
   it('filters invalid site domains before pagination and count', async () => {
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
 
     await db.recordDrCheck({
       domain: 'phpinfo.php',
@@ -223,7 +223,7 @@ describe('sites and checks on workerd D1', () => {
   })
 
   it('hides spam sites from listings and purges them only while unclaimed', async () => {
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
 
     await db.recordDrCheck({
       domain: 'legit.com',
@@ -272,7 +272,7 @@ describe('sites and checks on workerd D1', () => {
   })
 
   it('replaces duplicate historical checks for null and non-null providers', async () => {
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
     const domain = 'history.example.com'
 
     await db.recordDrHistoryChecks({
@@ -310,7 +310,7 @@ describe('sites and checks on workerd D1', () => {
 
 describe('claims, subscriptions and billing audit on workerd D1', () => {
   it('upserts and reads claims through the DB binding', async () => {
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
 
     const first = await db.upsertClaim({
       domain: 'example.com',
@@ -344,7 +344,7 @@ describe('claims, subscriptions and billing audit on workerd D1', () => {
   })
 
   it('upserts subscriptions and normalizes D1 boolean fields on active/latest reads', async () => {
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
 
     const upserted = await db.upsertSubscription({
       email: 'Billing@Example.com',
@@ -376,7 +376,7 @@ describe('claims, subscriptions and billing audit on workerd D1', () => {
   })
 
   it('upserts duplicate billing audit events by stripe_event_id and normalizes booleans', async () => {
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
 
     await db.insertBillingAudit({
       stripeEventId: 'evt_123',
@@ -413,7 +413,7 @@ describe('claims, subscriptions and billing audit on workerd D1', () => {
   })
 
   it('returns the removed count when pruning billing audit rows', async () => {
-    const db = await import('./db.mjs')
+    const db = await import('@/db')
 
     await db.insertBillingAudit({
       stripeEventId: 'evt_old',
@@ -436,8 +436,61 @@ describe('claims, subscriptions and billing audit on workerd D1', () => {
 
     const result = await db.pruneBillingAudit({ olderThanDays: 30 })
     expect(result.removed).toBe(1)
-    expect(
-      (await db.listBillingAudit()).map((row: { stripe_event_id: string }) => row.stripe_event_id)
-    ).toEqual(['evt_new'])
+    expect((await db.listBillingAudit()).map(row => row.stripe_event_id)).toEqual(['evt_new'])
+  })
+})
+
+// Moved from db-sites.test.ts, which ran on the in-memory fallback store #108 removed.
+describe('site metadata and history on workerd D1', () => {
+  it('keeps junk rows out of listSites and countSites', async () => {
+    const db = await import('@/db')
+    await db.touchDomain('valid.com')
+    await db.touchDomain('phpinfo.php')
+
+    const rows = await db.listSites({ limit: 100, offset: 0, sort: 'updated' })
+
+    expect(rows.map(row => row.domain)).toEqual(['valid.com'])
+    expect(await db.countSites()).toBe(1)
+  })
+
+  it('stores and returns resolved site presentation metadata', async () => {
+    const db = await import('@/db')
+    await db.touchDomain('meta.com')
+    await db.setClaimSiteMetadata({
+      domain: 'meta.com',
+      siteTitle: 'Meta Example',
+      metaDescription: 'Example description',
+      siteUrl: 'https://meta.com/about',
+      screenshotUrl: 'https://cdn.example.com/meta.com.png'
+    })
+
+    const expected = {
+      site_title: 'Meta Example',
+      meta_description: 'Example description',
+      site_url: 'https://meta.com/about',
+      screenshot_url: 'https://cdn.example.com/meta.com.png'
+    }
+    expect(await db.getClaim('meta.com')).toMatchObject(expected)
+    expect((await db.listSites({ limit: 100, sort: 'updated' }))[0]).toMatchObject(expected)
+  })
+
+  it('replaces exact duplicate historical check points', async () => {
+    const db = await import('@/db')
+    await db.recordDrHistoryChecks({
+      domain: 'history.com',
+      points: [
+        { checkedAt: '2026-04-01', domainRating: 42.9 },
+        { checkedAt: '2026-05-01', domainRating: 43 }
+      ]
+    })
+    await db.recordDrHistoryChecks({
+      domain: 'history.com',
+      points: [{ checkedAt: '2026-04-01', domainRating: 44.2 }]
+    })
+
+    expect(await db.getDrChecks('history.com', { limit: 10 })).toEqual([
+      { domain_rating: 44, provider: 'ahrefs-history', checked_at: '2026-04-01T00:00:00.000Z' },
+      { domain_rating: 43, provider: 'ahrefs-history', checked_at: '2026-05-01T00:00:00.000Z' }
+    ])
   })
 })

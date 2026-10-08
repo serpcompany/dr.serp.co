@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { countSites, listSites } from '@/server/db.mjs'
+import { countSites, listSites } from '@/db'
 import { SitesDataTable } from './sites-data-table'
 import { SitesSearch } from './sites-search'
 

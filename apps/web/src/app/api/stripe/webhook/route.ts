@@ -1,15 +1,15 @@
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type Stripe from 'stripe'
-import { readNumberEnv } from '@/lib/env'
-import { getStripe } from '@/lib/stripe'
-import { getTierForPriceId } from '@/lib/stripe-pricing'
 import {
   getLatestBillingAuditEvent,
   getLatestBillingAuditFailure,
   insertBillingAudit,
   upsertSubscription
-} from '@/server/db.mjs'
+} from '@/db'
+import { readNumberEnv } from '@/lib/env'
+import { getStripe } from '@/lib/stripe'
+import { getTierForPriceId } from '@/lib/stripe-pricing'
 import {
   checkRateLimit,
   getRateLimitKey,

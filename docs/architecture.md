@@ -85,12 +85,13 @@ by the migrations in `drizzle/`:
 - `dr_subscriptions` and `dr_billing_audit`: Stripe state and the webhook log
   ([Billing](billing.md)).
 
-`src/server/db.mjs` reads the binding through `getCloudflareContext()` on each call and passes a
-Drizzle client to the queries in `src/db`. Without a Cloudflare context outside production, which
-is `next dev`, it uses an in-memory store saved to `.cache/dr-fallback.json`, so `next dev` never
-touches D1. `pnpm preview` runs against local D1 in `.wrangler/`. In production, a missing binding
-throws. Replacing the fallback with local D1 is
-[#108](https://github.com/serpcompany/dr.serp.co/issues/108).
+Callers import queries from `@/db` (`src/db/index.ts`), which binds each one to the request's
+`env.DB` through `getCloudflareContext()`. Every environment runs on D1: `next dev` gets
+`wrangler.jsonc`'s local bindings from `initOpenNextCloudflareForDev()` in `next.config.ts`, and
+`pnpm preview` runs in workerd; both use the local database in `.wrangler/`. Prepare it with
+`pnpm db:migrate:local` and load fixtures with `pnpm db:seed:local` (`seed/local.sql`).
+Under `next dev` the rate limiter counts in memory, because the local bindings can't run its
+Durable Object.
 
 Site search matches the domain with `instr()`, never `LIKE`, because D1 refuses a `LIKE` pattern
 over 50 bytes ([D1 limits](https://github.com/serpcompany/serp/blob/main/docs/engineering/technology/cloudflare-d1-limits.md)).

@@ -9,7 +9,7 @@ const requiredFiles = [
   'drizzle/meta/_journal.json',
   'src/db/schema.ts',
   'src/server/rate-limit-do.mjs',
-  'src/server/db-workerd.test.ts',
+  'src/db/index.test.ts',
   'src/server/rate-limit.test.ts',
   'scripts/generate-route-manifest.mjs',
   'scripts/compare-route-parity.mjs',
