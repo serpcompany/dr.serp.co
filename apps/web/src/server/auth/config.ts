@@ -155,7 +155,9 @@ async function withCappedBody(request: Request, maxBytes: number): Promise<Reque
     body.set(chunk, offset)
     offset += chunk.byteLength
   }
-  return new Request(request, { body })
+  // Rebuilt from its parts: under OpenNext the incoming request isn't one workerd's Request
+  // constructor takes as input (it throws "Invalid URL: [object Request]").
+  return new Request(request.url, { method: request.method, headers: request.headers, body })
 }
 
 function notFound(): Response {

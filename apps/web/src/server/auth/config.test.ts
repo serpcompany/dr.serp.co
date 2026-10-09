@@ -312,6 +312,23 @@ describe('Better Auth on D1', () => {
     expect(sent).toHaveLength(0)
   })
 
+  it("takes a request from another fetch implementation, as OpenNext's route handlers pass", async () => {
+    const real = new Request(`${ORIGIN}/api/auth${SEND_OTP_PATH}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Origin: ORIGIN,
+        'cf-connecting-ip': nextClient()
+      },
+      body: JSON.stringify({ email: 'foreign@example.com', type: 'sign-in' })
+    })
+    // Not a Request to this runtime: only its parts can be read.
+    const foreign = { url: real.url, method: real.method, headers: real.headers, body: real.body }
+    const response = await auth.handler(foreign as Request)
+    expect(response.status).toBe(200)
+    expect(sent.at(-1)?.email).toBe('foreign@example.com')
+  })
+
   it('limits code guesses per client, with 429 and Retry-After', async () => {
     const ip = nextClient()
     for (let guess = 0; guess < 10; guess++) {
