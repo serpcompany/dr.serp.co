@@ -30,14 +30,24 @@ export default async function AccountSites({
             : `${account.sites.length} of ${plan.domains} claimed on your plan. Open a site for its badge and history.`
         }
       />
+      {account.omitted ? (
+        <p className="px-4 text-sm text-muted-foreground lg:px-6">
+          Showing your {account.sites.length} highest-DR sites; {account.omitted} more aren't listed
+          here.
+        </p>
+      ) : null}
       <SitesTable
         data={account.sites}
         urls={badgeUrls()}
-        dofollow={plan.kind !== 'free'}
-        openSite={site}
+        dofollow={plan.paid}
         empty={<NoSites />}
       />
-      <AddSiteDialog open={add} canClaim={account.canClaim} limit={plan.domains} />
+      <AddSiteDialog
+        open={add}
+        canClaim={account.canClaim}
+        plan={plan.kind === 'past-due' ? 'past-due' : plan.paid ? 'paid' : 'none'}
+        limit={plan.domains}
+      />
     </>
   )
 }

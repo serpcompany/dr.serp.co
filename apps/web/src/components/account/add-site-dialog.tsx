@@ -46,15 +46,19 @@ function cleanDomain(value: string): string {
 /**
  * shadcn's responsive dialog (a Dialog on desktop, a Drawer on phones) for adding a site, built
  * to the #140 mockups: look the domain up, then claim it. `canClaim` is false when the plan has
- * no free slot or no plan is active; the server checks again on claim.
+ * no free slot or no plan is active; the server checks again on claim. The props follow the
+ * server after every refresh, and each opening starts empty.
  */
 export function AddSiteDialog({
   open,
   canClaim,
+  plan,
   limit
 }: {
   open: boolean
   canClaim: boolean
+  /** A plan whose paid features apply, one whose payment failed, or none. */
+  plan: 'paid' | 'past-due' | 'none'
   /** The plan's site limit, for the plan-full message. */
   limit: number | null
 }) {
@@ -64,12 +68,20 @@ export function AddSiteDialog({
   const [site, setSite] = useState<Lookup | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [full, setFull] = useState(!canClaim)
+  // A claim refused with 402 since this opening: the plan filled up elsewhere.
+  const [refused, setRefused] = useState(false)
+  const full = !canClaim || refused
+
+  function reset() {
+    setValue('')
+    setSite(null)
+    setError(null)
+    setRefused(false)
+  }
 
   function close(next: boolean) {
     if (next) return
-    setSite(null)
-    setError(null)
+    reset()
     router.replace('/account/sites')
   }
 
@@ -96,12 +108,13 @@ export function AddSiteDialog({
     setPending(false)
     if (result.ok) {
       toast.success(`Claimed ${site.domain}.`)
+      reset()
       router.replace(`/account/sites?site=${encodeURIComponent(site.domain)}`)
       router.refresh()
       return
     }
     if (result.kind === 'claimed-by-other') setSite({ ...site, owner: 'other' })
-    else if (result.kind === 'upgrade') setFull(true)
+    else if (result.kind === 'upgrade') setRefused(true)
     else setError(result.message)
   }
 
@@ -170,7 +183,7 @@ export function AddSiteDialog({
           <AlertCircleIcon />
           <AlertTitle>No DR for {site.domain} yet</AlertTitle>
           <AlertDescription>
-            {site.note ?? "Its DR couldn't be looked up right now."} Try again later.
+            {site.note ?? "Its DR couldn't be looked up right now. Try again later."}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -178,12 +191,18 @@ export function AddSiteDialog({
         <Alert>
           <AlertCircleIcon />
           <AlertTitle>
-            {limit ? `All ${limit} sites on your plan are claimed` : 'Claiming needs a plan'}
+            {plan === 'past-due'
+              ? 'Your last payment failed'
+              : plan === 'paid' && limit
+                ? `All ${limit} sites on your plan are claimed`
+                : 'Claiming needs a plan'}
           </AlertTitle>
           <AlertDescription>
-            {limit
-              ? `Release a site or move to a bigger plan to claim ${site.domain}.`
-              : `Choose a plan to claim ${site.domain}.`}
+            {plan === 'past-due'
+              ? `Update your card under Billing to claim ${site.domain}.`
+              : plan === 'paid' && limit
+                ? `Release a site or move to a bigger plan to claim ${site.domain}.`
+                : `Choose a plan to claim ${site.domain}.`}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -193,7 +212,7 @@ export function AddSiteDialog({
   const action =
     full && site?.owner === 'nobody' ? (
       <Link href="/billing" className={cn(buttonVariants())}>
-        {limit ? 'Change plan' : 'See plans'}
+        {plan === 'past-due' ? 'Billing' : plan === 'paid' && limit ? 'Change plan' : 'See plans'}
         <ArrowRightIcon data-icon="inline-end" />
       </Link>
     ) : site?.owner === 'you' ? (

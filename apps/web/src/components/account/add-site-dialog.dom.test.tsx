@@ -48,7 +48,7 @@ const found = (patch: Record<string, unknown> = {}) =>
 describe('AddSiteDialog', () => {
   it('looks up the typed domain, then claims it and opens its panel', async () => {
     fetchMock.mockResolvedValueOnce(found()).mockResolvedValueOnce(json(200, { ok: true }))
-    render(<AddSiteDialog open canClaim limit={25} />)
+    render(<AddSiteDialog open canClaim plan="paid" limit={25} />)
     const dialog = await lookUp('https://Stripe.com/pricing')
     expect(await within(dialog).findByText('92')).toBeTruthy()
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({ domain: 'stripe.com' })
@@ -60,7 +60,7 @@ describe('AddSiteDialog', () => {
 
   it('says when someone else owns the site, and offers no claim', async () => {
     fetchMock.mockResolvedValueOnce(found({ owner: 'other' }))
-    render(<AddSiteDialog open canClaim limit={25} />)
+    render(<AddSiteDialog open canClaim plan="paid" limit={25} />)
     const dialog = await lookUp('stripe.com')
     expect(await within(dialog).findByText('stripe.com is claimed by another account')).toBeTruthy()
     expect(within(dialog).getByRole('button', { name: 'Claim stripe.com' })).toHaveProperty(
@@ -73,7 +73,7 @@ describe('AddSiteDialog', () => {
     fetchMock
       .mockResolvedValueOnce(found())
       .mockResolvedValueOnce(json(409, { error: 'Claimed by another account' }))
-    render(<AddSiteDialog open canClaim limit={25} />)
+    render(<AddSiteDialog open canClaim plan="paid" limit={25} />)
     const dialog = await lookUp('stripe.com')
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Claim stripe.com' }))
     expect(await within(dialog).findByText('stripe.com is claimed by another account')).toBeTruthy()
@@ -81,7 +81,7 @@ describe('AddSiteDialog', () => {
 
   it('points a full plan at billing, before or after the claim', async () => {
     fetchMock.mockResolvedValueOnce(found())
-    render(<AddSiteDialog open canClaim={false} limit={25} />)
+    render(<AddSiteDialog open canClaim={false} plan="paid" limit={25} />)
     const dialog = await lookUp('stripe.com')
     expect(await within(dialog).findByText('All 25 sites on your plan are claimed')).toBeTruthy()
     expect(
@@ -93,20 +93,52 @@ describe('AddSiteDialog', () => {
     fetchMock
       .mockResolvedValueOnce(found())
       .mockResolvedValueOnce(json(402, { error: 'Upgrade required', code: 'upgrade_required' }))
-    render(<AddSiteDialog open canClaim limit={25} />)
+    render(<AddSiteDialog open canClaim plan="paid" limit={25} />)
     const again = await lookUp('stripe.com')
     fireEvent.click(await within(again).findByRole('button', { name: 'Claim stripe.com' }))
     expect(await within(again).findByText('All 25 sites on your plan are claimed')).toBeTruthy()
   })
 
+  it('follows the plan after a refresh, and names a failed payment or no plan', async () => {
+    fetchMock.mockResolvedValue(found())
+    const { rerender } = render(<AddSiteDialog open canClaim={false} plan="paid" limit={12} />)
+    const dialog = await lookUp('stripe.com')
+    expect(await within(dialog).findByText('All 12 sites on your plan are claimed')).toBeTruthy()
+    // A site released elsewhere: the server's refresh frees a slot, and Claim comes back.
+    rerender(<AddSiteDialog open canClaim plan="paid" limit={12} />)
+    expect(within(dialog).queryByText('All 12 sites on your plan are claimed')).toBeNull()
+    expect(within(dialog).getByRole('button', { name: 'Claim stripe.com' })).toHaveProperty(
+      'disabled',
+      false
+    )
+    rerender(<AddSiteDialog open canClaim={false} plan="past-due" limit={12} />)
+    expect(within(dialog).getByText('Your last payment failed')).toBeTruthy()
+    rerender(<AddSiteDialog open canClaim={false} plan="none" limit={12} />)
+    expect(within(dialog).getByText('Claiming needs a plan')).toBeTruthy()
+  })
+
+  it('opens empty again after a claim', async () => {
+    fetchMock.mockResolvedValueOnce(found()).mockResolvedValueOnce(json(200, { ok: true }))
+    const { rerender } = render(<AddSiteDialog open canClaim plan="paid" limit={25} />)
+    const dialog = await lookUp('stripe.com')
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Claim stripe.com' }))
+    await waitFor(() => expect(replace).toHaveBeenCalled())
+    rerender(<AddSiteDialog open={false} canClaim plan="paid" limit={25} />)
+    rerender(<AddSiteDialog open canClaim plan="paid" limit={25} />)
+    const reopened = await screen.findByRole('dialog')
+    expect(within(reopened).queryByText('stripe.com')).toBeNull()
+    expect((within(reopened).getByLabelText('Domain') as HTMLInputElement).value).toBe('')
+  })
+
   it('says a site is already yours, and when its DR could not be looked up', async () => {
     fetchMock.mockResolvedValueOnce(found({ owner: 'you' }))
-    render(<AddSiteDialog open canClaim limit={25} />)
+    render(<AddSiteDialog open canClaim plan="paid" limit={25} />)
     const dialog = await lookUp('stripe.com')
     expect(await within(dialog).findByText('stripe.com is already yours')).toBeTruthy()
     fetchMock.mockResolvedValueOnce(found({ dr: null, note: 'New lookups are limited right now.' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Look up' }))
-    expect(await within(dialog).findByText(/New lookups are limited right now./)).toBeTruthy()
+    // The note as the server wrote it, without a second "try again".
+    expect(await within(dialog).findByText('New lookups are limited right now.')).toBeTruthy()
     expect(within(dialog).getByRole('button', { name: 'Claim stripe.com' })).toHaveProperty(
       'disabled',
       true
@@ -115,7 +147,7 @@ describe('AddSiteDialog', () => {
 
   it('shows the lookup’s refusal, and a lost connection', async () => {
     fetchMock.mockResolvedValueOnce(json(400, { error: 'Enter a domain, like example.com.' }))
-    render(<AddSiteDialog open canClaim limit={25} />)
+    render(<AddSiteDialog open canClaim plan="paid" limit={25} />)
     const dialog = await lookUp('not a domain')
     expect(await within(dialog).findByText('Enter a domain, like example.com.')).toBeTruthy()
     fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))

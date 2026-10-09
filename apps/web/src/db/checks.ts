@@ -1,5 +1,5 @@
 // DR readings: one row per lookup, the source of the history chart and the recheck cadence.
-import { and, asc, desc, eq, gte, inArray, isNull } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, isNull, sql } from 'drizzle-orm'
 
 import { type Db, withDbErrors } from './client'
 import { drChecks } from './schema'
@@ -136,32 +136,28 @@ export const listDrChecks = withDbErrors(async function listDrChecks(
     .offset(offset)
 })
 
-/** D1 allows 100 bound parameters per statement; one is the date, the rest the domains. */
-const DOMAINS_PER_STATEMENT = 90
-
 // Every reading since `since` for a set of domains, oldest first: the account's charts and
-// month-over-month changes (#142). A plan holds at most 100 domains, so this is two statements
-// at most.
+// month-over-month changes (#142). The domains go in as one JSON array read with json_each, so
+// any number of them is one statement with two bound parameters (D1 allows 100).
 export const listDrChecksForDomains = withDbErrors(async function listDrChecksForDomains(
   db: Db,
   domains: readonly string[],
   since: Date
 ) {
   const unique = [...new Set(domains)]
-  const rows: { domain: string; domain_rating: number; checked_at: string }[] = []
-  for (let start = 0; start < unique.length; start += DOMAINS_PER_STATEMENT) {
-    const page = unique.slice(start, start + DOMAINS_PER_STATEMENT)
-    rows.push(
-      ...(await db
-        .select({
-          domain: drChecks.domain,
-          domain_rating: drChecks.domainRating,
-          checked_at: drChecks.checkedAt
-        })
-        .from(drChecks)
-        .where(and(inArray(drChecks.domain, page), gte(drChecks.checkedAt, since.toISOString())))
-        .orderBy(asc(drChecks.checkedAt), asc(drChecks.id)))
+  if (unique.length === 0) return []
+  return db
+    .select({
+      domain: drChecks.domain,
+      domain_rating: drChecks.domainRating,
+      checked_at: drChecks.checkedAt
+    })
+    .from(drChecks)
+    .where(
+      and(
+        sql`${drChecks.domain} in (select value from json_each(${JSON.stringify(unique)}))`,
+        gte(drChecks.checkedAt, since.toISOString())
+      )
     )
-  }
-  return rows.sort((a, b) => a.checked_at.localeCompare(b.checked_at))
+    .orderBy(asc(drChecks.checkedAt), asc(drChecks.id))
 })

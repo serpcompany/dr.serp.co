@@ -44,8 +44,8 @@ describe('sign-in code email', () => {
   it('says the address is not monitored and links to the sites page', () => {
     const { html, text } = signInEmail(code, 'https://dr.serp.co')
     expect(html).toContain('isn&#39;t monitored')
-    expect(html).toContain('href="https://dr.serp.co/add"')
-    expect(text).toContain('https://dr.serp.co/add')
+    expect(html).toContain('href="https://dr.serp.co/account/sites"')
+    expect(text).toContain('https://dr.serp.co/account/sites')
     expect(html).toContain('name="color-scheme" content="light dark"')
   })
 

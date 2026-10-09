@@ -36,7 +36,7 @@ import {
   TrendingUpIcon
 } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import * as React from 'react'
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { toast } from 'sonner'
@@ -67,8 +67,7 @@ import {
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger
+  DrawerTitle
 } from '@/components/ui/drawer'
 import {
   DropdownMenu,
@@ -104,7 +103,8 @@ import { recheck, release } from './actions'
 
 // dashboard-01's DataTable for the claimed sites (#140 mockups, Sites). Differences from the
 // block: no drag handles (sites sort by DR, not by hand), the tabs filter by DR change, and the
-// row viewer is the site panel (DR history, recheck, badge, link, release).
+// row viewer is the site panel (DR history, recheck, badge, link, release), one drawer for the
+// table that `?site=<domain>` opens, from any page of the table or any view.
 
 /** Where the badge and its link point: the site's own origin and the badge host. */
 export type BadgeUrls = { site: string; badge: string }
@@ -112,7 +112,7 @@ export type BadgeUrls = { site: string; badge: string }
 type TableContext = {
   urls: BadgeUrls
   dofollow: boolean
-  openSite?: string
+  onOpen: (domain: string | null) => void
   onRelease: (domain: string) => void
 }
 
@@ -258,7 +258,7 @@ const columns = columnHelper.columns([
   }),
   columnHelper.accessor('domain', {
     header: 'Site',
-    cell: ({ row }) => <SitePanel site={row.original} />,
+    cell: ({ row }) => <SiteLink domain={row.original.domain} />,
     enableHiding: false
   }),
   columnHelper.accessor('dr', {
@@ -298,6 +298,8 @@ const VIEWS = [
   { value: 'falling', label: 'Falling', filter: (site: AccountSite) => (site.change ?? 0) < 0 }
 ]
 
+const PAGE_SIZES = [10, 20, 30, 40, 50]
+
 const COLUMN_LABELS: Record<string, string> = {
   dr: 'DR',
   change: 'This month',
@@ -308,18 +310,31 @@ export function SitesTable({
   data,
   urls,
   dofollow,
-  openSite,
   empty
 }: {
   data: AccountSite[]
   urls: BadgeUrls
   /** Whether the account's plan makes its sites' links dofollow. */
   dofollow: boolean
-  /** A site whose panel starts open (`?site=`). */
-  openSite?: string
   empty?: React.ReactNode
 }) {
   const router = useRouter()
+  // The open panel is the URL's `?site=`: a sidebar link, the add dialog or a row sets it.
+  const opened = useSearchParams()?.get('site') ?? null
+  const panelSite = opened ? (data.find(site => site.domain === opened) ?? null) : null
+  // The last site shown stays in the drawer while it animates closed.
+  const [shownSite, setShownSite] = React.useState<AccountSite | null>(panelSite)
+  React.useEffect(() => {
+    if (panelSite) setShownSite(panelSite)
+  }, [panelSite])
+  const openPanel = React.useCallback((domain: string | null) => {
+    const params = new URLSearchParams(window.location.search)
+    if (domain) params.set('site', domain)
+    else params.delete('site')
+    const query = params.toString()
+    // Next keeps useSearchParams in step with history.replaceState, without a server round trip.
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`)
+  }, [])
   const isMobile = useIsMobile()
   const [view, setView] = React.useState('all')
   const [releasing, setReleasing] = React.useState<string | null>(null)
@@ -358,6 +373,7 @@ export function SitesTable({
     setBusy(false)
     if (result.ok) {
       toast.success(`Released ${releasing}.`)
+      if (opened === releasing) openPanel(null)
       setReleasing(null)
       router.refresh()
     } else {
@@ -366,8 +382,8 @@ export function SitesTable({
   }
 
   const context = React.useMemo(
-    () => ({ urls, dofollow, openSite, onRelease: setReleasing }),
-    [urls, dofollow, openSite]
+    () => ({ urls, dofollow, onOpen: openPanel, onRelease: setReleasing }),
+    [urls, dofollow, openPanel]
   )
 
   return (
@@ -489,6 +505,34 @@ export function SitesTable({
                   {table.getFilteredRowModel().rows.length} site(s) selected.
                 </div>
                 <div className="flex w-full items-center gap-8 lg:w-fit">
+                  <div className="hidden items-center gap-2 lg:flex">
+                    <Label htmlFor="rows-per-page" className="text-sm font-medium">
+                      Rows per page
+                    </Label>
+                    <Select
+                      value={`${table.state.pagination.pageSize}`}
+                      onValueChange={value => {
+                        table.setPageSize(Number(value))
+                      }}
+                      items={PAGE_SIZES.map(pageSize => ({
+                        label: `${pageSize}`,
+                        value: `${pageSize}`
+                      }))}
+                    >
+                      <SelectTrigger size="sm" className="w-20" id="rows-per-page">
+                        <SelectValue placeholder={table.state.pagination.pageSize} />
+                      </SelectTrigger>
+                      <SelectContent side="top">
+                        <SelectGroup>
+                          {PAGE_SIZES.map(pageSize => (
+                            <SelectItem key={pageSize} value={`${pageSize}`}>
+                              {pageSize}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex w-fit items-center justify-center text-sm font-medium">
                     Page {table.state.pagination.pageIndex + 1} of{' '}
                     {Math.max(1, table.getPageCount())}
@@ -540,6 +584,13 @@ export function SitesTable({
           )}
         </TabsContent>
       </Tabs>
+      {shownSite ? (
+        <SitePanel
+          site={panelSite ?? shownSite}
+          open={panelSite !== null}
+          onOpenChange={open => (open ? null : openPanel(null))}
+        />
+      ) : null}
       <AlertDialog
         open={releasing !== null}
         onOpenChange={open => (open ? null : setReleasing(null))}
@@ -575,23 +626,40 @@ const chartConfig = {
   dr: { label: 'DR', color: 'var(--primary)' }
 } satisfies ChartConfig
 
+/** The row's site name, which opens its panel. */
+function SiteLink({ domain }: { domain: string }) {
+  const { onOpen } = useTableContext()
+  return (
+    <Button
+      variant="link"
+      className="w-fit px-0 text-left text-foreground"
+      onClick={() => onOpen(domain)}
+    >
+      {domain}
+    </Button>
+  )
+}
+
 /** The block's row viewer as the site panel: a drawer from the right (a bottom sheet on phones). */
-function SitePanel({ site }: { site: AccountSite }) {
+function SitePanel({
+  site,
+  open,
+  onOpenChange
+}: {
+  site: AccountSite
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const router = useRouter()
   const isMobile = useIsMobile()
-  const { urls, dofollow, openSite, onRelease } = useTableContext()
+  const { urls, dofollow, onRelease } = useTableContext()
   const [rechecking, setRechecking] = React.useState(false)
   const history = site.history.map(point => ({
     day: DAY.format(new Date(point.checkedAt)),
     dr: point.domainRating
   }))
   return (
-    <Drawer swipeDirection={isMobile ? 'down' : 'right'} defaultOpen={openSite === site.domain}>
-      <DrawerTrigger
-        render={<Button variant="link" className="w-fit px-0 text-left text-foreground" />}
-      >
-        {site.domain}
-      </DrawerTrigger>
+    <Drawer swipeDirection={isMobile ? 'down' : 'right'} open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
         <DrawerHeader className="gap-1">
           <DrawerTitle>{site.domain}</DrawerTitle>
@@ -632,7 +700,9 @@ function SitePanel({ site }: { site: AccountSite }) {
             <span className="text-muted-foreground">
               {site.checkedAt
                 ? `Checked ${DAY.format(new Date(site.checkedAt))}`
-                : 'Not checked yet'}
+                : site.dr === null
+                  ? 'Not checked yet'
+                  : 'Not checked in the last year'}
             </span>
             <Button
               variant="outline"

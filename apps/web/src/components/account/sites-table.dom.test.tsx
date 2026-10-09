@@ -7,9 +7,11 @@ import type { AccountSite } from '@/lib/account'
 const refresh = vi.fn()
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 
+let search = ''
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh, replace: vi.fn(), push: vi.fn() }),
-  usePathname: () => '/account/sites'
+  usePathname: () => '/account/sites',
+  useSearchParams: () => new URLSearchParams(search)
 }))
 vi.mock('sonner', () => ({ toast }))
 
@@ -45,6 +47,7 @@ afterEach(() => {
   refresh.mockReset()
   toast.success.mockReset()
   toast.error.mockReset()
+  search = ''
 })
 
 async function openActions(domain: string) {
@@ -119,10 +122,38 @@ describe('SitesTable', () => {
   })
 
   it('opens a site’s panel from the URL', async () => {
-    render(<SitesTable data={SITES} urls={URLS} dofollow openSite="best.serp.co" />)
+    search = 'site=best.serp.co'
+    render(<SitesTable data={SITES} urls={URLS} dofollow />)
     const panel = await screen.findByRole('dialog')
     expect(within(panel).getByText('best.serp.co title')).toBeTruthy()
     expect(within(panel).getByRole('button', { name: 'Release' })).toBeTruthy()
+  })
+
+  it('opens a site past the first page, and when the URL changes after loading', async () => {
+    // Twelve sites: the lowest two are on page 2 of 10 rows.
+    const many = Array.from({ length: 12 }, (_, index) =>
+      site(`site-${String(index).padStart(2, '0')}.example`, 90 - index, null)
+    )
+    const { rerender } = render(<SitesTable data={many} urls={URLS} dofollow />)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    // A sidebar link or the add dialog changes ?site= on the same page.
+    search = 'site=site-11.example'
+    rerender(<SitesTable data={many} urls={URLS} dofollow />)
+    const panel = await screen.findByRole('dialog')
+    expect(within(panel).getByText('site-11.example title')).toBeTruthy()
+  })
+
+  it('puts the open site in the URL, and takes it out on close', async () => {
+    const replaceState = vi.spyOn(window.history, 'replaceState')
+    const { rerender } = render(<SitesTable data={SITES} urls={URLS} dofollow />)
+    fireEvent.click(screen.getByRole('button', { name: 'serp.ly' }))
+    expect(replaceState).toHaveBeenLastCalledWith(null, '', '/?site=serp.ly')
+    search = 'site=serp.ly'
+    rerender(<SitesTable data={SITES} urls={URLS} dofollow />)
+    const panel = await screen.findByRole('dialog')
+    fireEvent.click(within(panel).getByRole('button', { name: 'Done' }))
+    expect(replaceState).toHaveBeenLastCalledWith(null, '', '/')
+    replaceState.mockRestore()
   })
 
   it('shows the empty state with no sites', () => {

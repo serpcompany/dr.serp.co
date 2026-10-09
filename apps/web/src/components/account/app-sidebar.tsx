@@ -8,7 +8,7 @@ import {
   TagIcon
 } from 'lucide-react'
 import Link from 'next/link'
-import type * as React from 'react'
+import type { ComponentProps, MouseEvent } from 'react'
 import {
   Sidebar,
   SidebarContent,
@@ -16,7 +16,8 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
-  SidebarMenuItem
+  SidebarMenuItem,
+  useSidebar
 } from '@/components/ui/sidebar'
 import { Wordmark } from '@/components/wordmark'
 import type { AccountSite } from '@/lib/account'
@@ -51,10 +52,23 @@ export function AppSidebar({
   planLabel,
   sites,
   ...props
-}: AccountSidebarProps & React.ComponentProps<typeof Sidebar>) {
+}: AccountSidebarProps & ComponentProps<typeof Sidebar>) {
+  const { isMobile, state, setOpenMobile } = useSidebar()
+  // On phones the sidebar is a sheet: following any link in it (the user menu's too, through its
+  // portal) closes it, even a link to the page already open.
+  function closeOnLink(event: MouseEvent) {
+    if (isMobile && event.target instanceof Element && event.target.closest('a[href]')) {
+      setOpenMobile(false)
+    }
+  }
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
-      <SidebarHeader>
+    <Sidebar
+      collapsible="offcanvas"
+      // Collapsed on desktop, the sidebar slides off screen: keep its links out of the tab order.
+      inert={!isMobile && state === 'collapsed' ? true : undefined}
+      {...props}
+    >
+      <SidebarHeader onClick={closeOnLink}>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -66,12 +80,12 @@ export function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent onClick={closeOnLink}>
         <NavMain items={NAV_MAIN} />
         {sites.length > 0 ? <NavSites items={sites.slice(0, 3)} total={sites.length} /> : null}
         <NavSecondary items={NAV_SECONDARY} className="mt-auto" />
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter onClick={closeOnLink}>
         <NavUser user={{ email, initials: email.slice(0, 2).toUpperCase(), plan: planLabel }} />
       </SidebarFooter>
     </Sidebar>

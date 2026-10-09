@@ -32,9 +32,7 @@ export function SectionCards({ account }: { account: Account }) {
   const average = rated.length
     ? Math.round(rated.reduce((sum, site) => sum + (site.dr ?? 0), 0) / rated.length)
     : null
-  const first = account.average.at(0)?.average
-  const last = account.average.at(-1)?.average
-  const trend = first !== undefined && last !== undefined ? Math.round(last - first) : null
+  const { trend } = account
   const changed = sites.filter(site => site.change !== null)
   const rising = changed.filter(site => (site.change ?? 0) > 0)
   const falling = changed.filter(site => (site.change ?? 0) < 0)
@@ -94,7 +92,9 @@ export function SectionCards({ account }: { account: Account }) {
                 ? `${trend > 0 ? 'Up' : 'Down'} ${Math.abs(trend)} this year`
                 : 'Steady this year'}
           </div>
-          <div className="text-muted-foreground">Across your claimed sites</div>
+          <div className="text-muted-foreground">
+            {trend ? 'Per site, since its first reading this year' : 'Across your claimed sites'}
+          </div>
         </CardFooter>
       </Card>
       <Card className="@container/card">

@@ -11,6 +11,7 @@ import {
   type Account,
   type AccountPlan,
   type AccountSite,
+  averageChange,
   type DrPoint,
   monthChange,
   weeklyAverage
@@ -20,27 +21,35 @@ import { PRICING_TIERS } from '@/lib/pricing'
 import { getSessionEmail } from '@/server/auth/session'
 import { resolveEntitlement } from '@/server/entitlements.mjs'
 
-/** A plan holds at most 100 sites; an internal account can hold more, so the list is capped. */
+/**
+ * A plan holds at most 100 sites; an internal account can hold more, so the list is capped and
+ * the pages say how many it leaves out.
+ */
 const MAX_SITES = 500
 const YEAR_MS = 366 * 24 * 60 * 60 * 1000
 
 type Entitlement = Awaited<ReturnType<typeof resolveEntitlement>>
 
 export function planOf(entitlement: Entitlement): AccountPlan {
-  if (!entitlement?.canAccessPaidFeatures) {
-    const subscription = entitlement?.subscription
+  const paid = Boolean(entitlement?.canAccessPaidFeatures)
+  if (entitlement?.isUnlimited) {
+    return { kind: 'active', paid, domains: null, interval: null, price: null, periodEnd: null }
+  }
+  const subscription = entitlement?.subscription
+  const status = subscription?.status ?? null
+  // Stripe moves the period end forward before a renewal charge fails, so a past_due plan is
+  // usually still in its paid period (the entitlement's grace): it works, but it is past due.
+  const pastDue = Boolean(subscription) && (status === 'past_due' || status === 'unpaid')
+  if (!entitlement || (!paid && !pastDue)) {
     return {
-      kind: subscription && entitlement?.status === 'past_due' ? 'past-due' : 'free',
-      domains: subscription?.domainsLimit ?? null,
+      kind: 'free',
+      paid: false,
+      domains: null,
       interval: null,
       price: null,
       periodEnd: null
     }
   }
-  if (entitlement.isUnlimited) {
-    return { kind: 'active', domains: null, interval: null, price: null, periodEnd: null }
-  }
-  const subscription = entitlement.subscription
   const interval =
     subscription?.billingInterval === 'annual' || subscription?.billingInterval === 'monthly'
       ? subscription.billingInterval
@@ -48,7 +57,12 @@ export function planOf(entitlement: Entitlement): AccountPlan {
   const tier = PRICING_TIERS.find(candidate => candidate.domains === entitlement.domainsLimit)
   const periodEnd = subscription?.currentPeriodEnd
   return {
-    kind: subscription?.cancelAtPeriodEnd ? 'ending' : 'active',
+    kind: pastDue
+      ? 'past-due'
+      : status === 'canceled' || subscription?.cancelAtPeriodEnd
+        ? 'ending'
+        : 'active',
+    paid,
     domains: entitlement.domainsLimit,
     interval,
     price: tier && interval ? tier[interval] : null,
@@ -89,8 +103,8 @@ export async function loadAccount(email: string, now = new Date()): Promise<Acco
       domain: claim.domain,
       title: claim.site_title,
       dr: latest?.domainRating ?? claim.domain_rating,
-      change: monthChange(history),
-      checkedAt: latest?.checkedAt ?? claim.updated_at ?? null,
+      change: monthChange(history, now),
+      checkedAt: latest?.checkedAt ?? null,
       history
     }
   })
@@ -103,7 +117,9 @@ export async function loadAccount(email: string, now = new Date()): Promise<Acco
     average: weeklyAverage(
       sites.map(site => site.history),
       now
-    )
+    ),
+    trend: averageChange(sites.map(site => site.history)),
+    omitted: Math.max(0, (entitlement?.domainsUsed ?? 0) - sites.length)
   }
 }
 

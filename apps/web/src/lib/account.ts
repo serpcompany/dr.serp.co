@@ -8,17 +8,25 @@ export type AccountSite = {
   title: string | null
   /** The latest DR, or null before the first lookup. */
   dr: number | null
-  /** DR now minus DR a month ago, or null without a reading from a month ago. */
+  /** DR now minus DR a month ago, or null without readings from both this month and before. */
   change: number | null
-  /** The latest check, as an ISO date, or null. */
+  /** The latest check in the last year, as an ISO date, or null. */
   checkedAt: string | null
   /** Readings for the last year, oldest first, for the site panel's chart. */
   history: DrPoint[]
 }
 
 export type AccountPlan = {
-  /** No plan, an active one, one whose payment failed, or one that ends at the period end. */
+  /**
+   * No plan, an active one, one whose last payment failed (Stripe's past_due or unpaid, in or
+   * after its paid period), or one that ends at the period end (canceled, or set to cancel).
+   */
   kind: 'free' | 'active' | 'past-due' | 'ending'
+  /**
+   * Whether the plan's paid features apply now: its sites link dofollow and recheck weekly. The
+   * same rule as the public site page (the entitlement's canAccessPaidFeatures).
+   */
+  paid: boolean
   /** The site limit, or null for an unlimited (internal) account. */
   domains: number | null
   interval: 'monthly' | 'annual' | null
@@ -37,17 +45,41 @@ export type Account = {
   sites: AccountSite[]
   /** The average DR of the claimed sites at the end of each week, oldest first. */
   average: { date: string; average: number }[]
+  /** Each site's change over its readings this year, averaged (`averageChange`), or null. */
+  trend: number | null
+  /** How many claimed sites the pages leave out (an internal account past the list's cap). */
+  omitted: number
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-/** DR now minus the last reading at least 30 days older than the latest; null without one. */
-export function monthChange(history: readonly DrPoint[]): number | null {
+/**
+ * The change this month: the latest reading, if it is from the last 30 days, minus the last
+ * reading at least 30 days old. Null without both, so a site last checked in March has none.
+ */
+export function monthChange(history: readonly DrPoint[], now: Date): number | null {
+  const cutoff = now.getTime() - 30 * DAY_MS
   const latest = history.at(-1)
-  if (!latest) return null
-  const cutoff = Date.parse(latest.checkedAt) - 30 * DAY_MS
+  if (!latest || Date.parse(latest.checkedAt) <= cutoff) return null
   const before = [...history].reverse().find(point => Date.parse(point.checkedAt) <= cutoff)
   return before ? latest.domainRating - before.domainRating : null
+}
+
+/**
+ * Each site's change from its first reading in the history to its latest, averaged over the sites
+ * whose readings span at least 30 days, and rounded. Adding or releasing a site doesn't move it,
+ * unlike the difference between two points of the average chart. Null when no site qualifies.
+ */
+export function averageChange(histories: readonly (readonly DrPoint[])[]): number | null {
+  const changes = histories.flatMap(history => {
+    const first = history.at(0)
+    const latest = history.at(-1)
+    if (!first || !latest) return []
+    const span = Date.parse(latest.checkedAt) - Date.parse(first.checkedAt)
+    return span >= 30 * DAY_MS ? [latest.domainRating - first.domainRating] : []
+  })
+  if (changes.length === 0) return null
+  return Math.round(changes.reduce((sum, change) => sum + change, 0) / changes.length)
 }
 
 /**
@@ -81,4 +113,10 @@ export function weeklyAverage(
 export function planName(plan: AccountPlan): string {
   if (plan.kind === 'free') return 'Free'
   return plan.domains === null ? 'Unlimited' : `${plan.domains} sites`
+}
+
+/** "25-site plan", "Unlimited plan" or "Free plan", as the sidebar's user menu names it. */
+export function planLabel(plan: AccountPlan): string {
+  if (plan.kind === 'free') return 'Free plan'
+  return plan.domains === null ? 'Unlimited plan' : `${plan.domains}-site plan`
 }

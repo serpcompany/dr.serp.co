@@ -53,11 +53,13 @@ const ACTIVE = {
   isUnlimited: false,
   status: 'active',
   domainsLimit: 25,
+  domainsUsed: 0,
   subscription: {
     billingInterval: 'monthly',
     currentPeriodEnd: new Date('2026-11-09T00:00:00.000Z'),
     cancelAtPeriodEnd: false,
-    domainsLimit: 25
+    domainsLimit: 25,
+    status: 'active'
   }
 }
 
@@ -103,10 +105,27 @@ describe('loadAccount', () => {
     expect(low).toMatchObject({ dr: 20, change: null })
     expect(fresh).toMatchObject({ dr: null, change: null, history: [] })
     expect(account.average.at(-1)).toEqual({ date: '2026-10-07', average: 40.5 })
+    // Only high.example has readings a month apart: +6.
+    expect(account.trend).toBe(6)
     expect(account.canClaim).toBe(true)
+    expect(account.omitted).toBe(0)
   })
 
-  it('reads every site of a large account, across statements', async () => {
+  it("dates a site's last check from its readings, not from the claim row", async () => {
+    // The claim row was just updated (metadata), but its last reading is over a year old.
+    await claim('quiet.example', 'owner@example.com', 33)
+    await check('quiet.example', 33, '2025-06-01')
+    const [quiet] = (await loadAccount('owner@example.com', NOW)).sites
+    expect(quiet).toMatchObject({ dr: 33, checkedAt: null, change: null })
+  })
+
+  it('says how many sites it leaves out past the cap', async () => {
+    await claim('one.example', 'owner@example.com', 10)
+    resolveEntitlement.mockResolvedValue({ ...ACTIVE, domainsUsed: 3 })
+    expect((await loadAccount('owner@example.com', NOW)).omitted).toBe(2)
+  })
+
+  it('reads every site of a large account in one statement', async () => {
     for (let index = 0; index < 95; index++) {
       const domain = `site-${String(index).padStart(3, '0')}.example`
       await claim(domain, 'big@example.com', index)
@@ -119,9 +138,15 @@ describe('loadAccount', () => {
 })
 
 describe('planOf', () => {
+  const sub = (patch: Record<string, unknown>) => ({
+    ...ACTIVE,
+    subscription: { ...ACTIVE.subscription, ...patch }
+  })
+
   it('names an active plan with its price and renewal', () => {
     expect(planOf(ACTIVE as never)).toEqual({
       kind: 'active',
+      paid: true,
       domains: 25,
       interval: 'monthly',
       price: 7,
@@ -129,29 +154,47 @@ describe('planOf', () => {
     })
   })
 
-  it('tells ending, past-due, unlimited and no plan apart', () => {
+  it('calls a failed renewal past due, in its paid period or after it', () => {
+    // In the period (the entitlement's grace): links stay dofollow, but it is past due.
+    expect(planOf(sub({ status: 'past_due' }) as never)).toMatchObject({
+      kind: 'past-due',
+      paid: true,
+      domains: 25,
+      interval: 'monthly'
+    })
+    // After it: no paid features, and still past due until paid or canceled.
+    expect(
+      planOf({ ...sub({ status: 'unpaid' }), canAccessPaidFeatures: false } as never)
+    ).toMatchObject({ kind: 'past-due', paid: false, domains: 25 })
+  })
+
+  it('calls a canceled plan or one set to cancel ending, until its period ends', () => {
+    expect(planOf(sub({ cancelAtPeriodEnd: true }) as never).kind).toBe('ending')
+    expect(planOf(sub({ status: 'canceled' }) as never).kind).toBe('ending')
+  })
+
+  it("is free, with no limit, once a canceled plan's period is over", () => {
     expect(
       planOf({
-        ...ACTIVE,
-        subscription: { ...ACTIVE.subscription, cancelAtPeriodEnd: true }
-      } as never).kind
-    ).toBe('ending')
-    expect(
-      planOf({ ...ACTIVE, canAccessPaidFeatures: false, status: 'past_due' } as never).kind
-    ).toBe('past-due')
-    expect(planOf({ ...ACTIVE, isUnlimited: true } as never)).toMatchObject({
-      kind: 'active',
-      domains: null
+        ...sub({ status: 'canceled' }),
+        canAccessPaidFeatures: false,
+        canClaim: false
+      } as never)
+    ).toEqual({
+      kind: 'free',
+      paid: false,
+      domains: null,
+      interval: null,
+      price: null,
+      periodEnd: null
     })
     expect(planOf(null).kind).toBe('free')
+  })
+
+  it('has no limit for an unlimited account', () => {
     expect(
-      planOf({
-        ...ACTIVE,
-        canAccessPaidFeatures: false,
-        status: 'none',
-        subscription: null
-      } as never).kind
-    ).toBe('free')
+      planOf({ ...ACTIVE, isUnlimited: true, domainsLimit: null, subscription: null } as never)
+    ).toMatchObject({ kind: 'active', paid: true, domains: null })
   })
 })
 

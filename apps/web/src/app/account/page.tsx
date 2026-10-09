@@ -63,7 +63,7 @@ export default async function AccountOverview() {
           <SitesTable
             data={account.sites}
             urls={badgeUrls()}
-            dofollow={account.plan.kind !== 'free'}
+            dofollow={account.plan.paid}
             empty={<NoSites />}
           />
         </>
