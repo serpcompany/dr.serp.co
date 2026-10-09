@@ -434,6 +434,8 @@ describe('when D1 fails', () => {
       const session = await failing.handler(
         new Request(`${ORIGIN}/api/auth/get-session`, { headers: { cookie, Origin: ORIGIN } })
       )
+      // 500 means the signed cookie verified and the lookup reached the failing D1.
+      expect(session.status).toBe(500)
       expect(await session.text()).not.toContain(token)
     } finally {
       for (const spy of spies) spy.mockRestore()
