@@ -20,8 +20,12 @@ account. Better Auth (`src/server/auth/config.ts`) keeps users, sessions and cod
 3. `GET /api/auth/get-session` answers the session or `null`; `POST /api/auth/sign-out` ends it.
 
 Every other Better Auth endpoint answers 404 before Better Auth sees it, and a test walks Better
-Auth's router to prove it. Origin and CSRF checks stay on. Missing `BETTER_AUTH_SECRET` or
-`BETTER_AUTH_URL` answers 503, and so does a code request when the site can't send email.
+Auth's router to prove it. Every POST needs an `Origin` among the trusted origins (403 otherwise,
+cookie or not), and a body over 16 KB answers 413. Missing `BETTER_AUTH_SECRET` or
+`BETTER_AUTH_URL` answers 503, and so does a code request when the site can't send email; only
+`SITE_ENV=local` or `next dev` falls back to a throwaway secret. Neither the sign-in answer nor
+`get-session` includes the session token, and errors are logged through `scrubError`
+(`src/server/auth/logging.ts`), so no email, code hash or token reaches the logs.
 
 **Limits** run on the `RATE_LIMITER` Durable Object, keyed by HMAC digests rather than raw emails
 or IPs:

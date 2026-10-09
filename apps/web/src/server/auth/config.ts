@@ -19,6 +19,7 @@ import { emailOTP } from 'better-auth/plugins/email-otp'
 import type { Db } from '@/db/client'
 import { accounts, sessions, users, verification } from '@/db/schema'
 import { AUTH_COOKIE_PREFIX } from './cookies'
+import { authLogger } from './logging'
 import type { CodeSender } from './sender'
 import type { AuthSettings } from './settings'
 
@@ -32,6 +33,8 @@ export const OTP_LENGTH = 6
 export const OTP_EXPIRES_IN_SECONDS = 10 * 60
 export const OTP_ALLOWED_ATTEMPTS = 3
 export const SESSION_EXPIRES_IN_SECONDS = 30 * 24 * 60 * 60
+/** The largest body an auth request may send, like readWriteRequest's cap; theirs are tiny. */
+export const MAX_AUTH_BODY_BYTES = 16_000
 
 /** The only Better Auth endpoints served over HTTP. */
 export const ALLOWED_AUTH_ENDPOINTS = [
@@ -126,6 +129,35 @@ function unavailable(code: string, message: string): APIError {
   return new APIError('SERVICE_UNAVAILABLE', { code, message })
 }
 
+/**
+ * The request with its body read into memory, or null when the body passes `maxBytes`. Counts
+ * bytes as they stream in, so a chunked body with no Content-Length is cut off at the cap.
+ */
+async function withCappedBody(request: Request, maxBytes: number): Promise<Request | null> {
+  if (Number(request.headers.get('content-length') || '0') > maxBytes) return null
+  if (!request.body) return request
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined)
+      return null
+    }
+    chunks.push(value)
+  }
+  const body = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    body.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return new Request(request, { body })
+}
+
 function notFound(): Response {
   return Response.json(
     { error: 'not_found', message: 'No such auth endpoint.' },
@@ -134,23 +166,30 @@ function notFound(): Response {
 }
 
 /**
- * get-session answers the session row, token included; the token is the session cookie's value,
- * which stays HttpOnly only if scripts never see it. Everything else passes through, including a
- * refreshed cookie.
+ * get-session answers the session row and sign-in a top-level `token`; either is the session
+ * cookie's value, which stays HttpOnly only if scripts never see it. Everything else passes
+ * through, including a refreshed cookie.
  */
 async function withoutSessionToken(response: Response): Promise<Response> {
   if (!response.ok) return response
   const body = (await response
     .clone()
     .json()
-    .catch(() => null)) as {
-    session?: Record<string, unknown>
-  } | null
-  if (!body?.session || !('token' in body.session)) return response
-  const { token: _token, ...session } = body.session
+    .catch(() => null)) as
+    | ({ token?: unknown; session?: Record<string, unknown> } & Record<string, unknown>)
+    | null
+  if (!body || typeof body !== 'object') return response
+  const hasSessionToken = Boolean(body.session && 'token' in body.session)
+  if (!('token' in body) && !hasSessionToken) return response
+  const { token: _token, ...rest } = body
+  const cleaned: Record<string, unknown> = rest
+  if (body.session && hasSessionToken) {
+    const { token: _sessionToken, ...session } = body.session
+    cleaned.session = session
+  }
   const headers = new Headers(response.headers)
   headers.delete('content-length')
-  return new Response(JSON.stringify({ ...body, session }), { status: response.status, headers })
+  return new Response(JSON.stringify(cleaned), { status: response.status, headers })
 }
 
 export function createAuth({ db, settings, sender, limit }: CreateAuthOptions): Auth {
@@ -203,6 +242,12 @@ export function createAuth({ db, settings, sender, limit }: CreateAuthOptions): 
     emailAndPassword: { enabled: false },
     rateLimit: { enabled: false },
     telemetry: { enabled: false },
+    // Scrubbed: a failed D1 query would otherwise log the email and the code's hash.
+    logger: authLogger,
+    // Unexpected errors (a failed D1 query) propagate to handler() below, which logs them
+    // scrubbed; otherwise Better Auth's router prints the raw error, query values included.
+    // API errors such as a wrong code still answer normally.
+    onAPIError: { throw: true },
     advanced: {
       cookiePrefix: AUTH_COOKIE_PREFIX,
       // Explicit, so the origin and CSRF checks never depend on NODE_ENV (Better Auth skips
@@ -287,8 +332,37 @@ export function createAuth({ db, settings, sender, limit }: CreateAuthOptions): 
         endpoint => endpoint.method === request.method && endpoint.path === path
       )
       if (!served) return notFound()
-      const response = await instance.handler(request)
-      return path === GET_SESSION_PATH ? withoutSessionToken(response) : response
+      // Better Auth checks Origin only on requests that carry a cookie; every write here must
+      // come from the site itself, cookie or not.
+      if (
+        request.method === 'POST' &&
+        !settings.trustedOrigins.includes(request.headers.get('origin') ?? '')
+      ) {
+        return Response.json(
+          { code: 'INVALID_ORIGIN', message: 'Invalid origin' },
+          { status: 403, headers: { 'Cache-Control': 'private, no-store' } }
+        )
+      }
+      let response: Response
+      try {
+        const capped = await withCappedBody(request, MAX_AUTH_BODY_BYTES)
+        if (!capped) {
+          return Response.json(
+            { code: 'PAYLOAD_TOO_LARGE', message: 'The request is too large.' },
+            { status: 413, headers: { 'Cache-Control': 'private, no-store' } }
+          )
+        }
+        response = await instance.handler(capped)
+      } catch (error) {
+        authLogger.log('error', 'request failed', error)
+        return Response.json(
+          { code: 'AUTH_FAILED', message: 'Sign-in failed. Try again shortly.' },
+          { status: 500, headers: { 'Cache-Control': 'private, no-store' } }
+        )
+      }
+      return path === GET_SESSION_PATH || path === SIGN_IN_OTP_PATH
+        ? withoutSessionToken(response)
+        : response
     },
     routes
   }

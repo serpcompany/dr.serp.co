@@ -1,10 +1,11 @@
 // Better Auth's configuration, read per request from the environment (better-auth.md § Setup).
-// Staging and Production need BETTER_AUTH_SECRET (a Worker secret of 32+ characters) and
-// BETTER_AUTH_URL (the canonical https origin, a var); without them sign-in answers 503. Only a
-// local run falls back to a throwaway secret and http://localhost:3000.
+// Outside local runs it needs BETTER_AUTH_SECRET (a Worker secret of 32+ characters) and
+// BETTER_AUTH_URL (the canonical https origin, a var); without them sign-in answers 503. Only an
+// explicitly local run (SITE_ENV=local, or next dev) falls back to a throwaway secret and
+// http://localhost:3000; a missing or misspelled SITE_ENV fails closed like a deployed one.
 import { isProductionSite } from '@/lib/site-env'
 
-export type AuthEnvironment = 'production' | 'staging' | 'local'
+export type AuthEnvironment = 'production' | 'staging' | 'local' | 'unknown'
 
 export type AuthSettings = {
   environment: AuthEnvironment
@@ -22,9 +23,11 @@ const LOCAL_SECRET = 'dr-serp-local-only-secret-never-used-when-deployed'
 const LOCAL_URL = 'http://localhost:3000'
 const MIN_SECRET_LENGTH = 32
 
-function environmentOf(siteEnv: string | undefined): AuthEnvironment {
-  if (isProductionSite(siteEnv)) return 'production'
-  return siteEnv === 'staging' ? 'staging' : 'local'
+function environmentOf(env: Record<string, string | undefined>): AuthEnvironment {
+  if (isProductionSite(env.SITE_ENV)) return 'production'
+  if (env.SITE_ENV === 'staging') return 'staging'
+  if (env.SITE_ENV === 'local' || env.NODE_ENV === 'development') return 'local'
+  return 'unknown'
 }
 
 function originOf(value: string): string | null {
@@ -37,7 +40,7 @@ function originOf(value: string): string | null {
 }
 
 export function readAuthSettings(env: Record<string, string | undefined>): AuthSettingsResult {
-  const environment = environmentOf(env.SITE_ENV)
+  const environment = environmentOf(env)
   const deployed = environment !== 'local'
 
   const secret = env.BETTER_AUTH_SECRET?.trim() || (deployed ? '' : LOCAL_SECRET)

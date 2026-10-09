@@ -1,7 +1,7 @@
 // The real Better Auth configuration against a Wrangler-migrated local D1: only the four
 // endpoints the site uses answer, a code signs in, limits hold, and no answer says whether an
 // email has an account. Origin and CSRF checks stay on (config.ts forces them under test).
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { dbFrom } from '@/db/client'
 import { type LocalD1, openMigratedLocalD1 } from '@/db/local-d1'
@@ -10,6 +10,7 @@ import {
   type Auth,
   createAuth,
   type LimitRule,
+  MAX_AUTH_BODY_BYTES,
   OTP_ALLOWED_ATTEMPTS,
   SEND_OTP_PATH,
   SIGN_IN_OTP_PATH
@@ -259,5 +260,137 @@ describe('Better Auth on D1', () => {
       { ip }
     )
     expect(named.status).toBe(400)
+  })
+
+  it('takes writes only from the site, cookie or not', async () => {
+    const response = await post(
+      SIGN_IN_OTP_PATH,
+      { email: 'origin@example.com', otp: '123456' },
+      { ip: nextClient(), origin: 'https://evil.serp.co' }
+    )
+    expect(response.status).toBe(403)
+    const missing = await auth.handler(
+      new Request(`${ORIGIN}/api/auth${SIGN_IN_OTP_PATH}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'origin@example.com', otp: '123456' })
+      })
+    )
+    expect(missing.status).toBe(403)
+  })
+
+  it('refuses a body over the cap before Better Auth reads it, with or without a length', async () => {
+    const padding = 'x'.repeat(MAX_AUTH_BODY_BYTES)
+    const sized = await post(
+      SEND_OTP_PATH,
+      { email: 'big@example.com', type: 'sign-in', padding },
+      { ip: nextClient() }
+    )
+    expect(sized.status).toBe(413)
+    const bytes = new TextEncoder().encode(
+      JSON.stringify({ email: 'big@example.com', type: 'sign-in', padding })
+    )
+    const chunked = await auth.handler(
+      new Request(`${ORIGIN}/api/auth${SEND_OTP_PATH}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Origin: ORIGIN,
+          'cf-connecting-ip': nextClient()
+        },
+        body: new ReadableStream({
+          start(controller) {
+            for (let at = 0; at < bytes.length; at += 4096)
+              controller.enqueue(bytes.slice(at, at + 4096))
+            controller.close()
+          }
+        }),
+        duplex: 'half'
+      } as RequestInit)
+    )
+    expect(chunked.status).toBe(413)
+    expect(sent).toHaveLength(0)
+  })
+
+  it('limits code guesses per client, with 429 and Retry-After', async () => {
+    const ip = nextClient()
+    for (let guess = 0; guess < 10; guess++) {
+      const response = await post(
+        SIGN_IN_OTP_PATH,
+        { email: `guess-${guess}@example.com`, otp: '123456' },
+        { ip }
+      )
+      expect(response.status).toBe(400)
+    }
+    const refused = await post(
+      SIGN_IN_OTP_PATH,
+      { email: 'guess-10@example.com', otp: '123456' },
+      { ip }
+    )
+    expect(refused.status).toBe(429)
+    expect(refused.headers.get('Retry-After')).toBe('42')
+  })
+
+  it('never shows scripts the session token in the sign-in answer', async () => {
+    const ip = nextClient()
+    const { code } = await requestCode('tokenless@example.com', ip)
+    const signIn = await post(
+      SIGN_IN_OTP_PATH,
+      { email: 'tokenless@example.com', otp: code },
+      { ip }
+    )
+    expect(signIn.status).toBe(200)
+    const body = (await signIn.json()) as Record<string, unknown>
+    expect(body).not.toHaveProperty('token')
+    expect(body).toHaveProperty('user')
+  })
+})
+
+describe('when D1 fails', () => {
+  it('logs neither the email nor the code nor the query', async () => {
+    // A binding whose every statement fails, like a transient D1 error or a missing migration.
+    const fail = () => Promise.reject(new Error('D1_ERROR: no such table: verification'))
+    const statement = { bind: () => statement, all: fail, run: fail, first: fail, raw: fail }
+    const broken = { prepare: () => statement, batch: fail, exec: fail } as unknown as D1Database
+    const failing = createAuth({ db: dbFrom(broken), settings, sender, limit })
+
+    const logged: string[] = []
+    const spies = (['error', 'warn', 'info', 'log', 'debug'] as const).map(level =>
+      vi.spyOn(console, level).mockImplementation((...args: unknown[]) => {
+        logged.push(
+          args
+            .map(arg =>
+              arg instanceof Error ? `${arg.message} ${String(arg.cause)}` : String(arg)
+            )
+            .join(' ')
+        )
+      })
+    )
+    try {
+      for (const [path, body] of [
+        [SEND_OTP_PATH, { email: 'victim@example.com', type: 'sign-in' }],
+        [SIGN_IN_OTP_PATH, { email: 'victim@example.com', otp: '123456' }]
+      ] as const) {
+        const response = await failing.handler(
+          new Request(`${ORIGIN}/api/auth${path}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Origin: ORIGIN,
+              'cf-connecting-ip': nextClient()
+            },
+            body: JSON.stringify(body)
+          })
+        )
+        expect(response.status).toBeGreaterThanOrEqual(400)
+      }
+    } finally {
+      for (const spy of spies) spy.mockRestore()
+    }
+    expect(logged.length).toBeGreaterThan(0)
+    const text = logged.join('\n')
+    expect(text).not.toContain('victim@example.com')
+    expect(text).not.toContain('Failed query')
+    expect(text).not.toContain('params')
   })
 })

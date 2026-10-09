@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server'
 
 import { getAuth } from '@/server/auth'
+import { scrubError } from '@/server/auth/logging'
 
 export const runtime = 'nodejs'
 
@@ -15,7 +16,17 @@ async function handle(request: Request) {
       { status: 503, headers: { 'Cache-Control': 'private, no-store' } }
     )
   }
-  const response = await lookup.auth.handler(request)
+  let response: Response
+  try {
+    response = await lookup.auth.handler(request)
+  } catch (error) {
+    // Logged scrubbed: an unhandled D1 error would otherwise carry the email or code hash.
+    console.error('auth: request failed', scrubError(error))
+    return NextResponse.json(
+      { code: 'AUTH_FAILED', message: 'Sign-in failed. Try again shortly.' },
+      { status: 500, headers: { 'Cache-Control': 'private, no-store' } }
+    )
+  }
   const headers = new Headers(response.headers)
   headers.set('Cache-Control', 'private, no-store')
   return new Response(response.body, {

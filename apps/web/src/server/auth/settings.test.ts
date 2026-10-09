@@ -44,12 +44,19 @@ describe('readAuthSettings', () => {
     }
   })
 
-  it('lets only a local run fall back to a throwaway secret and localhost', () => {
-    const local = readAuthSettings({})
-    expect(local.ok && local.settings).toMatchObject({
-      environment: 'local',
-      baseURL: 'http://localhost:3000',
-      useSecureCookies: false
-    })
+  it('lets only an explicitly local run fall back to a throwaway secret and localhost', () => {
+    for (const env of [{ SITE_ENV: 'local' }, { NODE_ENV: 'development' }]) {
+      const local = readAuthSettings(env)
+      expect(local.ok && local.settings, JSON.stringify(env)).toMatchObject({
+        environment: 'local',
+        baseURL: 'http://localhost:3000',
+        useSecureCookies: false
+      })
+    }
+  })
+
+  it('fails closed when SITE_ENV is missing or misspelled', () => {
+    expect(readAuthSettings({}).ok).toBe(false)
+    expect(readAuthSettings({ SITE_ENV: 'prod' }).ok).toBe(false)
   })
 })
