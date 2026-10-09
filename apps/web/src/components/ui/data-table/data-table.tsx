@@ -27,10 +27,6 @@ import {
   TableRow
 } from '@/components/ui/table'
 
-import type { DataTableActionBarProps } from './data-table-action-bar'
-import type { DataTablePaginationProps } from './data-table-pagination'
-import type { DataTableToolbarProps } from './data-table-toobar'
-
 type ColumnMetaClassNames = {
   headerClassName?: string
   cellClassName?: string
@@ -40,9 +36,6 @@ export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   rowComponent?: React.ReactNode
-  toolbarComponent?: React.ComponentType<DataTableToolbarProps<TData>>
-  actionBar?: React.ComponentType<DataTableActionBarProps<TData>>
-  paginationComponent?: React.ComponentType<DataTablePaginationProps<TData>>
   onRowClick?: (row: Row<TData>) => void
   defaultPageSize?: number
   defaultPageIndex?: number
@@ -60,9 +53,6 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   rowComponent,
-  toolbarComponent,
-  actionBar,
-  paginationComponent,
   onRowClick,
   defaultPageSize = 10,
   defaultPageIndex = 0,
@@ -118,7 +108,6 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="grid gap-2">
-      {toolbarComponent ? React.createElement(toolbarComponent, { table }) : null}
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map(headerGroup => (
@@ -181,9 +170,7 @@ export function DataTable<TData, TValue>({
             </TableRow>
           )}
         </TableBody>
-        {actionBar ? React.createElement(actionBar, { table }) : null}
       </Table>
-      {paginationComponent ? React.createElement(paginationComponent, { table }) : null}
     </div>
   )
 }
