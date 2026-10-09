@@ -78,7 +78,8 @@ export function AuthStatus() {
 
   return (
     <div className="flex items-center gap-2">
-      {/* Below md the nav fills the header; the email also shows on /add and /billing. */}
+      {/* The email fits only from md: below sm the screen is too narrow, and from sm the nav
+          links take the room. It also shows on /add and /billing. */}
       <span className="hidden max-w-[180px] truncate text-xs text-muted-foreground md:block">
         Signed in as {email}
       </span>
