@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { readJsonRecord } from '@/lib/read-json'
 
 function readEmail() {
@@ -70,9 +70,9 @@ export function AuthStatus() {
 
   if (!email) {
     return (
-      <Button variant="ghost" size="sm" asChild>
-        <Link href="/add">Log in</Link>
-      </Button>
+      <Link href="/add" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+        Log in
+      </Link>
     )
   }
 

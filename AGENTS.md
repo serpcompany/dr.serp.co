@@ -32,8 +32,7 @@ ones your task touches (paths below are relative to that folder):
 
 The site is moving to the SERP web stack under
 [epic #36](https://github.com/serpcompany/dr.serp.co/issues/36), one sub-issue at a time. Until
-an issue lands, keep the current tools: no Drizzle, Better Auth or `base-nova` components ahead
-of their issue.
+an issue lands, keep the current tools: no Better Auth ahead of #54.
 
 ## Where things live
 
@@ -48,7 +47,7 @@ only carry the block `next dev` keeps.
 - `src/server/`: server-only logic: DR providers, domain validation, the spam filter, sign-in
   tokens and sessions, entitlements and rate limits.
 - `src/lib/`: pricing tiers, the Stripe client and shared helpers.
-- `src/components/ui/`: stock shadcn components (`new-york` on Radix until #50).
+- `src/components/ui/`: stock shadcn components (`base-nova` on Base UI).
 - `worker.ts`: the Worker entry, wrapping OpenNext; its concerns live in `src/lib/`.
 - `src/db/`: the data layer: Drizzle schema and typed queries; `drizzle/`: its migrations.
 - `scripts/`: operator and build scripts.

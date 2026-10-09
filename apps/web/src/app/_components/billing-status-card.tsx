@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { BillingPortalButton } from '@/app/_components/billing-portal-button'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { readJsonRecord } from '@/lib/read-json'
 
@@ -133,9 +133,9 @@ export function BillingStatusCard() {
           <CardDescription>Sign in to see your plan details.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button asChild size="sm">
-            <Link href="/add">Log in</Link>
-          </Button>
+          <Link href="/add" className={buttonVariants({ size: 'sm' })}>
+            Log in
+          </Link>
         </CardContent>
       </Card>
     )
@@ -194,15 +194,15 @@ export function BillingStatusCard() {
           {entitlement?.subscription?.stripeCustomerId ? (
             <BillingPortalButton email={email} />
           ) : entitlement?.isUnlimited ? null : (
-            <Button asChild size="sm">
-              <Link href="/pricing">View plans</Link>
-            </Button>
+            <Link href="/pricing" className={buttonVariants({ size: 'sm' })}>
+              View plans
+            </Link>
           )}
           {/* A plan on hold is paid through Manage billing, not bought again. */}
           {entitlement && !entitlement.canAccessPaidFeatures && !entitlement.hasLivePlan ? (
-            <Button asChild size="sm" variant="secondary">
-              <Link href="/pricing">Upgrade</Link>
-            </Button>
+            <Link href="/pricing" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
+              Upgrade
+            </Link>
           ) : null}
         </div>
       </CardContent>

@@ -178,7 +178,7 @@ export function PricingSelector() {
             max={PRICING_TIERS.length - 1}
             step={1}
             value={sliderValue}
-            onValueChange={value => setTierIndex(value[0])}
+            onValueChange={value => setTierIndex(typeof value === 'number' ? value : value[0])}
           />
           <div className="grid grid-cols-4 text-center text-xs text-muted-foreground">
             {PRICING_TIERS.map((item, index) => (

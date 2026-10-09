@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -85,9 +85,9 @@ export function AllSites() {
             {total ? `${total.toLocaleString()} domains` : '—'}
           </p>
         </div>
-        <Button asChild variant="secondary" size="sm">
-          <Link href="/sites">View all</Link>
-        </Button>
+        <Link href="/sites" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
+          View all
+        </Link>
       </CardHeader>
       <CardContent>
         {loading && sites.length === 0 ? (

@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { BillingPortalButton } from '@/app/_components/billing-portal-button'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { readJsonRecord } from '@/lib/read-json'
@@ -149,9 +149,9 @@ export function MySites({ email }: { email: string }) {
           <div className="rounded-lg border bg-muted p-6 text-center">
             <p className="text-sm text-muted-foreground">{upgrade.message}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <Button asChild size="sm">
-                <Link href="/pricing">View plans</Link>
-              </Button>
+              <Link href="/pricing" className={buttonVariants({ size: 'sm' })}>
+                View plans
+              </Link>
               {upgrade.entitlement?.subscription?.stripeCustomerId ? (
                 <BillingPortalButton email={trimmedEmail} />
               ) : null}
@@ -179,9 +179,9 @@ export function MySites({ email }: { email: string }) {
             </p>
             {!query.trim() ? (
               <div className="mt-4 flex justify-center">
-                <Button asChild size="sm">
-                  <Link href="/add">Look up a domain</Link>
-                </Button>
+                <Link href="/add" className={buttonVariants({ size: 'sm' })}>
+                  Look up a domain
+                </Link>
               </div>
             ) : null}
           </div>
