@@ -1,10 +1,20 @@
 'use client'
 
+import { CreditCardIcon, GlobeIcon, LayoutDashboardIcon, LogOutIcon } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { readJsonRecord } from '@/lib/read-json'
 import { cn } from '@/lib/utils'
 
@@ -77,22 +87,49 @@ export function AuthStatus() {
 
   if (!email) {
     return (
-      <Link href="/add" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
-        Log in
+      <Link href="/login" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
+        Sign in
       </Link>
     )
   }
 
+  // Mockup: the account menu replaces "Signed in as … / Log out".
   return (
-    <div className="flex items-center gap-2">
-      {/* The email fits only from md: below sm the screen is too narrow, and from sm the nav
-          links take the room. It also shows on /add and /billing. */}
-      <span className="hidden max-w-[180px] truncate text-xs text-muted-foreground md:block">
-        Signed in as {email}
-      </span>
-      <Button variant="ghost" size="sm" onClick={() => void logout()}>
-        Log out
-      </Button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu" />
+        }
+      >
+        <Avatar className="size-7">
+          <AvatarFallback className="text-xs">{email.slice(0, 2).toUpperCase()}</AvatarFallback>
+        </Avatar>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="truncate">{email}</DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem render={<Link href="/account" />}>
+            <LayoutDashboardIcon />
+            Account
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/account/sites" />}>
+            <GlobeIcon />
+            Your sites
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/account/billing" />}>
+            <CreditCardIcon />
+            Billing
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => void logout()}>
+          <LogOutIcon />
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

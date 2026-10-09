@@ -7,5 +7,6 @@ import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 // workerd; `next build` would otherwise start one too and read .dev.vars on every build.
 export default async function config(phase: string): Promise<NextConfig> {
   if (phase === PHASE_DEVELOPMENT_SERVER) await initOpenNextCloudflareForDev()
-  return {}
+  // Mockup branch only: no dev badge in screenshots.
+  return { devIndicators: false }
 }

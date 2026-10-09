@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
+import { PublicOnly } from '@/app/_components/public-only'
 import { SiteFooter } from '@/app/_components/site-footer'
 import { SiteHeader } from '@/app/_components/site-header'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -25,9 +26,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           enableSystem
           disableTransitionOnChange
         >
-          <SiteHeader />
+          <PublicOnly>
+            <SiteHeader />
+          </PublicOnly>
           <div className="flex-1">{children}</div>
-          <SiteFooter />
+          <PublicOnly>
+            <SiteFooter />
+          </PublicOnly>
           <Toaster />
         </ThemeProvider>
       </body>
