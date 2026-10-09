@@ -48,7 +48,6 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@opennextjs/cloudflare": "^1.20.6",
-    "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "drizzle-orm": "0.45.3",

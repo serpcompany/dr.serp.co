@@ -2,9 +2,12 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
@@ -92,22 +95,34 @@ export function AllSites() {
       </CardHeader>
       <CardContent>
         {loading && sites.length === 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid">
             {SKELETON_KEYS.map(key => (
-              <div key={key} className="h-20 animate-pulse rounded-lg bg-muted" />
+              <div key={key} className="flex items-center gap-6 border-b py-3 last:border-b-0">
+                <Skeleton className="h-4 w-6" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+                <Skeleton className="h-5 w-12" />
+              </div>
             ))}
           </div>
         ) : error ? (
-          <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted p-4">
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <Button variant="secondary" size="sm" onClick={() => fetchSites.run()}>
-              Retry
-            </Button>
-          </div>
+          <Alert>
+            <AlertDescription>{error}</AlertDescription>
+            <AlertAction>
+              <Button variant="secondary" size="xs" onClick={() => fetchSites.run()}>
+                Retry
+              </Button>
+            </AlertAction>
+          </Alert>
         ) : sites.length === 0 ? (
-          <div className="rounded-lg border bg-muted p-6 text-center">
-            <p className="text-sm text-muted-foreground">No sites yet.</p>
-          </div>
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyTitle>No sites yet</EmptyTitle>
+              <EmptyDescription>Domains appear here once someone looks them up.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <Table>
             <TableHeader>
