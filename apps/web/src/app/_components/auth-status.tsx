@@ -78,7 +78,8 @@ export function AuthStatus() {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="max-w-[180px] truncate text-xs text-muted-foreground">
+      {/* Phones show only Log out; the email is also on /add and /billing. */}
+      <span className="hidden max-w-[180px] truncate text-xs text-muted-foreground sm:block">
         Signed in as {email}
       </span>
       <Button variant="ghost" size="sm" onClick={() => void logout()}>
