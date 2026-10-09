@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { codeSenderFor, signInEmail } from './sender'
+import { codeSenderFor, fromHeader, signInEmail } from './sender'
 
 const code = { email: 'person@example.com', otp: '482913', expiresInSeconds: 600 }
 
@@ -9,13 +9,44 @@ afterEach(() => {
 })
 
 describe('sign-in code email', () => {
-  it('shows the code as one run of digits, and says the address is not monitored', () => {
+  it('keeps the code out of the subject, and shows it as one text node of bare digits', () => {
     const { subject, html, text } = signInEmail(code, 'https://dr.serp.co')
-    expect(subject).toBe('Your DR Checker sign-in code')
-    expect(html).toContain('<strong>482913</strong>')
-    expect(text).toContain('code is 482913.')
+    expect(subject).toBe('Your SERP DR sign-in code')
+    expect(subject).not.toMatch(/\d/)
+    // One element holds exactly the digits: no spaces, separators or per-digit elements to copy.
+    expect(html).toMatch(/letter-spacing:[^"]*">482913<\/p>/)
+    expect(html).not.toMatch(/482\s|\s913|4<|8<|\u200b/)
+    expect(text.split('\n')).toContain('482913')
+    expect(html).toContain('It works for 10 minutes')
+  })
+
+  it('sends as SERP DR from whichever mailbox USESEND_FROM names', () => {
+    expect(fromHeader('DR Checker <no-reply@mail.serp.co>')).toBe('SERP DR <no-reply@mail.serp.co>')
+    expect(fromHeader('codes@mail.serp.co')).toBe('SERP DR <codes@mail.serp.co>')
+    expect(fromHeader(undefined)).toBe('SERP DR <no-reply@mail.serp.co>')
+    expect(fromHeader('not an address')).toBe('SERP DR <no-reply@mail.serp.co>')
+    // Spaces inside the brackets, and the older "address (Name)" form.
+    expect(fromHeader('DR Checker < codes@mail.serp.co >')).toBe('SERP DR <codes@mail.serp.co>')
+    expect(fromHeader('codes@mail.serp.co (DR Checker)')).toBe('SERP DR <codes@mail.serp.co>')
+    // Nothing from the secret can add a header or a second address.
+    expect(fromHeader('a@b.co>\r\nBcc: x@evil.example')).toBe('SERP DR <no-reply@mail.serp.co>')
+    expect(fromHeader('<a@b.co, x@evil.example>')).toBe('SERP DR <no-reply@mail.serp.co>')
+  })
+
+  it('has dark-mode styles for mail clients that honour them', () => {
+    const { html } = signInEmail(code, 'https://dr.serp.co')
+    expect(html).toContain('@media (prefers-color-scheme: dark)')
+    for (const name of ['page', 'card', 'muted', 'code', 'rule', 'link']) {
+      expect(html, name).toContain(`class="${name}"`)
+    }
+  })
+
+  it('says the address is not monitored and links to the sites page', () => {
+    const { html, text } = signInEmail(code, 'https://dr.serp.co')
     expect(html).toContain('isn&#39;t monitored')
+    expect(html).toContain('href="https://dr.serp.co/add"')
     expect(text).toContain('https://dr.serp.co/add')
+    expect(html).toContain('name="color-scheme" content="light dark"')
   })
 
   it('sends through useSend from the no-reply sender, and logs neither the code nor the address', async () => {
@@ -23,7 +54,7 @@ describe('sign-in code email', () => {
     const log = vi.spyOn(console, 'info')
     const sender = codeSenderFor(
       'production',
-      { USESEND_API_KEY: 'us_key' },
+      { USESEND_API_KEY: 'us_key', USESEND_FROM: 'DR Checker <no-reply@mail.serp.co>' },
       'https://dr.serp.co',
       fetcher
     )
@@ -33,7 +64,7 @@ describe('sign-in code email', () => {
     expect(url).toBe('https://app.usesend.com/api/v1/emails')
     expect(JSON.parse(String(init.body))).toMatchObject({
       to: 'person@example.com',
-      from: 'DR Checker <no-reply@mail.serp.co>'
+      from: 'SERP DR <no-reply@mail.serp.co>'
     })
     expect(log).not.toHaveBeenCalled()
   })

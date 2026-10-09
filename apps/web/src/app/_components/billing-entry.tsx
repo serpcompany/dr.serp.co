@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { BillingPortalButton } from '@/app/_components/billing-portal-button'
 import { buttonVariants } from '@/components/ui/button'
+import { loginHref } from '@/lib/auth/callback-url'
 import { cn } from '@/lib/utils'
 
 function readEmail() {
@@ -24,8 +25,11 @@ export function BillingEntry() {
 
   if (!email) {
     return (
-      <Link href="/add" className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}>
-        Log in to manage billing
+      <Link
+        href={loginHref('/billing')}
+        className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+      >
+        Sign in to manage billing
       </Link>
     )
   }

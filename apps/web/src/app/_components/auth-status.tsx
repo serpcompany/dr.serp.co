@@ -1,36 +1,65 @@
 'use client'
 
+import { CreditCardIcon, GlobeIcon, LogOutIcon } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-
+import { usePathname, useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { DISPLAY_EMAIL_KEY, signOut } from '@/components/auth/sign-in-api'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+import { loginHref } from '@/lib/auth/callback-url'
 import { readJsonRecord } from '@/lib/read-json'
 import { cn } from '@/lib/utils'
 
+// The header's account control (#140 mockups, Public · Header account menu): "Sign in" when
+// signed out, else an avatar menu with the account's pages and Sign out. Pages that don't exist
+// yet aren't listed; #142 adds Account.
+
 function readEmail() {
-  return window.localStorage.getItem('dr-auth-email')?.trim().toLowerCase() || ''
+  try {
+    return window.localStorage.getItem(DISPLAY_EMAIL_KEY)?.trim().toLowerCase() || ''
+  } catch {
+    return ''
+  }
 }
 
-function clearLocalAuth() {
-  window.localStorage.removeItem('dr-auth-email')
-  window.sessionStorage.removeItem('dr-otp-email')
+function SignInLink({ path }: { path: string }) {
+  return (
+    <Link href={loginHref(path)} className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
+      Sign in
+    </Link>
+  )
+}
+
+/** The link with this page's query string, so /sites?q=…&page=3 comes back to the same results. */
+function SignInLinkHere() {
+  const pathname = usePathname() ?? '/'
+  const search = useSearchParams()?.toString()
+  return <SignInLink path={search ? `${pathname}?${search}` : pathname} />
 }
 
 export function AuthStatus() {
-  const router = useRouter()
-  const pathname = usePathname()
+  const pathname = usePathname() ?? '/'
   const [email, setEmail] = useState('')
 
   useEffect(() => {
     setEmail(readEmail())
 
     const onStorage = (event: StorageEvent) => {
-      if (event.key === 'dr-auth-email') setEmail(readEmail())
+      if (event.key === DISPLAY_EMAIL_KEY) setEmail(readEmail())
     }
     window.addEventListener('storage', onStorage)
 
-    // The HttpOnly session cookie is the source of truth; keep the stored display email in sync with it.
+    // The HttpOnly session cookie is the source of truth; keep the stored display email in sync.
     const controller = new AbortController()
     ;(async () => {
       try {
@@ -44,11 +73,8 @@ export function AuthStatus() {
         const user = payload?.user as { email?: unknown } | undefined
         const sessionEmail = typeof user?.email === 'string' ? user.email : ''
         if (sessionEmail === readEmail()) return
-        if (sessionEmail) {
-          window.localStorage.setItem('dr-auth-email', sessionEmail)
-        } else {
-          clearLocalAuth()
-        }
+        if (sessionEmail) window.localStorage.setItem(DISPLAY_EMAIL_KEY, sessionEmail)
+        else window.localStorage.removeItem(DISPLAY_EMAIL_KEY)
         // Other components read the stored email on mount, so reload once to pick up the change.
         window.location.reload()
       } catch {
@@ -62,37 +88,53 @@ export function AuthStatus() {
     }
   }, [])
 
-  const logout = async () => {
-    // Better Auth refuses a POST without a JSON content type (415), even with no fields.
-    await fetch('/api/auth/sign-out', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}'
-    }).catch(() => null)
-    clearLocalAuth()
-    setEmail('')
-    router.refresh()
-    if (pathname !== '/add') router.push('/add')
-  }
-
   if (!email) {
+    // A static page doesn't know its query string on the server: it renders the link without it,
+    // and the browser fills it in. A real href, so Cmd-click and Open in New Tab work too.
     return (
-      <Link href="/add" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
-        Log in
-      </Link>
+      <Suspense fallback={<SignInLink path={pathname} />}>
+        <SignInLinkHere />
+      </Suspense>
     )
   }
 
   return (
-    <div className="flex items-center gap-2">
-      {/* The email fits only from md: below sm the screen is too narrow, and from sm the nav
-          links take the room. It also shows on /add and /billing. */}
-      <span className="hidden max-w-[180px] truncate text-xs text-muted-foreground md:block">
-        Signed in as {email}
-      </span>
-      <Button variant="ghost" size="sm" onClick={() => void logout()}>
-        Log out
-      </Button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu" />
+        }
+      >
+        <Avatar className="size-7">
+          <AvatarFallback className="text-xs">{email.slice(0, 2).toUpperCase()}</AvatarFallback>
+        </Avatar>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="truncate">{email}</DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem render={<Link href="/add" />}>
+            <GlobeIcon />
+            Your sites
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/billing" />}>
+            <CreditCardIcon />
+            Billing
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={async () => {
+            await signOut()
+            window.location.assign(pathname === '/add' || pathname === '/billing' ? '/' : pathname)
+          }}
+        >
+          <LogOutIcon />
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

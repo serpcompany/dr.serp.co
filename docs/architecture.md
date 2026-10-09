@@ -72,10 +72,11 @@ as lastmod. Past 50,000 sites the group needs a second file, and the route logs 
 - `/sites/<domain>` shows a site's DR, its history chart, metadata and the badge embed code. The
   first visit to an unknown domain looks its DR up ([DR lookups](dr-lookups.md)).
 - `/<domain>` redirects to `/sites/<domain>`, and to `/` when the domain is invalid.
-- `/add` adds a domain and signs in; `/pricing` and `/billing` are the paid plan pages.
+- `/login` signs in ([Accounts and claims](accounts-and-claims.md)) and renders without the public
+  header and footer; `/add` adds a domain; `/pricing` and `/billing` are the paid plan pages.
 - `/badge/<domain>` returns the SVG badge ([Badges](badges.md)).
 
-`/`, `/sites` and `/sites/<domain>` render on every request. `/add`, `/pricing` and `/billing`
+`/`, `/sites`, `/sites/<domain>` and `/login` render on every request. `/add`, `/pricing` and `/billing`
 are prerendered at build time, and their client components call route handlers for account data.
 There is no Next.js data cache, no ISR and no OpenNext incremental cache.
 

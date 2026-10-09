@@ -3,10 +3,11 @@ import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 // SERP UI rule (shadcn first): colors come only from the theme tokens in globals.css. Stock shadcn
-// files stay as the registry writes them, and the badge templates are SVG images drawn for other
-// sites, not themed UI, so both are skipped.
+// files stay as the registry writes them, the badge templates are SVG images drawn for other
+// sites, and the sign-in email is HTML for mail clients, which have no CSS variables; all are
+// skipped.
 const SRC = join(process.cwd(), 'src')
-const SKIPPED_FILES = new Set(['app/globals.css'])
+const SKIPPED_FILES = new Set(['app/globals.css', 'server/auth/sender.ts'])
 const SKIPPED_DIRECTORIES = ['components/ui/', 'app/badge/']
 
 const NAMED =
