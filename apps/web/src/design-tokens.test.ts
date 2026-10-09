@@ -110,11 +110,19 @@ describe('theme tokens', () => {
   const token = (body: string, name: string) =>
     new RegExp(`--${name}:\\s*([^;]+);`).exec(body)?.[1]?.trim()
 
-  it('keeps muted surfaces distinct from cards in both themes', () => {
+  // Lightness of an oklch() token; a token that isn't a literal oklch() colour fails the test.
+  const lightness = (value: string | undefined) => {
+    const match = /^oklch\(\s*([\d.]+)/.exec(value ?? '')
+    return match ? Number(match[1]) : Number.NaN
+  }
+
+  it('keeps muted surfaces visibly distinct from cards in both themes', () => {
     for (const selector of [':root', '.dark']) {
       const body = block(selector)
-      expect(token(body, 'muted'), selector).toBeDefined()
-      expect(token(body, 'muted'), selector).not.toBe(token(body, 'card'))
+      const gap = Math.abs(lightness(token(body, 'muted')) - lightness(token(body, 'card')))
+      // 0.04 in oklch lightness is about stock shadcn's dark step between card and muted.
+      expect(gap, selector).toBeGreaterThanOrEqual(0.02)
+      if (selector === '.dark') expect(gap, selector).toBeGreaterThanOrEqual(0.04)
     }
   })
 })
