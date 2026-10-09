@@ -45,8 +45,8 @@ only carry the block `next dev` keeps.
 - `src/app/`: pages and route handlers. Writes a visitor asks for are route handlers under
   `src/app/api/`; there are no Server Actions. Rendering a site page and the badge route also
   write to D1 ([Architecture](docs/architecture.md#layers)).
-- `src/server/`: server-only logic: data access (`db.mjs`, moving to `src/db/`), DR providers,
-  domain validation, the spam filter, sign-in tokens and sessions, entitlements and rate limits.
+- `src/server/`: server-only logic: DR providers, domain validation, the spam filter, sign-in
+  tokens and sessions, entitlements and rate limits.
 - `src/lib/`: pricing tiers, the Stripe client and shared helpers.
 - `src/components/ui/`: stock shadcn components (`new-york` on Radix until #50).
 - `worker.ts`: the Worker entry, wrapping OpenNext; its concerns live in `src/lib/`.
@@ -73,14 +73,14 @@ only carry the block `next dev` keeps.
 
 Run them from `apps/web/`. Inner loop, while editing:
 
-- `pnpm exec vitest related --run <changed files>`: the tests for what you changed.
-  Component tests that click and type are `*.dom.test.tsx`, run in happy-dom.
-- `pnpm dev`: `next dev` with local values from `.dev.vars`. `pnpm format` formats with Biome.
+- `pnpm exec vitest related --run <files>`: their tests (`*.dom.test.tsx` run in happy-dom).
+- `pnpm dev`: `next dev` on local D1, after `pnpm db:migrate:local` and `pnpm db:seed:local`.
 - `pnpm typecheck`: TypeScript, tests included, then the `.mjs` modules and scripts through
   `tsconfig.js.json` (`checkJs`, with implicit `any` allowed there until #98).
 
 Finish gate, once per finished state: `pnpm check` (lint, typecheck, tests, `cf:audit`, the
-OpenNext build and `docs:check`). It writes no source files; CI runs it on pull requests.
+OpenNext build and `docs:check`). It writes no source files; CI runs it on pull requests. Fix
+formatting with `pnpm format`.
 
 Evidence beyond the finish gate:
 

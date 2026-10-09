@@ -13,7 +13,7 @@ const checkRateLimit = vi.fn()
 const getRateLimitKey = vi.fn()
 const resolveEntitlement = vi.fn()
 
-vi.mock('@/server/db.mjs', () => ({
+vi.mock('@/db', () => ({
   getClaim,
   getDrChecks,
   recordDrCheck,

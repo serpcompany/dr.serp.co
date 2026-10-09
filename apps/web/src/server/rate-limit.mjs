@@ -15,6 +15,10 @@ function toLimitResponse(value, fallbackRetryAfterMs) {
 }
 
 async function getRateLimiterBinding() {
+  // `next dev` gets wrangler.jsonc's bindings from getPlatformProxy, which can't run a Durable
+  // Object class defined in the Worker itself, so RATE_LIMITER exists there but every call fails.
+  // Development counts in memory instead; `pnpm preview` and deployed Workers use the object.
+  if (process.env.NODE_ENV === 'development') return null
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare')
     return getCloudflareContext()?.env?.RATE_LIMITER ?? null

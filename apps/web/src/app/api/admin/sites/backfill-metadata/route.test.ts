@@ -7,7 +7,7 @@ const listSites = vi.fn()
 const setClaimSiteMetadata = vi.fn()
 const resolveSitePresentation = vi.fn()
 
-vi.mock('@/server/db.mjs', () => ({
+vi.mock('@/db', () => ({
   countSites,
   listSites,
   setClaimSiteMetadata

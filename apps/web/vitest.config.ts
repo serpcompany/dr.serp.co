@@ -7,7 +7,8 @@ const domTests = 'src/**/*.dom.test.tsx'
 export default defineConfig({
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'server-only': fileURLToPath(new URL('./vitest.server-only.ts', import.meta.url))
     }
   },
   test: {

@@ -11,7 +11,7 @@ const fetchDomainRating = vi.fn()
 const fetchDomainRatingHistory = vi.fn()
 const checkRateLimit = vi.fn()
 
-vi.mock('@/server/db.mjs', () => ({
+vi.mock('@/db', () => ({
   getClaim,
   getDrChecks,
   upsertClaim,

@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server'
+import { getClaim, getDrChecks, recordDrCheck, recordDrHistoryChecks, upsertClaim } from '@/db'
 import { readNumberEnv } from '@/lib/env'
-import {
-  getClaim,
-  getDrChecks,
-  recordDrCheck,
-  recordDrHistoryChecks,
-  upsertClaim
-} from '@/server/db.mjs'
 import {
   fetchDomainRating,
   fetchDomainRatingHistory,

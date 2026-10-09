@@ -1,4 +1,4 @@
-import { getClaim, getDrChecks, upsertClaim } from '@/server/db.mjs'
+import { getClaim, getDrChecks, upsertClaim } from '@/db'
 import { normalizeTarget } from '@/server/dr-providers.mjs'
 import { type BadgeTemplateKey, badgeTemplates } from './badge-templates'
 

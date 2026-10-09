@@ -25,7 +25,7 @@ const resolveEntitlement = vi.hoisted(() => vi.fn())
 
 vi.mock('@/server/entitlements.mjs', () => ({ resolveEntitlement }))
 
-vi.mock('@/server/db.mjs', () => ({
+vi.mock('@/db', () => ({
   getLatestSubscriptionByEmail: async () => ({ stripe_customer_id: 'cus_1' })
 }))
 

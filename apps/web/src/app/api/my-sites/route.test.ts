@@ -6,7 +6,7 @@ const countClaimsByEmail = vi.fn()
 const listClaimsByEmail = vi.fn()
 const resolveEntitlement = vi.fn()
 
-vi.mock('@/server/db.mjs', () => ({
+vi.mock('@/db', () => ({
   countClaimsByEmail,
   listClaimsByEmail
 }))

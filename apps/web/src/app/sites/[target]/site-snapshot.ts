@@ -1,4 +1,3 @@
-import { readNumberEnv } from '@/lib/env'
 import {
   getClaim,
   getDrChecks,
@@ -6,7 +5,8 @@ import {
   recordDrHistoryChecks,
   setClaimSiteMetadata,
   upsertClaim
-} from '@/server/db.mjs'
+} from '@/db'
+import { readNumberEnv } from '@/lib/env'
 import { fetchDomainRating, fetchDomainRatingHistory } from '@/server/dr-providers.mjs'
 import { checkRateLimit } from '@/server/rate-limit.mjs'
 import { resolveSitePresentation } from '@/server/site-presentation.mjs'

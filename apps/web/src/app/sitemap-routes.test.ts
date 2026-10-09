@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const listSitemapSites = vi.hoisted(() => vi.fn())
 
-vi.mock('@/server/db.mjs', () => ({ listSitemapSites }))
+vi.mock('@/db', () => ({ listSitemapSites }))
 vi.mock('@/lib/sitemap', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/sitemap')>()),
   SITEMAP_URL_LIMIT: 2

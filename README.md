@@ -8,6 +8,7 @@ Next.js app on Cloudflare Workers with D1.
 cd apps/web
 pnpm install
 cp .dev.vars.example .dev.vars   # local values; never put them in .env* files
+pnpm db:migrate:local && pnpm db:seed:local
 pnpm dev
 ```
 
