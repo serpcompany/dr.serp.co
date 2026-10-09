@@ -53,7 +53,7 @@
     "drizzle-orm": "0.45.3",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.484.0",
-    "next": "^16.3.6",
+    "next": "~16.3.8",
     "next-themes": "^0.4.6",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -88,6 +88,18 @@
       "@biomejs/biome",
       "esbuild",
       "workerd"
-    ]
+    ],
+    "overrides": {
+      "brace-expansion@5": "^5.0.12",
+      "minimatch@8": "^8.0.6",
+      "nanoid@3": "^3.3.18",
+      "picomatch@2": "^2.3.2",
+      "postcss@8": "^8.5.23",
+      "proxy-addr@2": "^2.0.8",
+      "qs@6": "^6.16.0",
+      "sharp@0.35": "^0.35.5",
+      "source-map-js@1": "^1.2.2",
+      "undici@7": "^7.29.1"
+    }
   }
 }
