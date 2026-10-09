@@ -65,8 +65,9 @@ a member and held for a new email. Spending that request's guesses (a decoy neve
 timing the answer (a sent code waits for useSend) then shows which it was. The probe costs two
 addresses per email, mails the member a code each time and is held by the per-client limits;
 best.serp.co, the reference, has the same design. Closing it would mean counting decoy guesses and
-lifetimes on the Durable Object and delaying held answers to match a send; the SERP spec's
-wording is [serpcompany/serp#1447](https://github.com/serpcompany/serp/issues/1447).
+lifetimes on the Durable Object and delaying held answers to match a send. The SERP spec still
+says no answer reveals an account; [serpcompany/serp#1447](https://github.com/serpcompany/serp/issues/1447)
+decides between naming this risk there and closing the probe, which would change this site too.
 
 Sessions from before Better Auth (the `dr_session` cookie) are not carried over: everyone signs in
 once more. The old cookie is ignored and expires on its own.
