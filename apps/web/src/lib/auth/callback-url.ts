@@ -49,11 +49,11 @@ export function loginHref(path: string): string {
 
 /** How the signed-in screen names the destination. */
 export function callbackDestination(path: string): { button: string; sentence: string } {
+  if (/^\/account\/billing(?:[/?#]|$)/u.test(path)) {
+    return { button: 'Continue to billing', sentence: 'Taking you to billing.' }
+  }
   if (/^\/account(?:[/?#]|$)/u.test(path)) {
     return { button: 'Continue to your account', sentence: 'Taking you to your account.' }
-  }
-  if (/^\/billing(?:[/?#]|$)/u.test(path)) {
-    return { button: 'Continue to billing', sentence: 'Taking you to billing.' }
   }
   return { button: 'Continue', sentence: 'Taking you back to the page you were on.' }
 }

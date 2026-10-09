@@ -97,7 +97,7 @@ describe('the sign-in callback', () => {
       button: 'Continue to your account',
       sentence: 'Taking you to your account.'
     })
-    expect(callbackDestination('/billing').button).toBe('Continue to billing')
+    expect(callbackDestination('/account/billing?plan=25').button).toBe('Continue to billing')
     expect(callbackDestination('/sites/x.com').button).toBe('Continue')
   })
 

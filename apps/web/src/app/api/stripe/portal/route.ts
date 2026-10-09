@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   try {
     const stripe = getStripe()
     const baseUrl = getPublicBaseUrl()
-    const returnUrl = process.env.STRIPE_PORTAL_RETURN_URL || `${baseUrl}/billing`
+    const returnUrl = process.env.STRIPE_PORTAL_RETURN_URL || `${baseUrl}/account/billing`
 
     // The Stripe account's default portal configuration belongs to another SERP product.
     const configuration = process.env.STRIPE_PORTAL_CONFIGURATION_ID || undefined

@@ -152,7 +152,7 @@ ends. A subscription on another SERP product's price is no plan here ([Billing](
 - the site page links to the domain's homepage without `nofollow`
   (`getOutboundLinkProps` in `src/app/sites/[target]/site-page-helpers.ts`);
 - the domain can be rechecked every 7 days instead of every 30;
-- the owner sees their domains under "Your sites" (`/api/my-sites`).
+- the owner sees their domains under Sites (`/account/sites`).
 
 Two internal email addresses are hardcoded as unlimited accounts in `src/server/entitlements.mjs`.
 An admin allowlist in D1 replaces them in #54.

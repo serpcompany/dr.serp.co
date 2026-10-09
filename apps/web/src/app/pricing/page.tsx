@@ -1,56 +1,23 @@
-import Link from 'next/link'
-import { BillingEntry } from '@/app/_components/billing-entry'
-import { PricingSelector } from '@/app/pricing/pricing-selector'
-import { buttonVariants } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card'
-import { FREE_FEATURES } from '@/lib/pricing'
-import { cn } from '@/lib/utils'
+import type { Metadata } from 'next'
+import { PricingPlans } from './pricing-plans'
 
+export const metadata: Metadata = {
+  title: 'Pricing | SERP DR',
+  description: 'Every site gets a public DR page and a badge for free. A plan lets you claim yours.'
+}
+
+// #140 mockups, Public · Pricing. The feature lists stay as they are until #53 decides them.
 export default function PricingPage() {
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 space-y-8 px-4 py-8">
-      <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Pricing</h1>
-        <p className="text-muted-foreground">
-          Pick a plan based on how many domains you want to monitor. Paid plans update once a week
-          and include on-demand refreshes.
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-10">
+      <div className="mx-auto flex max-w-2xl flex-col gap-2 text-center">
+        <h1 className="text-3xl font-semibold tracking-tight text-balance">Pricing</h1>
+        <p className="text-balance text-muted-foreground">
+          Every site gets a public DR page and a badge for free. A plan lets you claim your sites:
+          pick how many.
         </p>
       </div>
-
-      <div className="flex justify-center">
-        <BillingEntry />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Free</CardTitle>
-            <CardDescription>Generate shareable pages and badges.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">$0</p>
-            <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-              {FREE_FEATURES.map(feature => (
-                <li key={feature}>{feature}</li>
-              ))}
-            </ul>
-          </CardContent>
-          <CardFooter>
-            <Link href="/account" className={cn(buttonVariants(), 'w-full')}>
-              Get started
-            </Link>
-          </CardFooter>
-        </Card>
-
-        <PricingSelector />
-      </div>
+      <PricingPlans />
     </main>
   )
 }

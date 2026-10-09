@@ -14,6 +14,20 @@ export const PRICING_TIERS: PricingTier[] = [
   { id: '100', domains: 100, monthly: 27, annual: 270 }
 ]
 
+/** A plan size and billing period, as Pricing and the billing page pick them. */
+export type PlanChoice = { domains: number; billing: BillingPeriod }
+
+/** The plan in the URL (`?plan=25&period=annual`, as Pricing links), or null. */
+export function planFromSearch(
+  params: Record<string, string | string[] | undefined>
+): PlanChoice | null {
+  const domains = Number(params.plan)
+  const billing =
+    params.period === 'annual' ? 'annual' : params.period === 'monthly' ? 'monthly' : null
+  if (!billing || !PRICING_TIERS.some(tier => tier.domains === domains)) return null
+  return { domains, billing }
+}
+
 export const PAID_FEATURES = [
   'Monitor up to your tier domain limit',
   'Scheduled DR updates once a week',

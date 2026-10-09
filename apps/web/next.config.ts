@@ -8,9 +8,12 @@ import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 export default async function config(phase: string): Promise<NextConfig> {
   if (phase === PHASE_DEVELOPMENT_SERVER) await initOpenNextCloudflareForDev()
   return {
-    // /add was the signed-in page before the account area (#142).
+    // /add and /billing were the signed-in pages before the account area (#142, #143).
     async redirects() {
-      return [{ source: '/add', destination: '/account/sites?add=1', permanent: true }]
+      return [
+        { source: '/add', destination: '/account/sites?add=1', permanent: true },
+        { source: '/billing', destination: '/account/billing', permanent: true }
+      ]
     }
   }
 }

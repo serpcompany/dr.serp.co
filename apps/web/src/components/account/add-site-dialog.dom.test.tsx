@@ -88,7 +88,7 @@ describe('AddSiteDialog', () => {
       within(dialog)
         .getByRole('link', { name: /Change plan/ })
         .getAttribute('href')
-    ).toBe('/billing')
+    ).toBe('/account/billing')
     cleanup()
     fetchMock
       .mockResolvedValueOnce(found())

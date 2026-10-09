@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils'
 
 // The header's account control (#140 mockups, Public · Header account menu): "Sign in" when
 // signed out, else an avatar menu with the account's pages and Sign out. Pages that don't exist
-// yet aren't listed; #143 moves Billing into the account.
+// yet aren't listed.
 
 function readEmail() {
   try {
@@ -123,7 +123,7 @@ export function AuthStatus() {
             <GlobeIcon />
             Your sites
           </DropdownMenuItem>
-          <DropdownMenuItem render={<Link href="/billing" />}>
+          <DropdownMenuItem render={<Link href="/account/billing" />}>
             <CreditCardIcon />
             Billing
           </DropdownMenuItem>
@@ -132,9 +132,7 @@ export function AuthStatus() {
         <DropdownMenuItem
           onClick={async () => {
             await signOut()
-            window.location.assign(
-              pathname.startsWith('/account') || pathname === '/billing' ? '/' : pathname
-            )
+            window.location.assign(pathname.startsWith('/account') ? '/' : pathname)
           }}
         >
           <LogOutIcon />

@@ -50,7 +50,7 @@ const SIGN_IN = '/sign-in/email-otp'
 
 async function toCodeStep(email = 'owner@example.com') {
   answer(SEND, { status: 200, body: { success: true } })
-  render(<LoginCard callbackPath="/billing" />)
+  render(<LoginCard callbackPath="/account/billing" />)
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: email } })
   fireEvent.click(screen.getByRole('button', { name: 'Send code' }))
   await screen.findByRole('heading', { name: 'Check your email' })
@@ -121,7 +121,7 @@ describe('the code step', () => {
       { path: SIGN_IN, body: { email: 'owner@example.com', otp: '482913' } }
     ])
     expect(window.localStorage.getItem('dr-auth-email')).toBe('owner@example.com')
-    await waitFor(() => expect(assign).toHaveBeenCalledWith('/billing'), { timeout: 2000 })
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('/account/billing'), { timeout: 2000 })
   })
 
   it('finds the one code in pasted text, and ignores ambiguous text', async () => {
@@ -350,10 +350,12 @@ describe('typed and autofilled codes', () => {
 describe('signing out from the signed-in screen', () => {
   it('goes to /login, and the pending redirect never fires', async () => {
     answer('/sign-out', { status: 200, body: { success: true } })
-    render(<LoginCard callbackPath="/billing" signedInEmail="owner@example.com" />)
+    render(<LoginCard callbackPath="/account/billing" signedInEmail="owner@example.com" />)
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
-    await waitFor(() => expect(assign).toHaveBeenCalledWith('/login?callbackUrl=%2Fbilling'))
+    await waitFor(() =>
+      expect(assign).toHaveBeenCalledWith('/login?callbackUrl=%2Faccount%2Fbilling')
+    )
     await new Promise(resolve => setTimeout(resolve, 1400))
-    expect(assign).not.toHaveBeenCalledWith('/billing')
+    expect(assign).not.toHaveBeenCalledWith('/account/billing')
   })
 })

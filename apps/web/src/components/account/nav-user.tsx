@@ -61,11 +61,11 @@ export function NavUser({ user }: { user: { email: string; initials: string; pla
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem render={<Link href="/account" />}>
+              <DropdownMenuItem render={<Link href="/account/settings" />}>
                 <CircleUserRoundIcon />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem render={<Link href="/billing" />}>
+              <DropdownMenuItem render={<Link href="/account/billing" />}>
                 <CreditCardIcon />
                 Billing
               </DropdownMenuItem>
