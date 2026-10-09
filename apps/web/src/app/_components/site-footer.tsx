@@ -6,7 +6,7 @@ export function SiteFooter() {
   const year = new Date().getFullYear()
 
   return (
-    <footer className="flex items-center justify-center gap-4 border-t border-border p-4">
+    <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-3 border-t border-border p-4 sm:flex-nowrap">
       <p className="text-center text-muted-foreground text-sm">© {year} SERP DR</p>
       <div className="flex items-center gap-3 text-sm">
         <Link href="/" className="text-muted-foreground hover:text-foreground">
