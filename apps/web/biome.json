@@ -49,18 +49,13 @@
         "rules": {
           "a11y": {
             "useSemanticElements": "off",
-            "useFocusableInteractive": "off",
-            "noRedundantRoles": "off"
-          },
-          "correctness": {
-            "useExhaustiveDependencies": "off"
+            "useFocusableInteractive": "off"
           },
           "security": {
             "noDangerouslySetInnerHtml": "off"
           },
           "suspicious": {
             "noArrayIndexKey": "off",
-            "noDocumentCookie": "off",
             "noDoubleEquals": "off"
           }
         }
