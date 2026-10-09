@@ -117,7 +117,7 @@ export function AllSites() {
             </AlertAction>
           </Alert>
         ) : sites.length === 0 ? (
-          <Empty className="border">
+          <Empty>
             <EmptyHeader>
               <EmptyTitle>No sites yet</EmptyTitle>
               <EmptyDescription>Domains appear here once someone looks them up.</EmptyDescription>

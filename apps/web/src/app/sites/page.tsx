@@ -133,7 +133,12 @@ export default async function SitesPage({
               </TableHeader>
               <TableBody>
                 {(rows as SiteRow[]).map((row, index) => (
-                  <TableRow key={row.domain} className="relative">
+                  // WebKit ignores position: relative on a <tr>; a transform makes the row the
+                  // stretched link's containing block in every engine.
+                  <TableRow
+                    key={row.domain}
+                    className="relative [transform:translate(0)] has-[a:focus-visible]:bg-muted"
+                  >
                     <TableCell className="text-center tabular-nums text-muted-foreground">
                       {offset + index + 1}
                     </TableCell>
@@ -141,7 +146,7 @@ export default async function SitesPage({
                       {/* The link covers the whole row, so any part of it opens the site. */}
                       <Link
                         href={`/sites/${encodeURIComponent(row.domain)}`}
-                        className="text-foreground after:absolute after:inset-0 hover:underline"
+                        className="text-foreground outline-none after:absolute after:inset-0 hover:underline"
                       >
                         {row.domain}
                       </Link>

@@ -164,7 +164,7 @@ export function MySites({ email }: { email: string }) {
       </CardHeader>
       <CardContent>
         {upgrade ? (
-          <Empty className="border">
+          <Empty>
             <EmptyHeader>
               <EmptyTitle>{upgrade.message}</EmptyTitle>
             </EmptyHeader>
@@ -193,7 +193,7 @@ export function MySites({ email }: { email: string }) {
             </AlertAction>
           </Alert>
         ) : sites.length === 0 ? (
-          <Empty className="border">
+          <Empty>
             <EmptyHeader>
               <EmptyTitle>{query.trim() ? 'No matching sites' : 'No sites yet'}</EmptyTitle>
               <EmptyDescription>
@@ -224,13 +224,19 @@ export function MySites({ email }: { email: string }) {
                 const updated = formatUpdatedAt(site.updated_at)
 
                 return (
-                  <Item key={site.domain} variant="outline" className="relative">
+                  <Item
+                    key={site.domain}
+                    role="listitem"
+                    variant="outline"
+                    // ItemTitle clips its content, so the item shows the link's keyboard focus.
+                    className="relative has-[a:focus-visible]:border-ring has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50"
+                  >
                     <ItemContent className="min-w-0">
                       <ItemTitle className="w-full">
-                        {/* The link covers the whole item; the remove button sits above it. */}
+                        {/* The link covers the whole item; only the remove button sits above it. */}
                         <Link
                           href={`/sites/${encodeURIComponent(site.domain)}`}
-                          className="truncate after:absolute after:inset-0 hover:underline"
+                          className="truncate outline-none after:absolute after:inset-0 hover:underline"
                         >
                           {site.domain}
                         </Link>
@@ -239,13 +245,14 @@ export function MySites({ email }: { email: string }) {
                         {updated ? `Last checked ${updated}` : 'No recent check'}
                       </ItemDescription>
                     </ItemContent>
-                    <ItemActions className="relative">
+                    <ItemActions>
                       <Badge variant="secondary">{dr === null ? 'DR —' : `DR ${dr}`}</Badge>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon-sm"
                         aria-label={`Remove ${site.domain}`}
+                        className="relative"
                         disabled={removing === site.domain}
                         onClick={() => remove(site.domain)}
                       >

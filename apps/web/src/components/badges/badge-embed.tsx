@@ -62,7 +62,7 @@ export function BadgeEmbed({ domain, dr, linkUrl, badgeUrl }: BadgeEmbedProps) {
           height={50}
         />
         <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-foreground/60 opacity-0 transition-opacity group-hover:opacity-100">
-          <Copy className="h-6 w-6 text-background" />
+          <Copy className="size-6 text-background" />
         </div>
       </Button>
       <p className="text-sm text-muted-foreground">Click badge to copy embed code</p>
