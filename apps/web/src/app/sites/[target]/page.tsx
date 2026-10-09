@@ -98,15 +98,11 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/">Home</Link>
-                  </BreadcrumbLink>
+                  <BreadcrumbLink render={<Link href="/" />}>Home</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/sites">Sites</Link>
-                  </BreadcrumbLink>
+                  <BreadcrumbLink render={<Link href="/sites" />}>Sites</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -14,6 +14,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { readJsonRecord } from '@/lib/read-json'
+import { cn } from '@/lib/utils'
 
 const SKELETON_KEYS = ['s1', 's2', 's3', 's4', 's5', 's6']
 
@@ -85,9 +86,9 @@ export function AllSites() {
             {total ? `${total.toLocaleString()} domains` : '—'}
           </p>
         </div>
-        <Button asChild variant="secondary" size="sm">
-          <Link href="/sites">View all</Link>
-        </Button>
+        <Link href="/sites" className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}>
+          View all
+        </Link>
       </CardHeader>
       <CardContent>
         {loading && sites.length === 0 ? (

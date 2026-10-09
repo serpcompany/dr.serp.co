@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,6 +33,7 @@ function describePlan(plan: CurrentPlan) {
 
 export function PricingSelector() {
   const [tierIndex, setTierIndex] = useState(0)
+  const sliderLabelId = useId()
   const [isAnnual, setIsAnnual] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -160,7 +161,9 @@ export function PricingSelector() {
       <CardContent className="space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-sm font-medium">How many domains do you want to monitor?</p>
+            <p id={sliderLabelId} className="text-sm font-medium">
+              How many domains do you want to monitor?
+            </p>
             <p className="text-xs text-muted-foreground">Based on your selected tier.</p>
           </div>
           <div className="text-right">
@@ -174,11 +177,15 @@ export function PricingSelector() {
 
         <div className="space-y-4">
           <Slider
+            // Base UI focuses the input inside the thumb, so the stock thumb's focus-visible ring
+            // never shows; ring the thumb when its input has keyboard focus.
+            className="**:data-[slot=slider-thumb]:has-focus-visible:ring-3"
+            aria-labelledby={sliderLabelId}
             min={0}
             max={PRICING_TIERS.length - 1}
             step={1}
             value={sliderValue}
-            onValueChange={value => setTierIndex(value[0])}
+            onValueChange={value => setTierIndex(typeof value === 'number' ? value : value[0])}
           />
           <div className="grid grid-cols-4 text-center text-xs text-muted-foreground">
             {PRICING_TIERS.map((item, index) => (

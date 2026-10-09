@@ -40,8 +40,8 @@ export function DrRadialShape({ value }: { value: number | null }) {
             data={chartData}
             startAngle={90}
             endAngle={-270}
-            innerRadius={80}
-            outerRadius={140}
+            innerRadius={65}
+            outerRadius={95}
           >
             <PolarAngleAxis dataKey="dr" type="number" domain={[0, 100]} tick={false} />
             <PolarGrid
