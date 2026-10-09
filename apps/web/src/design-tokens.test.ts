@@ -98,3 +98,31 @@ describe('design tokens', () => {
     }
   })
 })
+
+// PR #144 review: with --muted equal to --card, slider tracks, the DR gauge's empty arc and
+// skeletons vanished inside cards in dark mode.
+describe('theme tokens', () => {
+  const css = readFileSync(join(SRC, 'app/globals.css'), 'utf8')
+  const block = (selector: string) => {
+    const start = css.indexOf(`${selector} {`)
+    return css.slice(start, css.indexOf('}', start))
+  }
+  const token = (body: string, name: string) =>
+    new RegExp(`--${name}:\\s*([^;]+);`).exec(body)?.[1]?.trim()
+
+  // Lightness of an oklch() token; a token that isn't a literal oklch() colour fails the test.
+  const lightness = (value: string | undefined) => {
+    const match = /^oklch\(\s*([\d.]+)/.exec(value ?? '')
+    return match ? Number(match[1]) : Number.NaN
+  }
+
+  it('keeps muted surfaces visibly distinct from cards in both themes', () => {
+    for (const selector of [':root', '.dark']) {
+      const body = block(selector)
+      const gap = Math.abs(lightness(token(body, 'muted')) - lightness(token(body, 'card')))
+      // 0.04 in oklch lightness is about stock shadcn's dark step between card and muted.
+      expect(gap, selector).toBeGreaterThanOrEqual(0.02)
+      if (selector === '.dark') expect(gap, selector).toBeGreaterThanOrEqual(0.04)
+    }
+  })
+})
