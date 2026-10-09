@@ -138,6 +138,10 @@ export async function PlanBilling({
     plan.domains !== null && plan.interval
       ? { domains: plan.domains, billing: plan.interval }
       : null
+  // A canceled plan in its paid period can buy a new one. Back from that checkout before the
+  // webhook, D1 still holds the canceled plan: no chooser, or a second click would pay twice.
+  const canBuy = !plan.live && !unlimited
+  const awaiting = canBuy && checkout === 'success'
 
   return (
     <>
@@ -150,11 +154,30 @@ export async function PlanBilling({
         }
       />
       <div className="flex max-w-3xl flex-col gap-4 px-4 lg:px-6">
-        {checkout === 'success' ? (
+        {checkout === 'success' && plan.live ? (
           <Alert>
             <CircleCheckIcon className="text-primary" />
             <AlertTitle>You're subscribed</AlertTitle>
             <AlertDescription>Claim your sites under Sites.</AlertDescription>
+          </Alert>
+        ) : null}
+        {awaiting ? (
+          <Alert>
+            <ClockIcon />
+            <AlertTitle>Payment received</AlertTitle>
+            <AlertDescription>
+              Your new plan shows here once Stripe confirms it, usually within a minute.
+            </AlertDescription>
+            <AlertAction>
+              <RefreshButton />
+            </AlertAction>
+          </Alert>
+        ) : null}
+        {canBuy && checkout === 'cancelled' ? (
+          <Alert>
+            <AlertCircleIcon />
+            <AlertTitle>Checkout cancelled</AlertTitle>
+            <AlertDescription>Nothing was charged.</AlertDescription>
           </Alert>
         ) : null}
         {plan.kind === 'past-due' ? (
@@ -162,7 +185,8 @@ export async function PlanBilling({
             <AlertCircleIcon />
             <AlertTitle>Your last payment failed</AlertTitle>
             <AlertDescription>
-              Stripe will try again. Update your card to keep your {planName(plan)} plan.
+              Update your card in Stripe and pay the open invoice to keep your {planName(plan)}{' '}
+              plan.
             </AlertDescription>
             {plan.portal ? (
               <AlertAction>
@@ -177,7 +201,7 @@ export async function PlanBilling({
             <AlertTitle>Your plan ends{periodEnd ? ` on ${periodEnd}` : ''}</AlertTitle>
             <AlertDescription>
               Until then nothing changes. After it, your {sitesCount(claimed)} stay claimed, but
-              their links go nofollow and they're rechecked monthly instead of weekly.
+              their links go nofollow and they can be rechecked monthly instead of weekly.
             </AlertDescription>
             {plan.live ? (
               <AlertAction>
@@ -264,7 +288,7 @@ export async function PlanBilling({
           />
         ) : null}
         {/* Canceled, still in its paid period: nothing to change, but a new plan can start. */}
-        {!plan.live && !unlimited ? (
+        {canBuy && !awaiting ? (
           <PlanChooser
             mode="checkout"
             current={null}

@@ -227,6 +227,7 @@ describe('PlanChooser, a live plan', () => {
       within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Switch plan' })
     )
     expect(await screen.findByText(/Switching to 50 sites, \$15 a month/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Check again/ })).toBeTruthy()
     // The refresh still shows the old plan (the webhook hasn't landed): no second switch.
     expect(screen.getByRole('button', { name: 'Switch to 50 sites' })).toHaveProperty(
       'disabled',

@@ -99,6 +99,18 @@ describe('an ending plan', () => {
     expect(screen.getByText('Change plan')).toBeTruthy()
   })
 
+  it('holds that checkout when Stripe sends the buyer back before the webhook', async () => {
+    // D1 still holds the canceled plan: a second checkout now would start a second subscription.
+    await renderPlan({ kind: 'ending', live: false }, 'success')
+    expect(screen.getByText('Payment received')).toBeTruthy()
+    expect(screen.queryByText("You're subscribed")).toBeNull()
+    expect(button(/Continue to checkout/)).toBeNull()
+    cleanup()
+    await renderPlan({ kind: 'ending', live: false }, 'cancelled')
+    expect(screen.getByText('Checkout cancelled')).toBeTruthy()
+    expect(button(/Continue to checkout/)).toBeTruthy()
+  })
+
   it('offers a new plan once canceled, since nothing is left to switch', async () => {
     await renderPlan({ kind: 'ending', live: false })
     expect(button(/Keep my plan/)).toBeNull()

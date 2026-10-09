@@ -4,7 +4,7 @@ import { ArrowUpRightIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +28,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { type PlanChoice, PRICING_TIERS } from '@/lib/pricing'
 import { changePlan, startCheckout } from './actions'
 import { PlanPicker } from './plan-picker'
+import { RefreshButton } from './refresh-button'
 
 function priceOf(choice: PlanChoice): number {
   const tier = PRICING_TIERS.find(candidate => candidate.domains === choice.domains)
@@ -48,7 +49,7 @@ const sameChoice = (a: PlanChoice | null, b: PlanChoice | null) =>
  */
 function switchTerms(current: PlanChoice, next: PlanChoice): string {
   if (current.billing !== next.billing) {
-    return `Your billing restarts today, ${next.billing === 'annual' ? 'yearly' : 'monthly'}: Stripe charges $${priceOf(next)} now, less a credit for the unused part of your current plan. Your sites stay claimed.`
+    return `Your billing restarts today, ${next.billing === 'annual' ? 'yearly' : 'monthly'}: Stripe charges $${priceOf(next)} now, less a credit for the unused part of your current plan. Any credit left over pays your next invoices. Your sites stay claimed.`
   }
   return priceOf(next) >= priceOf(current)
     ? 'Stripe charges the difference for the rest of this period today, on the card you pay with. Your sites stay claimed.'
@@ -152,6 +153,10 @@ export function PlanChooser({
               Switching to {switchedTo.domains} sites, {priceLabel(switchedTo)}. Your plan updates
               here once Stripe confirms it, usually within a minute.
             </AlertDescription>
+            {/* After the last automatic check (30 s), the visitor can look again. */}
+            <AlertAction>
+              <RefreshButton />
+            </AlertAction>
           </Alert>
         ) : null}
         {blocked ? (
