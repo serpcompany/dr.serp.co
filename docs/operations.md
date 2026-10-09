@@ -28,9 +28,10 @@ them. They do inherit other keys, including `main`, `compatibility_date`, `compa
 `assets`, `alias`, `keep_names`, `upload_source_maps`, `observability` and the Durable Object
 `migrations`, so changing one of those at the top level changes Staging and Production too.
 `keep_names` stays `false`: esbuild's `__name()` helper otherwise reaches next-themes' inline theme
-script, which fails in the browser (#130). The cost is small: the build doesn't minify identifiers,
-so only the few names esbuild renames to avoid a clash (such as `StyleSheet2`) lose their original
-`.name`, and nothing reads those. The smoke test fails if a page calls `__name()`.
+script, which fails in the browser (#130). The cost is small: `next build` has already minified
+the app's own names before esbuild bundles the Worker, so `keep_names` only kept names that
+esbuild renamed to avoid a clash (such as `StyleSheet2`), and nothing reads those. The smoke test
+fails if a page calls `__name()`.
 `src/lib/wrangler-config.test.ts` resolves each environment the way Wrangler does and checks its
 bindings, vars, hosts and flags. Every remote command passes `--env`; without it
 Wrangler uses the local configuration.
