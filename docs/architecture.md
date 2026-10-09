@@ -97,8 +97,8 @@ Site search matches the domain with `instr()`, never `LIKE`, because D1 refuses 
 over 50 bytes ([D1 limits](https://github.com/serpcompany/serp/blob/main/docs/engineering/technology/cloudflare-d1-limits.md)).
 `normalizeSearchQuery` collapses whitespace, keeps 100 characters and folds only ASCII case, as
 SQLite's `lower()` does. `src/server/sql-patterns.test.ts` fails on a bound `LIKE` or `GLOB`
-pattern, and `src/server/db-workerd.test.ts` runs search on D1 in workerd, which enforces the
-limit. The listable filter runs in JavaScript, so `listSites` reads the rows up to the requested
+pattern (local workerd doesn't enforce the limit), and `src/db/index.test.ts` runs search on
+D1 in workerd. The listable filter runs in JavaScript, so `listSites` reads the rows up to the requested
 page plus 200, and reads further (doubling) only when unlistable rows leave the page short. A
 page past offset 100,000 is empty. `countSites` still reads each matching domain and title; #75 moves both into SQL.
 
@@ -108,8 +108,9 @@ page past offset 100,000 is empty. `countSites` still reads each matching domain
 `RATE_LIMITER` Durable Object, which makes it consistent across isolates. If the Durable Object
 fails, the request is refused and the result is marked `unavailable`: the failure is logged
 (the limit's name, never the IP or email in its key), routes answer 503 rather than a cooldown,
-and a site page says new lookups are unavailable. Without the binding (`next dev`), it counts in
-memory.
+and a site page says new lookups are unavailable. Under `next dev` (`NODE_ENV=development`) it
+counts in memory, because the local bindings can't run the Durable Object; builds inline
+`NODE_ENV` as `production`, so that branch doesn't exist in a deployed Worker.
 
 ## Configuration
 
