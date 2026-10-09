@@ -32,7 +32,7 @@ ones your task touches (paths below are relative to that folder):
 
 The site is moving to the SERP web stack under
 [epic #36](https://github.com/serpcompany/dr.serp.co/issues/36), one sub-issue at a time. Until
-an issue lands, keep the current tools: no Better Auth ahead of #54.
+an issue lands, keep the current tools.
 
 ## Where things live
 
@@ -44,8 +44,8 @@ only carry the block `next dev` keeps.
 - `src/app/`: pages and route handlers. Writes a visitor asks for are route handlers under
   `src/app/api/`; there are no Server Actions. Rendering a site page and the badge route also
   write to D1 ([Architecture](docs/architecture.md#layers)).
-- `src/server/`: server-only logic: DR providers, domain validation, the spam filter, sign-in
-  tokens and sessions, entitlements and rate limits.
+- `src/server/`: server-only logic: DR providers, domain validation, the spam filter, Better Auth
+  sign-in and sessions (`src/server/auth/`), entitlements and rate limits.
 - `src/lib/`: pricing tiers, the Stripe client and shared helpers.
 - `src/components/ui/`: stock shadcn components (`base-nova` on Base UI).
 - `worker.ts`: the Worker entry, wrapping OpenNext; its concerns live in `src/lib/`.

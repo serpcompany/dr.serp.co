@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { getSessionEmail } from '@/server/auth-session.mjs'
+import { getSessionEmail } from '@/server/auth/session'
 import { resolveEntitlement } from '@/server/entitlements.mjs'
 import { EMPTY_BODY, readWriteRequest } from '@/server/write-route'
 
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   const read = await readWriteRequest(request, EMPTY_BODY)
   if (!read.ok) return read.response
 
-  const email = getSessionEmail(request)
+  const email = await getSessionEmail(request)
   if (!email) {
     return NextResponse.json({ error: 'Sign in required.', code: 'auth_required' }, { status: 401 })
   }

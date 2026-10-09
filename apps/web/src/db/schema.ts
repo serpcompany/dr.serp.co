@@ -133,3 +133,100 @@ export const drBillingAudit = sqliteTable(
     index('dr_billing_audit_subscription_idx').on(table.stripeSubscriptionId)
   ]
 )
+
+// Better Auth's tables (#134), in the shape its Drizzle adapter expects: text ids, millisecond
+// timestamps and a boolean `email_verified`, unlike the ISO-text dr_* tables above. Model names
+// map onto these plural names in src/server/auth/config.ts.
+const epochMillisecondsNow = sql`(cast(unixepoch('subsecond') * 1000 as integer))`
+
+export const users = sqliteTable(
+  'users',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    email: text('email').notNull(),
+    emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
+    image: text('image'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(epochMillisecondsNow),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(epochMillisecondsNow)
+      .$onUpdate(() => new Date())
+  },
+  table => [
+    uniqueIndex('users_email_uq').on(table.email),
+    check('users_email_verified_bool', sql`${table.emailVerified} IN (0, 1)`)
+  ]
+)
+
+export const sessions = sqliteTable(
+  'sessions',
+  {
+    id: text('id').primaryKey(),
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+    token: text('token').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(epochMillisecondsNow),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(epochMillisecondsNow)
+      .$onUpdate(() => new Date()),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' })
+  },
+  table => [
+    uniqueIndex('sessions_token_uq').on(table.token),
+    index('sessions_user_idx').on(table.userId)
+  ]
+)
+
+export const accounts = sqliteTable(
+  'accounts',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: integer('access_token_expires_at', { mode: 'timestamp_ms' }),
+    refreshTokenExpiresAt: integer('refresh_token_expires_at', { mode: 'timestamp_ms' }),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(epochMillisecondsNow),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(epochMillisecondsNow)
+      .$onUpdate(() => new Date())
+  },
+  table => [index('accounts_user_idx').on(table.userId)]
+)
+
+export const verification = sqliteTable(
+  'verification',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(epochMillisecondsNow),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(epochMillisecondsNow)
+      .$onUpdate(() => new Date())
+  },
+  table => [index('verification_identifier_idx').on(table.identifier)]
+)

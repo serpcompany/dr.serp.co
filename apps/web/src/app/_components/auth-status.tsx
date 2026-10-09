@@ -15,7 +15,6 @@ function readEmail() {
 function clearLocalAuth() {
   window.localStorage.removeItem('dr-auth-email')
   window.sessionStorage.removeItem('dr-otp-email')
-  window.sessionStorage.removeItem('dr-otp-token')
 }
 
 export function AuthStatus() {
@@ -35,13 +34,15 @@ export function AuthStatus() {
     const controller = new AbortController()
     ;(async () => {
       try {
-        const response = await fetch('/api/auth/session', {
+        const response = await fetch('/api/auth/get-session', {
           cache: 'no-store',
           signal: controller.signal
         })
         if (!response.ok) return
+        // Better Auth answers null for no session, else { session, user }.
         const payload = await readJsonRecord(response)
-        const sessionEmail = typeof payload?.email === 'string' ? payload.email : ''
+        const user = payload?.user as { email?: unknown } | undefined
+        const sessionEmail = typeof user?.email === 'string' ? user.email : ''
         if (sessionEmail === readEmail()) return
         if (sessionEmail) {
           window.localStorage.setItem('dr-auth-email', sessionEmail)
@@ -62,7 +63,12 @@ export function AuthStatus() {
   }, [])
 
   const logout = async () => {
-    await fetch('/api/auth/session', { method: 'DELETE' }).catch(() => null)
+    // Better Auth refuses a POST without a JSON content type (415), even with no fields.
+    await fetch('/api/auth/sign-out', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    }).catch(() => null)
     clearLocalAuth()
     setEmail('')
     router.refresh()

@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn()
 }))
 
-vi.mock('@/server/auth-session.mjs', () => ({ getSessionEmail: mocks.getSessionEmail }))
+vi.mock('@/server/auth/session', () => ({ getSessionEmail: mocks.getSessionEmail }))
 vi.mock('@/server/entitlements.mjs', () => ({ resolveEntitlement: mocks.resolveEntitlement }))
 vi.mock('@/server/rate-limit.mjs', () => ({
   RATE_LIMITER_UNAVAILABLE_MESSAGE: 'This is unavailable right now. Please try again shortly.',

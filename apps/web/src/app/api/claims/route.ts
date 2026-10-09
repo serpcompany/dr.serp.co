@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { clearClaimEmail, getClaim, setClaimEmail } from '@/db'
-import { getSessionEmail } from '@/server/auth-session.mjs'
+import { getSessionEmail } from '@/server/auth/session'
 import { normalizeTarget } from '@/server/dr-providers.mjs'
 import { resolveEntitlement } from '@/server/entitlements.mjs'
 import { readWriteRequest } from '@/server/write-route'
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const read = await readWriteRequest(request, DomainBody)
   if (!read.ok) return read.response
 
-  const email = getSessionEmail(request)
+  const email = await getSessionEmail(request)
   if (!email) return authRequired()
 
   const domain = normalizeTarget(read.data.domain)
@@ -61,7 +61,7 @@ export async function DELETE(request: Request) {
   const read = await readWriteRequest(request, DomainBody)
   if (!read.ok) return read.response
 
-  const email = getSessionEmail(request)
+  const email = await getSessionEmail(request)
   if (!email) return authRequired()
 
   const domain = normalizeTarget(read.data.domain)

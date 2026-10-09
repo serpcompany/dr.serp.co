@@ -3,7 +3,7 @@ import { readNumberEnv } from '@/lib/env'
 import type { BillingPeriod } from '@/lib/pricing'
 import { getStripe } from '@/lib/stripe'
 import { getPriceId, getTierForPriceId } from '@/lib/stripe-pricing'
-import { getSessionEmail } from '@/server/auth-session.mjs'
+import { getSessionEmail } from '@/server/auth/session'
 import { resolveEntitlement } from '@/server/entitlements.mjs'
 import {
   checkRateLimit,
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const read = await readWriteRequest(request, CheckoutBody)
   if (!read.ok) return read.response
 
-  const email = getSessionEmail(request)
+  const email = await getSessionEmail(request)
   if (!email) {
     return NextResponse.json({ error: 'Sign in required.', code: 'auth_required' }, { status: 401 })
   }

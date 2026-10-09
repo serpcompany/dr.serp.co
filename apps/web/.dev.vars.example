@@ -1,14 +1,17 @@
-# Copy to .dev.vars for local runs. pnpm dev and the operator scripts load every key. Wrangler
-# (wrangler dev, pnpm preview) loads only the keys in secrets.required in wrangler.jsonc,
-# and takes DR_PUBLIC_BASE_URL and DR_BADGE_BASE_URL from wrangler.jsonc's vars; other keys fall
-# back to their code defaults there.
+# Copy to .dev.vars for local runs. pnpm dev, Wrangler (wrangler dev, pnpm preview) and the
+# operator scripts load every key, and under Wrangler these override wrangler.jsonc's vars. The
+# origins below fit pnpm dev (port 3000); under pnpm preview use http://localhost:8787.
 # Never put these in .env* files: the OpenNext build copies .env* values into the Worker bundle.
 # Deployed environments use Worker vars and secrets (wrangler secret put --env <env>).
 
 USESEND_API_KEY=
 USESEND_FROM=DR Checker <no-reply@mail.serp.co>
 
-USESEND_OTP_SECRET=
+# Better Auth (sign-in). Locally the secret may stay empty (a throwaway one is used).
+# BETTER_AUTH_URL must be the origin you browse, or sign-in answers 403 "Invalid origin".
+# Without USESEND_API_KEY, sign-in codes print in the dev server's terminal.
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=http://localhost:3000
 
 # Local origin. Operator scripts call the admin API here unless DR_ADMIN_BASE_URL is set, so a
 # deployed environment is only ever targeted on purpose.

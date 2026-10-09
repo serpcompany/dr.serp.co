@@ -67,24 +67,6 @@ const ROUTES: Route[] = [
     load: async () => (await import('./stripe/change-plan/route')).POST
   },
   {
-    name: 'request a code',
-    method: 'POST',
-    path: '/api/auth/request-otp',
-    load: async () => (await import('./auth/request-otp/route')).POST
-  },
-  {
-    name: 'verify a code',
-    method: 'POST',
-    path: '/api/auth/verify-otp',
-    load: async () => (await import('./auth/verify-otp/route')).POST
-  },
-  {
-    name: 'sign out',
-    method: 'DELETE',
-    path: '/api/auth/session',
-    load: async () => (await import('./auth/session/route')).DELETE as Handler
-  },
-  {
     name: 'admin prune audit',
     method: 'POST',
     path: '/api/admin/billing/prune-audit',
@@ -159,11 +141,13 @@ describe('write routes', () => {
 
     const writeRoutes = routeFiles(apiDir)
       .filter(file =>
-        /export async function (POST|PUT|PATCH|DELETE)\b/.test(readFileSync(file, 'utf8'))
+        /export (async function|const) (POST|PUT|PATCH|DELETE)\b/.test(readFileSync(file, 'utf8'))
       )
       .map(file => path.relative(apiDir, path.dirname(file)))
       // Stripe signs its webhook; the signature check replaces the Origin check and schema.
       .filter(dir => dir !== path.join('stripe', 'webhook'))
+      // Better Auth checks Origin and CSRF itself, forced on in src/server/auth/config.test.ts.
+      .filter(dir => dir !== path.join('auth', '[...all]'))
 
     for (const dir of writeRoutes) {
       expect(readFileSync(path.join(apiDir, dir, 'route.ts'), 'utf8'), dir).toContain(

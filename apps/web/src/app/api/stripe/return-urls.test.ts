@@ -17,7 +17,7 @@ vi.mock('@/lib/stripe-pricing', () => ({
   getPriceId: () => 'price_12m'
 }))
 
-vi.mock('@/server/auth-session.mjs', () => ({
+vi.mock('@/server/auth/session', () => ({
   getSessionEmail: () => 'owner@example.com'
 }))
 

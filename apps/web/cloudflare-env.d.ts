@@ -7,15 +7,16 @@ interface __BaseEnv_CloudflareEnv {
 	SITE_ENV: "production";
 	DR_PUBLIC_BASE_URL: "https://dr.serp.co";
 	DR_BADGE_BASE_URL: "https://dr.serp.co";
+	BETTER_AUTH_URL: "https://dr.serp.co";
 	STRIPE_PORTAL_CONFIGURATION_ID: "bpc_1UOMK3Ct1irzGjqBrv1778CI";
 	AHREFS_API_KEY: string;
+	BETTER_AUTH_SECRET: string;
 	DR_ADMIN_TOKEN: string;
 	STRIPE_PRICE_IDS: string;
 	STRIPE_SECRET_KEY: string;
 	STRIPE_WEBHOOK_SECRET: string;
 	USESEND_API_KEY: string;
 	USESEND_FROM: string;
-	USESEND_OTP_SECRET: string;
 	RATE_LIMITER: DurableObjectNamespace<import("./worker").RateLimitDurableObject>;
 	WORKER_SELF_REFERENCE: Service<typeof import("./worker").default>;
 }
@@ -31,7 +32,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "NEXTJS_ENV" | "SITE_ENV" | "DR_PUBLIC_BASE_URL" | "DR_BADGE_BASE_URL" | "STRIPE_PORTAL_CONFIGURATION_ID" | "AHREFS_API_KEY" | "DR_ADMIN_TOKEN" | "STRIPE_PRICE_IDS" | "STRIPE_SECRET_KEY" | "STRIPE_WEBHOOK_SECRET" | "USESEND_API_KEY" | "USESEND_FROM" | "USESEND_OTP_SECRET">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "NEXTJS_ENV" | "SITE_ENV" | "DR_PUBLIC_BASE_URL" | "DR_BADGE_BASE_URL" | "BETTER_AUTH_URL" | "STRIPE_PORTAL_CONFIGURATION_ID" | "AHREFS_API_KEY" | "BETTER_AUTH_SECRET" | "DR_ADMIN_TOKEN" | "STRIPE_PRICE_IDS" | "STRIPE_SECRET_KEY" | "STRIPE_WEBHOOK_SECRET" | "USESEND_API_KEY" | "USESEND_FROM">> {}
 }
 
 // Begin runtime types
