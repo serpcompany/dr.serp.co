@@ -20,7 +20,7 @@ vi.mock('next/navigation', () => ({
   }
 }))
 
-const { loadAccount, planOf, requireAccount } = await import('./account')
+const { loadAccount, planOf, requireAccount, requireSignIn } = await import('./account')
 
 type D1 = {
   prepare: (sql: string) => { bind: (...values: unknown[]) => { run: () => Promise<unknown> } }
@@ -204,5 +204,12 @@ describe('requireAccount', () => {
       'REDIRECT /login?callbackUrl=%2Faccount%2Fsites%3Fsite%3Dbest.serp.co'
     )
     await expect(requireAccount('/account')).rejects.toThrow('REDIRECT /login')
+  })
+
+  it('redirects on the session alone, before any account data loads', async () => {
+    await expect(requireSignIn('/account/sites?add=1')).rejects.toThrow(
+      'REDIRECT /login?callbackUrl=%2Faccount%2Fsites%3Fadd%3D1'
+    )
+    expect(resolveEntitlement).not.toHaveBeenCalled()
   })
 })

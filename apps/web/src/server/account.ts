@@ -123,11 +123,26 @@ export async function loadAccount(email: string, now = new Date()): Promise<Acco
   }
 }
 
+/** This request's signed-in email, or null; read once per request. */
+const sessionEmail = cache(async function sessionEmail(): Promise<string | null> {
+  return getSessionEmail({ headers: await headers() })
+})
+
 /** The account for this request's session, or null when signed out; loaded once per request. */
 export const currentAccount = cache(async function currentAccount(): Promise<Account | null> {
-  const email = await getSessionEmail({ headers: await headers() })
+  const email = await sessionEmail()
   return email ? loadAccount(email) : null
 })
+
+/**
+ * The signed-in email, or a redirect to /login that comes back to `path`. Only the session, so a
+ * page can redirect before it streams anything (a real 307), then load the account in Suspense.
+ */
+export async function requireSignIn(path: string): Promise<string> {
+  const email = await sessionEmail()
+  if (!email) redirect(loginHref(path))
+  return email
+}
 
 /** The signed-in account, or a redirect to /login that comes back to `path`. */
 export async function requireAccount(path: string): Promise<Account> {

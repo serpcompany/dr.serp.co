@@ -1,21 +1,22 @@
 import { Card, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from './page-header'
 
 const CARDS = ['c1', 'c2', 'c3', 'c4']
 const ROWS = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6']
 
-// Moving between account pages: the heading, cards and table rows as placeholders while the
-// page loads its data.
-export default function AccountLoading() {
+/**
+ * An account page while its data loads (#140 mockups, the Sites loading state): its real heading,
+ * then cards and table rows as placeholders. The page checks the session before showing it, so a
+ * signed-out visitor is redirected (307) rather than shown this.
+ */
+export function PageLoading({ title, description }: { title: string; description: string }) {
   return (
     <div className="flex flex-col gap-4 md:gap-6" aria-busy="true">
       <span className="sr-only" role="status">
         Loading
       </span>
-      <div className="flex flex-col gap-2 px-4 lg:px-6">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-4 w-72 max-w-full" />
-      </div>
+      <PageHeader title={title} description={description} />
       <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
         {CARDS.map(key => (
           <Card key={key}>

@@ -1,7 +1,9 @@
+import { Suspense } from 'react'
 import { AddSiteDialog } from '@/components/account/add-site-dialog'
 import { PageHeader } from '@/components/account/page-header'
+import { PageLoading } from '@/components/account/page-loading'
 import { SitesTable } from '@/components/account/sites-table'
-import { requireAccount } from '@/server/account'
+import { requireAccount, requireSignIn } from '@/server/account'
 import { badgeUrls } from '../badge-urls'
 import { NoSites } from '../no-sites'
 
@@ -18,7 +20,25 @@ export default async function AccountSites({
   const query = new URLSearchParams()
   if (site) query.set('site', site)
   if (add) query.set('add', '1')
-  const account = await requireAccount(`/account/sites${query.size ? `?${query}` : ''}`)
+  const path = `/account/sites${query.size ? `?${query}` : ''}`
+  // Signed out: a 307 before anything streams. Then the table loads behind its skeleton.
+  await requireSignIn(path)
+  return (
+    <Suspense
+      fallback={
+        <PageLoading
+          title="Sites"
+          description="Your claimed sites. Open one for its badge and history."
+        />
+      }
+    >
+      <Sites path={path} add={add} />
+    </Suspense>
+  )
+}
+
+async function Sites({ path, add }: { path: string; add: boolean }) {
+  const account = await requireAccount(path)
   const { plan } = account
   return (
     <>
