@@ -44,9 +44,7 @@ export function ThemeToggle({ className, ...props }: React.ComponentProps<typeof
       onValueChange={value => value && setTheme(value)}
     >
       <SelectTrigger className={className} {...props}>
-        <SelectValue placeholder="Select theme">
-          {value => <ThemeLabel value={value} />}
-        </SelectValue>
+        <SelectValue>{value => <ThemeLabel value={value} />}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {THEMES.map(item => (
