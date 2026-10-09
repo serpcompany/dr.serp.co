@@ -254,6 +254,7 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
     verifying.current = true
     setPending(true)
     setCodeError(null)
+    setNotice(null)
     const outcome = await verifyCode(email, code)
     verifying.current = false
     setPending(false)

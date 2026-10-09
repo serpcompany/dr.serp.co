@@ -216,6 +216,11 @@ describe('failures on the code step', () => {
     paste('482913')
     expect(await screen.findByText("Couldn't reach dr.serp.co")).toBeTruthy()
     expect(document.querySelector('[data-slot=input-otp-slot][aria-invalid=true]')).toBeNull()
+    // The next guess that gets through clears the notice.
+    answer(SIGN_IN, { status: 400, body: { code: 'INVALID_OTP' } })
+    paste('111111')
+    await screen.findByText(/That code isn't right/)
+    expect(screen.queryByText("Couldn't reach dr.serp.co")).toBeNull()
   })
 
   it('tells a server failure from a lost connection', async () => {
