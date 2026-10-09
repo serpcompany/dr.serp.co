@@ -12,7 +12,19 @@ export type CodeSender = {
   send(code: SignInCode): Promise<void>
 }
 
-const DEFAULT_FROM = 'SERP DR <no-reply@mail.serp.co>'
+const SENDER_NAME = 'SERP DR'
+const DEFAULT_ADDRESS = 'no-reply@mail.serp.co'
+
+/**
+ * The From header: always "SERP DR", at the address USESEND_FROM names (a bare address or
+ * "Name <address>"), so the secret only chooses the mailbox.
+ */
+export function fromHeader(configured: string | undefined): string {
+  const value = configured?.trim() ?? ''
+  const named = /<([^<>\s]+@[^<>\s]+)>$/.exec(value)?.[1]
+  const bare = /^[^\s<>]+@[^\s<>]+$/.test(value) ? value : null
+  return `${SENDER_NAME} <${named ?? bare ?? DEFAULT_ADDRESS}>`
+}
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
@@ -39,17 +51,27 @@ export function signInEmail({ otp, expiresInSeconds }: SignInCode, siteUrl: stri
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>${subject}</title>
+<style>
+@media (prefers-color-scheme: dark) {
+  .page { background: #111312 !important; color: #ececec !important; }
+  .card { background: #1c1f1d !important; border-color: #2e332f !important; }
+  .muted { color: #a3a8a4 !important; }
+  .code { background: #262a27 !important; color: #ffffff !important; }
+  .rule { border-top-color: #2e332f !important; }
+  .link { color: #ececec !important; }
+}
+</style>
 </head>
-<body style="margin:0;padding:24px 12px;background:#f4f4f5;font-family:${font};color:#18181b">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e4e4e7;border-radius:12px">
+<body class="page" style="margin:0;padding:24px 12px;background:#f4f4f5;font-family:${font};color:#18181b">
+<table class="card" role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e4e4e7;border-radius:12px">
 <tr><td style="padding:32px 28px">
 <p style="margin:0;font-size:15px;font-weight:700">SERP DR</p>
 <h1 style="margin:24px 0 8px;font-size:22px;font-weight:600">Your sign-in code</h1>
-<p style="margin:0;font-size:15px;line-height:1.6;color:#52525b">Enter this code on dr.serp.co, in the browser you asked from. It works for ${minutes} minutes.</p>
-<p style="margin:24px 0;padding:18px 0;background:#f4f4f5;border-radius:10px;text-align:center;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:34px;font-weight:600;letter-spacing:0.3em">${escapeHtml(otp)}</p>
-<p style="margin:0;font-size:14px;line-height:1.6;color:#52525b">Didn&#39;t ask for it? Ignore this email. Nobody can sign in without the code.</p>
-<hr style="border:0;border-top:1px solid #e4e4e7;margin:28px 0 16px">
-<p style="margin:0;font-size:12px;line-height:1.6;color:#71717a">This address isn&#39;t monitored, so replies aren&#39;t read. Manage your sites at <a href="${sitesUrl}" style="color:#18181b">${sitesLabel}</a>.</p>
+<p class="muted" style="margin:0;font-size:15px;line-height:1.6;color:#52525b">Enter this code on dr.serp.co, in the browser you asked from. It works for ${minutes} minutes.</p>
+<p class="code" style="margin:24px 0;padding:18px 0;background:#f4f4f5;border-radius:10px;text-align:center;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:34px;font-weight:600;letter-spacing:0.3em">${escapeHtml(otp)}</p>
+<p class="muted" style="margin:0;font-size:14px;line-height:1.6;color:#52525b">Didn&#39;t ask for it? Ignore this email. Nobody can sign in without the code.</p>
+<hr class="rule" style="border:0;border-top:1px solid #e4e4e7;margin:28px 0 16px">
+<p class="muted" style="margin:0;font-size:12px;line-height:1.6;color:#71717a">This address isn&#39;t monitored, so replies aren&#39;t read. Manage your sites at <a href="${sitesUrl}" class="link" style="color:#18181b">${sitesLabel}</a>.</p>
 </td></tr>
 </table>
 </body>
@@ -91,7 +113,7 @@ export function codeSenderFor(
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: code.email,
-          from: env.USESEND_FROM || DEFAULT_FROM,
+          from: fromHeader(env.USESEND_FROM),
           subject,
           html,
           text

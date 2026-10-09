@@ -102,7 +102,7 @@ describe('the email step', () => {
     render(<LoginCard callbackPath="/add" />)
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@example.com' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send code' }))
-    expect(await screen.findByText('Sign-in codes are unavailable right now')).toBeTruthy()
+    expect(await screen.findByText('Sign-in is unavailable right now')).toBeTruthy()
     // No answer queued: the request fails like a dropped connection.
     fireEvent.click(screen.getByRole('button', { name: 'Send code' }))
     expect(await screen.findByText("Couldn't reach dr.serp.co")).toBeTruthy()
@@ -150,8 +150,12 @@ describe('the code step', () => {
     expect(await screen.findByText("That code isn't right. 1 try left.")).toBeTruthy()
     paste('333333')
     expect(await screen.findByText('Too many wrong tries. Send a new code.')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Send a new code' })).toBeTruthy()
+    // As in the mockup: Sign in stays (disabled), and Resend in the label row takes over.
+    expect(screen.getByRole('button', { name: 'Sign in' })).toHaveProperty('disabled', true)
+    const resend = screen.getByRole('button', { name: /Resend code/ })
+    expect(resend).toHaveProperty('disabled', false)
     expect(codeInput().disabled).toBe(true)
+    await waitFor(() => expect(document.activeElement).toBe(resend))
   })
 
   it('says when the code expired', async () => {
@@ -189,5 +193,132 @@ describe('signed in already', () => {
     expect(screen.getByRole('heading', { name: "You're signed in" })).toBeTruthy()
     expect(screen.getByText('owner@example.com')).toBeTruthy()
     expect(screen.getByText('Continue to your sites')).toBeTruthy()
+  })
+})
+
+describe('failures on the code step', () => {
+  it('waits out the per-client guess limit', async () => {
+    await toCodeStep()
+    answer(SIGN_IN, {
+      status: 429,
+      body: { code: 'RATE_LIMITED' },
+      headers: { 'retry-after': '42' }
+    })
+    paste('482913')
+    expect(
+      await screen.findByText(/Too many tries from this network. Try again in 4[23] seconds/)
+    ).toBeTruthy()
+  })
+
+  it('shows a lost connection as a notice and leaves the slots as they were', async () => {
+    await toCodeStep()
+    // No answer queued: the request fails like a dropped connection.
+    paste('482913')
+    expect(await screen.findByText("Couldn't reach dr.serp.co")).toBeTruthy()
+    expect(document.querySelector('[data-slot=input-otp-slot][aria-invalid=true]')).toBeNull()
+  })
+
+  it('tells a server failure from a lost connection', async () => {
+    await toCodeStep()
+    answer(SIGN_IN, { status: 503, body: { code: 'RATE_LIMITER_UNAVAILABLE' } })
+    paste('482913')
+    expect(await screen.findByText('Sign-in is unavailable right now')).toBeTruthy()
+    expect(screen.queryByText("Couldn't reach dr.serp.co")).toBeNull()
+  })
+
+  it('reports a refused resend', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    await toCodeStep()
+    await act(async () => {
+      vi.advanceTimersByTime(61_000)
+    })
+    answer(SEND, { status: 429, body: { code: 'RATE_LIMITED' }, headers: { 'retry-after': '30' } })
+    fireEvent.click(screen.getByRole('button', { name: /Resend code/ }))
+    expect(await screen.findByText('Too many requests')).toBeTruthy()
+    answer(SEND, { status: 503, body: { code: 'OTP_DELIVERY_UNAVAILABLE' } })
+    await act(async () => {
+      vi.advanceTimersByTime(31_000)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Resend code/ }))
+    expect(await screen.findByText('Sign-in is unavailable right now')).toBeTruthy()
+  })
+
+  it('treats a code older than 10 minutes as expired', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    await toCodeStep()
+    await act(async () => {
+      vi.advanceTimersByTime(10 * 60_000 + 1000)
+    })
+    answer(SIGN_IN, { status: 400, body: { code: 'INVALID_OTP' } })
+    paste('482913')
+    expect(await screen.findByText(/That code expired/)).toBeTruthy()
+  })
+})
+
+describe('after a resend that may not have sent a new code', () => {
+  it('stops counting, and ends the code after three misses since the resend', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    await toCodeStep()
+    answer(SIGN_IN, { status: 400, body: { code: 'INVALID_OTP' } })
+    paste('111111')
+    expect(await screen.findByText("That code isn't right. 2 tries left.")).toBeTruthy()
+    await act(async () => {
+      vi.advanceTimersByTime(61_000)
+    })
+    answer(SEND, { status: 200, body: { success: true } })
+    fireEvent.click(screen.getByRole('button', { name: /Resend code/ }))
+    await waitFor(() => expect(calls.filter(call => call.path === SEND)).toHaveLength(2))
+    answer(
+      SIGN_IN,
+      { status: 400, body: { code: 'INVALID_OTP' } },
+      { status: 400, body: { code: 'INVALID_OTP' } },
+      { status: 400, body: { code: 'INVALID_OTP' } }
+    )
+    paste('222222')
+    expect(
+      await screen.findByText("That code isn't right. Check the most recent email and try again.")
+    ).toBeTruthy()
+    paste('333333')
+    await waitFor(() => expect(calls.filter(call => call.path === SIGN_IN)).toHaveLength(3))
+    paste('444444')
+    expect(await screen.findByText('Too many wrong tries. Send a new code.')).toBeTruthy()
+  })
+})
+
+describe('typed and autofilled codes', () => {
+  it('reads an autofilled spaced code whole', async () => {
+    await toCodeStep()
+    answer(SIGN_IN, { status: 200, body: { user: { email: 'owner@example.com' } } })
+    fireEvent.input(codeInput(), { target: { value: '482 913' } })
+    expect(await screen.findByRole('heading', { name: "You're signed in" })).toBeTruthy()
+    expect(calls.find(call => call.path === SIGN_IN)?.body.otp).toBe('482913')
+  })
+
+  it('reads text inserted in one go like a paste', async () => {
+    await toCodeStep()
+    answer(SIGN_IN, { status: 200, body: { user: { email: 'owner@example.com' } } })
+    const event = new InputEvent('beforeinput', {
+      data: 'Code: 482-913',
+      inputType: 'insertReplacementText',
+      cancelable: true,
+      bubbles: true
+    })
+    act(() => {
+      codeInput().dispatchEvent(event)
+    })
+    expect(event.defaultPrevented).toBe(true)
+    expect(await screen.findByRole('heading', { name: "You're signed in" })).toBeTruthy()
+    expect(calls.find(call => call.path === SIGN_IN)?.body.otp).toBe('482913')
+  })
+})
+
+describe('signing out from the signed-in screen', () => {
+  it('goes to /login, and the pending redirect never fires', async () => {
+    answer('/sign-out', { status: 200, body: { success: true } })
+    render(<LoginCard callbackPath="/billing" signedInEmail="owner@example.com" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('/login?callbackUrl=%2Fbilling'))
+    await new Promise(resolve => setTimeout(resolve, 1400))
+    expect(assign).not.toHaveBeenCalledWith('/billing')
   })
 })

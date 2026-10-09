@@ -395,7 +395,7 @@ export function createAuth({ db, settings, sender, limit }: CreateAuthOptions): 
   const invalidCode = () => APIError.from('BAD_REQUEST', otpPlugin.$ERROR_CODES.INVALID_OTP)
 
   const instance = betterAuth({
-    appName: 'DR Checker',
+    appName: 'SERP DR',
     basePath: AUTH_BASE_PATH,
     baseURL: settings.baseURL,
     secret: settings.secret,

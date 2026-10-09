@@ -78,6 +78,13 @@ export function AuthStatus() {
       <Link
         href={loginHref(pathname)}
         className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
+        onClick={event => {
+          // The query string isn't known while rendering (the page may be static): add it here,
+          // so /sites?q=…&page=3 comes back to the same results.
+          if (!window.location.search) return
+          event.preventDefault()
+          window.location.assign(loginHref(pathname + window.location.search))
+        }}
       >
         Sign in
       </Link>

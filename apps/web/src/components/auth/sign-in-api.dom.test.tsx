@@ -152,11 +152,24 @@ describe('requesting a code', () => {
     expect(await requestCode('nope', answer(400, { code: 'INVALID_EMAIL' }))).toEqual({
       kind: 'invalid-email'
     })
-    expect(await requestCode('a@b.co', answer(500))).toEqual({ kind: 'failed' })
+    // Every server failure reads as unavailable, never as the visitor's connection.
+    for (const [status, code] of [
+      [503, 'RATE_LIMITER_UNAVAILABLE'],
+      [503, 'AUTH_UNAVAILABLE'],
+      [500, 'AUTH_FAILED'],
+      [500, undefined]
+    ] as const) {
+      expect(await requestCode('a@b.co', answer(status, { code })), `${status} ${code}`).toEqual({
+        kind: 'unavailable'
+      })
+    }
+    expect(await requestCode('a@b.co', answer(403, { code: 'INVALID_ORIGIN' }))).toEqual({
+      kind: 'failed'
+    })
     const offline = vi.fn(async () => {
       throw new TypeError('Failed to fetch')
     }) as unknown as typeof fetch
-    expect(await requestCode('a@b.co', offline)).toEqual({ kind: 'failed' })
+    expect(await requestCode('a@b.co', offline)).toEqual({ kind: 'offline' })
   })
 })
 
@@ -184,6 +197,12 @@ describe('verifying a code', () => {
       retryAfterSeconds: 30
     })
     expect(await outcome(403, 'INVALID_ORIGIN')).toEqual({ kind: 'failed' })
+    expect(await outcome(503, 'RATE_LIMITER_UNAVAILABLE')).toEqual({ kind: 'unavailable' })
+    expect(await outcome(500, 'AUTH_FAILED')).toEqual({ kind: 'unavailable' })
+    const offline = vi.fn(async () => {
+      throw new TypeError('Failed to fetch')
+    }) as unknown as typeof fetch
+    expect(await verifyCode('a@b.co', '000000', offline)).toEqual({ kind: 'offline' })
   })
 })
 

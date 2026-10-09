@@ -50,9 +50,11 @@ const DIGITS_ONLY = '^\\d+$'
 const SLOTS =
   '*:data-[slot=input-otp-slot]:h-12 *:data-[slot=input-otp-slot]:w-11 *:data-[slot=input-otp-slot]:text-xl'
 
+/** A message above the form: a wait, the server down, no connection, or something unexpected. */
 type Notice =
   | { kind: 'limited'; until: number }
   | { kind: 'unavailable' }
+  | { kind: 'offline' }
   | { kind: 'failed' }
   | null
 
@@ -62,7 +64,6 @@ type CodeError =
   | { kind: 'expired' }
   | { kind: 'attempts' }
   | { kind: 'limited'; until: number }
-  | { kind: 'failed' }
   | null
 
 /**
@@ -110,6 +111,9 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
   /** The last code the server rejected; it is never sent again. */
   const [rejectedCode, setRejectedCode] = useState<string | null>(null)
   const codeInput = useRef<HTMLInputElement>(null)
+  const resendButton = useRef<HTMLButtonElement>(null)
+  /** Set by "Not you? Sign out", so the redirect to the callback doesn't race it. */
+  const leaving = useRef(false)
   /** Set synchronously, so a paste and a keystroke in the same tick cannot both submit. */
   const verifying = useRef(false)
   /**
@@ -123,9 +127,17 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
   useEffect(() => {
     if (step.kind !== 'done') return undefined
     // A full page load, so the header and every component that reads the account start over.
-    const timer = window.setTimeout(() => window.location.assign(callbackPath), REDIRECT_DELAY_MS)
+    const timer = window.setTimeout(() => {
+      if (!leaving.current) window.location.assign(callbackPath)
+    }, REDIRECT_DELAY_MS)
     return () => window.clearTimeout(timer)
   }, [step, callbackPath])
+
+  // A spent code disables the slots, so focus moves to Resend rather than the page body.
+  const spent = codeError?.kind === 'expired' || codeError?.kind === 'attempts'
+  useEffect(() => {
+    if (spent) resendButton.current?.focus()
+  }, [spent])
 
   async function sendCode(address: string): Promise<boolean> {
     const outcome = await requestCode(address)
@@ -140,10 +152,9 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
         setNotice({ kind: 'limited', until: Date.now() + outcome.retryAfterSeconds * 1000 })
         return false
       case 'unavailable':
-        setNotice({ kind: 'unavailable' })
-        return false
-      default:
-        setNotice({ kind: 'failed' })
+      case 'offline':
+      case 'failed':
+        setNotice({ kind: outcome.kind })
         return false
     }
   }
@@ -255,7 +266,13 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
       setStep({ kind: 'done', email: outcome.email })
       return
     }
-    // The digits stay in the (red) slots, selected so the next code typed replaces them.
+    // A server or connection failure is a notice above the slots, which stay as they were.
+    if (outcome.kind === 'offline' || outcome.kind === 'unavailable' || outcome.kind === 'failed') {
+      setNotice({ kind: outcome.kind })
+      return
+    }
+    // The digits stay in the (red) slots, selected so the next code typed replaces them. (A spent
+    // code disables the slots; the effect below moves focus to Resend.)
     window.requestAnimationFrame(() => {
       const input = codeInput.current
       if (!input || input.disabled) return
@@ -286,14 +303,11 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
       setCodeError({ kind: 'limited', until: Date.now() + outcome.retryAfterSeconds * 1000 })
       return
     }
-    setCodeError(
-      outcome.kind === 'expired' || outcome.kind === 'attempts'
-        ? { kind: outcome.kind }
-        : { kind: 'failed' }
-    )
+    setCodeError({ kind: outcome.kind })
   }
 
   async function onSignOut() {
+    leaving.current = true
     setPending(true)
     await signOut()
     window.location.assign(loginHref(callbackPath))
@@ -384,6 +398,7 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
                 <div className="flex items-center justify-between">
                   <FieldLabel htmlFor="otp-verification">Verification code</FieldLabel>
                   <Button
+                    ref={resendButton}
                     variant="outline"
                     size="xs"
                     type="button"
@@ -476,32 +491,21 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
             </form>
           </CardContent>
           <CardFooter className="flex-col gap-2">
-            {codeDead ? (
-              <Button
-                type="button"
-                className="w-full"
-                disabled={pending || limitActive}
-                onClick={onResend}
-              >
-                {pending ? <Spinner data-icon="inline-start" /> : null}
-                Send a new code
-              </Button>
-            ) : (
-              <Button
-                type="submit"
-                form="code-form"
-                className="w-full"
-                disabled={
-                  pending ||
-                  otp.length !== CODE_LENGTH ||
-                  otp === rejectedCode ||
-                  guessLimitSeconds > 0
-                }
-              >
-                {pending ? <Spinner data-icon="inline-start" /> : null}
-                Sign in
-              </Button>
-            )}
+            <Button
+              type="submit"
+              form="code-form"
+              className="w-full"
+              disabled={
+                pending ||
+                codeDead ||
+                otp.length !== CODE_LENGTH ||
+                otp === rejectedCode ||
+                guessLimitSeconds > 0
+              }
+            >
+              {pending ? <Spinner data-icon="inline-start" /> : null}
+              Sign in
+            </Button>
             <div className="text-sm text-muted-foreground">
               No email? Check your spam folder, or resend the code.
             </div>
@@ -602,17 +606,26 @@ function LoginNotice({ notice, seconds }: { notice: Notice; seconds: number }) {
     return (
       <Alert variant="destructive">
         <CircleXIcon />
-        <AlertTitle>Sign-in codes are unavailable right now</AlertTitle>
-        <AlertDescription>Nothing was sent. Try again in a few minutes.</AlertDescription>
+        <AlertTitle>Sign-in is unavailable right now</AlertTitle>
+        <AlertDescription>Nothing went through. Try again in a few minutes.</AlertDescription>
+      </Alert>
+    )
+  }
+  if (notice?.kind === 'offline') {
+    return (
+      <Alert variant="destructive">
+        <WifiOffIcon />
+        <AlertTitle>Couldn't reach dr.serp.co</AlertTitle>
+        <AlertDescription>Check your connection and try again.</AlertDescription>
       </Alert>
     )
   }
   if (notice?.kind === 'failed') {
     return (
       <Alert variant="destructive">
-        <WifiOffIcon />
-        <AlertTitle>Couldn't reach dr.serp.co</AlertTitle>
-        <AlertDescription>Check your connection and try again.</AlertDescription>
+        <CircleXIcon />
+        <AlertTitle>Something went wrong</AlertTitle>
+        <AlertDescription>Reload the page and try again.</AlertDescription>
       </Alert>
     )
   }
@@ -633,8 +646,6 @@ function codeErrorMessage(error: CodeError, limitSeconds: number): string | null
       return limitSeconds > 0
         ? `Too many tries from this network. Try again in ${formatWait(limitSeconds)}.`
         : null
-    case 'failed':
-      return "Couldn't check that code. Check your connection and try again."
     default:
       return null
   }

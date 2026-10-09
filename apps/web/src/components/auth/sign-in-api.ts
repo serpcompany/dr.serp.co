@@ -67,11 +67,16 @@ export function readCodeText(text: string): CodeText {
 /** One code a minute per email and client; the resend link waits this long. */
 export const RESEND_COOLDOWN_SECONDS = 60
 
+/**
+ * `offline`: the request never reached the server. `unavailable`: the server answered 5xx (email,
+ * the limiter, configuration or the database is down). `failed`: any other unexpected answer.
+ */
 export type CodeRequestOutcome =
   | { kind: 'sent' }
   | { kind: 'invalid-email' }
   | { kind: 'limited'; retryAfterSeconds: number }
   | { kind: 'unavailable' }
+  | { kind: 'offline' }
   | { kind: 'failed' }
 
 export type SignInOutcome =
@@ -80,6 +85,8 @@ export type SignInOutcome =
   | { kind: 'expired' }
   | { kind: 'attempts' }
   | { kind: 'limited'; retryAfterSeconds: number }
+  | { kind: 'unavailable' }
+  | { kind: 'offline' }
   | { kind: 'failed' }
 
 type Fetch = typeof fetch
@@ -115,12 +122,12 @@ export async function requestCode(
   try {
     response = await post(fetcher, '/email-otp/send-verification-otp', { email, type: 'sign-in' })
   } catch {
-    return { kind: 'failed' }
+    return { kind: 'offline' }
   }
   if (response.ok) return { kind: 'sent' }
   if (response.status === 429) return { kind: 'limited', retryAfterSeconds: retryAfter(response) }
+  if (response.status >= 500) return { kind: 'unavailable' }
   const code = await errorCode(response)
-  if (response.status === 503 && code === 'OTP_DELIVERY_UNAVAILABLE') return { kind: 'unavailable' }
   if (response.status === 400 && code === 'INVALID_EMAIL') return { kind: 'invalid-email' }
   return { kind: 'failed' }
 }
@@ -134,7 +141,7 @@ export async function verifyCode(
   try {
     response = await post(fetcher, '/sign-in/email-otp', { email, otp })
   } catch {
-    return { kind: 'failed' }
+    return { kind: 'offline' }
   }
   if (response.ok) {
     try {
@@ -148,6 +155,7 @@ export async function verifyCode(
     }
   }
   if (response.status === 429) return { kind: 'limited', retryAfterSeconds: retryAfter(response) }
+  if (response.status >= 500) return { kind: 'unavailable' }
   const code = await errorCode(response)
   if (code === 'OTP_EXPIRED') return { kind: 'expired' }
   if (code === 'TOO_MANY_ATTEMPTS') return { kind: 'attempts' }

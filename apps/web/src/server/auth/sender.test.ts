@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { codeSenderFor, signInEmail } from './sender'
+import { codeSenderFor, fromHeader, signInEmail } from './sender'
 
 const code = { email: 'person@example.com', otp: '482913', expiresInSeconds: 600 }
 
@@ -20,6 +20,21 @@ describe('sign-in code email', () => {
     expect(html).toContain('It works for 10 minutes')
   })
 
+  it('sends as SERP DR from whichever mailbox USESEND_FROM names', () => {
+    expect(fromHeader('DR Checker <no-reply@mail.serp.co>')).toBe('SERP DR <no-reply@mail.serp.co>')
+    expect(fromHeader('codes@mail.serp.co')).toBe('SERP DR <codes@mail.serp.co>')
+    expect(fromHeader(undefined)).toBe('SERP DR <no-reply@mail.serp.co>')
+    expect(fromHeader('not an address')).toBe('SERP DR <no-reply@mail.serp.co>')
+  })
+
+  it('has dark-mode styles for mail clients that honour them', () => {
+    const { html } = signInEmail(code, 'https://dr.serp.co')
+    expect(html).toContain('@media (prefers-color-scheme: dark)')
+    for (const name of ['page', 'card', 'muted', 'code', 'rule', 'link']) {
+      expect(html, name).toContain(`class="${name}"`)
+    }
+  })
+
   it('says the address is not monitored and links to the sites page', () => {
     const { html, text } = signInEmail(code, 'https://dr.serp.co')
     expect(html).toContain('isn&#39;t monitored')
@@ -33,7 +48,7 @@ describe('sign-in code email', () => {
     const log = vi.spyOn(console, 'info')
     const sender = codeSenderFor(
       'production',
-      { USESEND_API_KEY: 'us_key' },
+      { USESEND_API_KEY: 'us_key', USESEND_FROM: 'DR Checker <no-reply@mail.serp.co>' },
       'https://dr.serp.co',
       fetcher
     )

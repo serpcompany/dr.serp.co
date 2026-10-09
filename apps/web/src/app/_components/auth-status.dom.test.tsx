@@ -17,7 +17,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock)
   Object.defineProperty(window, 'location', {
     configurable: true,
-    value: { ...window.location, assign, reload: vi.fn() }
+    value: { ...window.location, search: '', assign, reload: vi.fn() }
   })
 })
 
@@ -35,6 +35,16 @@ describe('AuthStatus', () => {
     render(<AuthStatus />)
     const link = await screen.findByRole('link', { name: 'Sign in' })
     expect(link.getAttribute('href')).toBe('/login?callbackUrl=%2Fsites%2Fbest.serp.co')
+  })
+
+  it('keeps the query string on the way back', async () => {
+    fetchMock.mockResolvedValue(new Response('null', { status: 200 }))
+    window.location.search = '?q=serp&page=3'
+    render(<AuthStatus />)
+    fireEvent.click(await screen.findByRole('link', { name: 'Sign in' }))
+    expect(assign).toHaveBeenCalledWith(
+      '/login?callbackUrl=%2Fsites%2Fbest.serp.co%3Fq%3Dserp%26page%3D3'
+    )
   })
 
   it('signs out from the account menu with a JSON POST', async () => {
