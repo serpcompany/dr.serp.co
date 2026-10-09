@@ -3,9 +3,11 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { BillingPortalButton } from '@/app/_components/billing-portal-button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { readJsonRecord } from '@/lib/read-json'
 import { cn } from '@/lib/utils'
 
@@ -150,15 +152,15 @@ export function BillingStatusCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
-          <div className="grid gap-2 text-sm text-muted-foreground">
-            <div className="h-4 w-40 animate-pulse rounded-md bg-muted" />
-            <div className="h-4 w-56 animate-pulse rounded-md bg-muted" />
-            <div className="h-4 w-32 animate-pulse rounded-md bg-muted" />
+          <div className="grid gap-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-4 w-56" />
+            <Skeleton className="h-4 w-32" />
           </div>
         ) : error ? (
-          <div className="rounded-lg border bg-muted p-4 text-sm text-muted-foreground">
-            {error}
-          </div>
+          <Alert>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         ) : (
           <div className="grid gap-3 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">

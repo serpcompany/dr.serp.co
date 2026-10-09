@@ -4,6 +4,8 @@ import { Copy } from 'lucide-react'
 import { useMemo } from 'react'
 import { toast } from 'sonner'
 
+import { Button } from '@/components/ui/button'
+
 type BadgeEmbedProps = {
   domain: string
   dr: number | null
@@ -41,11 +43,12 @@ export function BadgeEmbed({ domain, dr, linkUrl, badgeUrl }: BadgeEmbedProps) {
   }
   return (
     <div className="flex flex-col items-center gap-4">
-      <button
-        onClick={handleCopy}
-        className="group relative transition-transform hover:scale-105 active:scale-95"
-        aria-label="Copy badge embed code"
+      <Button
         type="button"
+        variant="ghost"
+        onClick={handleCopy}
+        className="group relative h-auto p-0 hover:bg-transparent"
+        aria-label="Copy badge embed code"
       >
         {/* biome-ignore lint/performance/noImgElement: the badge is an SVG the badge route serves */}
         <img
@@ -59,9 +62,9 @@ export function BadgeEmbed({ domain, dr, linkUrl, badgeUrl }: BadgeEmbedProps) {
           height={50}
         />
         <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-foreground/60 opacity-0 transition-opacity group-hover:opacity-100">
-          <Copy className="h-6 w-6 text-background" />
+          <Copy className="size-6 text-background" />
         </div>
-      </button>
+      </Button>
       <p className="text-sm text-muted-foreground">Click badge to copy embed code</p>
     </div>
   )

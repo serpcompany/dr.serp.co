@@ -4,7 +4,7 @@ import { Search } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, useTransition } from 'react'
 
-import { Input } from '@/components/ui/input'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 
 export function SitesSearch({ initialQuery }: { initialQuery: string }) {
   const router = useRouter()
@@ -49,15 +49,17 @@ export function SitesSearch({ initialQuery }: { initialQuery: string }) {
   }, [router, searchParams, value])
 
   return (
-    <div className="relative w-full sm:w-[320px]">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      <Input
+    <InputGroup className="w-full sm:w-[320px]">
+      <InputGroupAddon>
+        <Search />
+      </InputGroupAddon>
+      <InputGroupInput
         value={value}
         onChange={event => setValue(event.target.value)}
         placeholder="Search domains…"
-        className="pl-9"
+        aria-label="Search domains"
         disabled={isPending}
       />
-    </div>
+    </InputGroup>
   )
 }
