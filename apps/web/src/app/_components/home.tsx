@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { readJsonRecord } from '@/lib/read-json'
+import { SIGN_IN_CODE_LENGTH } from '@/lib/sign-in-code'
 import { upsertSiteHistory } from '@/lib/site-history'
 import { AllSites } from './all-sites'
 import { BillingStatusCard } from './billing-status-card'
@@ -98,8 +99,8 @@ export function Home() {
   const verifyOtp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const email = authEmail.trim().toLowerCase()
-    if (!email || otpCode.trim().length !== 6) {
-      setAuthError('Enter the 6-digit code.')
+    if (!email || otpCode.trim().length !== SIGN_IN_CODE_LENGTH) {
+      setAuthError(`Enter the ${SIGN_IN_CODE_LENGTH}-digit code.`)
       return
     }
 
@@ -165,9 +166,9 @@ export function Home() {
             </CardTitle>
             <CardDescription>
               {authStep === 'email'
-                ? "Enter your email and we'll send you a 6-digit code."
+                ? `Enter your email and we'll send you a ${SIGN_IN_CODE_LENGTH}-digit code.`
                 : authStep === 'otp'
-                  ? 'Enter the 6-digit code we sent to your email.'
+                  ? `Enter the ${SIGN_IN_CODE_LENGTH}-digit code we sent to your email.`
                   : "You're ready to add a domain."}
             </CardDescription>
           </CardHeader>
