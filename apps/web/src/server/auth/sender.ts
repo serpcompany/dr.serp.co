@@ -41,7 +41,7 @@ function escapeHtml(value: string): string {
 export function signInEmail({ otp, expiresInSeconds }: SignInCode, siteUrl: string) {
   const minutes = Math.round(expiresInSeconds / 60)
   const subject = 'Your SERP DR sign-in code'
-  const sitesUrl = `${siteUrl}/add`
+  const sitesUrl = `${siteUrl}/account/sites`
   const sitesLabel = sitesUrl.replace(/^https?:\/\//, '')
   const font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
   const html = `<!doctype html>

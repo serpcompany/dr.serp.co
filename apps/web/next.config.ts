@@ -7,5 +7,10 @@ import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 // workerd; `next build` would otherwise start one too and read .dev.vars on every build.
 export default async function config(phase: string): Promise<NextConfig> {
   if (phase === PHASE_DEVELOPMENT_SERVER) await initOpenNextCloudflareForDev()
-  return {}
+  return {
+    // /add was the signed-in page before the account area (#142).
+    async redirects() {
+      return [{ source: '/add', destination: '/account/sites?add=1', permanent: true }]
+    }
+  }
 }

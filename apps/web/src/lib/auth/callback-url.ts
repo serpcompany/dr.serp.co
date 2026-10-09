@@ -8,8 +8,8 @@
  * reads as another host. Only the normalized path, query and fragment are returned.
  */
 
-/** Until the account area exists (#142), signed-in work happens on /add. */
-export const DEFAULT_CALLBACK_PATH = '/add'
+/** Where a sign-in with no (or no safe) callback lands. */
+export const DEFAULT_CALLBACK_PATH = '/account'
 
 /** Resolution base. Only same-origin results are kept, and only their path is returned. */
 const SITE_ORIGIN = 'https://dr.serp.co'
@@ -49,8 +49,8 @@ export function loginHref(path: string): string {
 
 /** How the signed-in screen names the destination. */
 export function callbackDestination(path: string): { button: string; sentence: string } {
-  if (/^\/add(?:[/?#]|$)/u.test(path)) {
-    return { button: 'Continue to your sites', sentence: 'Taking you to your sites.' }
+  if (/^\/account(?:[/?#]|$)/u.test(path)) {
+    return { button: 'Continue to your account', sentence: 'Taking you to your account.' }
   }
   if (/^\/billing(?:[/?#]|$)/u.test(path)) {
     return { button: 'Continue to billing', sentence: 'Taking you to billing.' }

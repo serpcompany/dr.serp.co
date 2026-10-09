@@ -25,7 +25,10 @@ export function SiteHeader() {
             Pricing
           </Link>
         </div>
-        <Link href="/add" className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}>
+        <Link
+          href="/account/sites?add=1"
+          className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+        >
           <Plus className="h-4 w-4" />
           Add site
         </Link>

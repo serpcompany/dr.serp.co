@@ -22,7 +22,9 @@ Ahrefs is called in three places, and every result is written to `dr_checks`:
    (`src/app/sites/[target]/site-snapshot.ts`). New lookups are capped at 10 per IP per hour and
    100 per day across the site (`NEW_SITE_LOOKUP_*`). Under the caps, the page fetches the site's
    metadata, skips the lookup when the title is spam, then calls Ahrefs. Over a cap, it says so
-   and fetches and stores nothing. The page offers a recheck only once a DR is stored.
+   and fetches and stores nothing. The page offers a recheck only once a DR is stored. The
+   account's Add site lookup (`POST /api/sites/lookup`, signed in only) runs the same loader with
+   the same caps, so it is the same call site, not a new one.
 2. **A recheck.** `POST /api/recheck` only rechecks a domain with a stored DR, in `dr_claims` or
    `dr_checks`. It answers 404 for any other domain, with the `sitePath` whose first visit looks it
    up within the caps, and 404 for a spam domain or stored title. It allows 10 requests per IP per

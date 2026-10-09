@@ -1,6 +1,6 @@
 'use client'
 
-import { CreditCardIcon, GlobeIcon, LogOutIcon } from 'lucide-react'
+import { CreditCardIcon, GlobeIcon, LayoutDashboardIcon, LogOutIcon } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils'
 
 // The header's account control (#140 mockups, Public · Header account menu): "Sign in" when
 // signed out, else an avatar menu with the account's pages and Sign out. Pages that don't exist
-// yet aren't listed; #142 adds Account.
+// yet aren't listed; #143 moves Billing into the account.
 
 function readEmail() {
   try {
@@ -115,7 +115,11 @@ export function AuthStatus() {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem render={<Link href="/add" />}>
+          <DropdownMenuItem render={<Link href="/account" />}>
+            <LayoutDashboardIcon />
+            Account
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/account/sites" />}>
             <GlobeIcon />
             Your sites
           </DropdownMenuItem>
@@ -128,7 +132,9 @@ export function AuthStatus() {
         <DropdownMenuItem
           onClick={async () => {
             await signOut()
-            window.location.assign(pathname === '/add' || pathname === '/billing' ? '/' : pathname)
+            window.location.assign(
+              pathname.startsWith('/account') || pathname === '/billing' ? '/' : pathname
+            )
           }}
         >
           <LogOutIcon />

@@ -42,6 +42,7 @@ export const recordDrCheck = bound(checks.recordDrCheck)
 export const recordDrHistoryChecks = bound(checks.recordDrHistoryChecks)
 export const getDrChecks = bound(checks.getDrChecks)
 export const listDrChecks = bound(checks.listDrChecks)
+export const listDrChecksForDomains = bound(checks.listDrChecksForDomains)
 
 export const listSites = bound(sites.listSites)
 export const countSites = bound(sites.countSites)

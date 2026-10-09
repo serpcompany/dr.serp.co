@@ -107,7 +107,7 @@ Agents never merge. The owner merges every pull request.
 - **Email:** sign-in codes go through useSend from a no-reply sender on `mail.serp.co`, under the
   serp.co-subdomain directory exception in `standards/transactional-email.md`. As that exception
   requires, the code email ends with a footer saying the address isn't monitored, with a link to
-  `/add` (`src/server/auth/sender.ts`).
+  `/account/sites` (`src/server/auth/sender.ts`).
 - **URLs:** pages have no trailing slash, and the Worker strips one. Whether to adopt the SERP
   rule is [#51](https://github.com/serpcompany/dr.serp.co/issues/51); don't change slash
   behavior before it's decided.

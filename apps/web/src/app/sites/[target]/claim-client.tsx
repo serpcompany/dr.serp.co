@@ -7,14 +7,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { loginHref } from '@/lib/auth/callback-url'
 import { readJsonRecord } from '@/lib/read-json'
-import { upsertSiteHistory } from '@/lib/site-history'
 
 type ClaimStatus = 'none' | 'mine' | 'other'
 type Status = 'idle' | 'claiming' | 'claimed' | 'other' | 'upgrade' | 'signin' | 'error'
-
-function readStoredEmail() {
-  return window.localStorage.getItem('dr-auth-email')?.trim().toLowerCase() || ''
-}
 
 function initialStatus(claimStatus: ClaimStatus): Status {
   if (claimStatus === 'mine') return 'claimed'
@@ -47,8 +42,6 @@ export function ClaimClient({
       const payload = await readJsonRecord(response)
       if (response.ok) {
         setStatus('claimed')
-        const email = readStoredEmail()
-        if (email) upsertSiteHistory(email, { domain })
         router.refresh()
         return
       }
@@ -74,16 +67,13 @@ export function ClaimClient({
   }, [domain, router])
 
   useEffect(() => {
-    const email = readStoredEmail()
-    if (email) upsertSiteHistory(email, { domain })
-
     // Only the add-site flow (?claim=1) claims automatically; browsing a site page never does.
     const url = new URL(window.location.href)
     if (url.searchParams.get('claim') !== '1') return
     url.searchParams.delete('claim')
     window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
     if (signedIn && claimStatus === 'none') void claim()
-  }, [claim, claimStatus, domain, signedIn])
+  }, [claim, claimStatus, signedIn])
 
   if (status === 'idle' || status === 'claiming') {
     if (!signedIn || claimStatus !== 'none') return null
