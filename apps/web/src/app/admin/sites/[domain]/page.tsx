@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from '@/components/ui/alert-dialog'
+import { BadgeEmbed } from '@/components/badges/badge-embed'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
@@ -144,6 +145,23 @@ export default function AdminSitePage() {
       </div>
 
       <div className="grid content-start gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Embed badge</CardTitle>
+            <CardDescription>
+              The same badge and embed code the public page offers, claimed or not.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <BadgeEmbed
+              domain={site.domain}
+              dr={site.dr}
+              linkUrl={`https://dr.serp.co/sites/${encodeURIComponent(site.domain)}`}
+              badgeUrl={`/badge/${encodeURIComponent(site.domain)}?style=serp-dr-v3`}
+            />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Claim</CardTitle>
