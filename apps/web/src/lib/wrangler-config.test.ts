@@ -55,6 +55,7 @@ describe('wrangler.jsonc', () => {
       it('sets every var and requires every secret', () => {
         expect(Object.keys(config.vars).sort()).toEqual(
           [
+            'BETTER_AUTH_URL',
             'DR_BADGE_BASE_URL',
             'DR_PUBLIC_BASE_URL',
             'NEXTJS_ENV',
@@ -65,6 +66,7 @@ describe('wrangler.jsonc', () => {
         expect(config.vars.SITE_ENV).toBe(env)
         expect(config.vars.DR_PUBLIC_BASE_URL).toBe(canonical)
         expect(config.vars.DR_BADGE_BASE_URL).toBe(canonical)
+        expect(config.vars.BETTER_AUTH_URL).toBe(canonical)
         expect(config.secrets?.required?.slice().sort()).toEqual(
           local.secrets?.required?.slice().sort()
         )

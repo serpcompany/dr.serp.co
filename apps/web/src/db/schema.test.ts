@@ -5,9 +5,27 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { type LocalD1, openMigratedLocalD1 } from './local-d1'
 import production from './production-schema.json'
-import { drBillingAudit, drChecks, drClaims, drSubscriptions } from './schema'
+import {
+  accounts,
+  drBillingAudit,
+  drChecks,
+  drClaims,
+  drSubscriptions,
+  sessions,
+  users,
+  verification
+} from './schema'
 
-const TABLES: SQLiteTable[] = [drClaims, drChecks, drSubscriptions, drBillingAudit]
+const TABLES: SQLiteTable[] = [
+  drClaims,
+  drChecks,
+  drSubscriptions,
+  drBillingAudit,
+  users,
+  sessions,
+  accounts,
+  verification
+]
 
 let d1: LocalD1
 let dispose: () => Promise<void>

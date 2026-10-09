@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/breadcrumb'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getPublicBaseUrl } from '@/lib/public-url'
-import { getSessionEmail } from '@/server/auth-session.mjs'
+import { getSessionEmail } from '@/server/auth/session'
 import { normalizeTarget } from '@/server/dr-providers.mjs'
 import { resolveEntitlement } from '@/server/entitlements.mjs'
 import { getRateLimitKey } from '@/server/rate-limit.mjs'
@@ -80,7 +80,7 @@ export default async function SitePage({ params }: { params: Promise<{ target: s
   if (isSpamSite({ domain, siteTitle })) notFound()
   const entitlement = claimEmail ? await resolveEntitlement({ email: claimEmail }) : null
   // Resolve ownership on the server so the owner's email is never sent to visitors.
-  const viewerEmail = getSessionEmail({ headers: await headers() })
+  const viewerEmail = await getSessionEmail({ headers: await headers() })
   const ownerEmail = claimEmail?.trim().toLowerCase() || null
   const claimStatus = !ownerEmail ? 'none' : ownerEmail === viewerEmail ? 'mine' : 'other'
   const isPaidLink = Boolean(entitlement?.canAccessPaidFeatures)

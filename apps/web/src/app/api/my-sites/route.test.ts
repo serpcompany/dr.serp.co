@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createSessionToken } from '@/server/auth-session.mjs'
-
 const countClaimsByEmail = vi.fn()
 const listClaimsByEmail = vi.fn()
 const resolveEntitlement = vi.fn()
@@ -15,13 +13,19 @@ vi.mock('@/server/entitlements.mjs', () => ({
   resolveEntitlement
 }))
 
+// Sessions are Better Auth's (src/server/auth, tested there); here a test cookie names the
+// signed-in email, and anything else is no session.
+vi.mock('@/server/auth/session', () => ({
+  getSessionEmail: async (request: { headers: Headers }) =>
+    request.headers.get('cookie')?.match(/(?:^|; )test-session=([^;]+)/)?.[1] ?? null
+}))
+
 function sessionCookie(email: string) {
-  return `dr_session=${createSessionToken(email, { secret: 'test-secret' })}`
+  return `test-session=${email}`
 }
 
 describe('POST /api/my-sites', () => {
   beforeEach(() => {
-    vi.stubEnv('USESEND_OTP_SECRET', 'test-secret')
     countClaimsByEmail.mockReset()
     listClaimsByEmail.mockReset()
     resolveEntitlement.mockReset()

@@ -1,6 +1,11 @@
 {
-  "source": "Production D1 sqlite_master, read-only query on 2026-10-09; d1_migrations, sqlite_* and _cf_* omitted",
+  "source": "Production D1 sqlite_master, read-only query on 2026-10-09; d1_migrations, sqlite_* and _cf_* omitted; plus the Better Auth tables from drizzle/20261009085645_better_auth_tables.sql (#134), as a migrated local D1 reports them",
   "objects": [
+    {
+      "type": "table",
+      "name": "accounts",
+      "sql": "CREATE TABLE `accounts` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`account_id` text NOT NULL,\n\t`provider_id` text NOT NULL,\n\t`user_id` text NOT NULL,\n\t`access_token` text,\n\t`refresh_token` text,\n\t`id_token` text,\n\t`access_token_expires_at` integer,\n\t`refresh_token_expires_at` integer,\n\t`scope` text,\n\t`password` text,\n\t`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\t`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\tFOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade\n) STRICT"
+    },
     {
       "type": "table",
       "name": "dr_billing_audit",
@@ -20,6 +25,26 @@
       "type": "table",
       "name": "dr_subscriptions",
       "sql": "CREATE TABLE dr_subscriptions (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  email TEXT NOT NULL,\n  stripe_customer_id TEXT,\n  stripe_subscription_id TEXT NOT NULL,\n  stripe_price_id TEXT,\n  billing_interval TEXT,\n  domains_limit INTEGER CHECK (domains_limit IS NULL OR domains_limit >= 0),\n  status TEXT,\n  current_period_end TEXT,\n  cancel_at_period_end INTEGER DEFAULT 0 CHECK (\n    cancel_at_period_end IS NULL OR cancel_at_period_end IN (0, 1)\n  ),\n  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))\n) STRICT"
+    },
+    {
+      "type": "table",
+      "name": "sessions",
+      "sql": "CREATE TABLE `sessions` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`expires_at` integer NOT NULL,\n\t`token` text NOT NULL,\n\t`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\t`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\t`ip_address` text,\n\t`user_agent` text,\n\t`user_id` text NOT NULL,\n\tFOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade\n) STRICT"
+    },
+    {
+      "type": "table",
+      "name": "users",
+      "sql": "CREATE TABLE `users` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`name` text NOT NULL,\n\t`email` text NOT NULL,\n\t`email_verified` integer DEFAULT 0 NOT NULL,\n\t`image` text,\n\t`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\t`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\tCONSTRAINT \"users_email_verified_bool\" CHECK(\"users\".\"email_verified\" IN (0, 1))\n) STRICT"
+    },
+    {
+      "type": "table",
+      "name": "verification",
+      "sql": "CREATE TABLE `verification` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`identifier` text NOT NULL,\n\t`value` text NOT NULL,\n\t`expires_at` integer NOT NULL,\n\t`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\t`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL\n) STRICT"
+    },
+    {
+      "type": "index",
+      "name": "accounts_user_idx",
+      "sql": "CREATE INDEX `accounts_user_idx` ON `accounts` (`user_id`)"
     },
     {
       "type": "index",
@@ -90,6 +115,26 @@
       "type": "index",
       "name": "dr_subscriptions_stripe_subscription_id_uq",
       "sql": "CREATE UNIQUE INDEX dr_subscriptions_stripe_subscription_id_uq\n  ON dr_subscriptions (stripe_subscription_id)"
+    },
+    {
+      "type": "index",
+      "name": "sessions_token_uq",
+      "sql": "CREATE UNIQUE INDEX `sessions_token_uq` ON `sessions` (`token`)"
+    },
+    {
+      "type": "index",
+      "name": "sessions_user_idx",
+      "sql": "CREATE INDEX `sessions_user_idx` ON `sessions` (`user_id`)"
+    },
+    {
+      "type": "index",
+      "name": "users_email_uq",
+      "sql": "CREATE UNIQUE INDEX `users_email_uq` ON `users` (`email`)"
+    },
+    {
+      "type": "index",
+      "name": "verification_identifier_idx",
+      "sql": "CREATE INDEX `verification_identifier_idx` ON `verification` (`identifier`)"
     }
   ]
 }

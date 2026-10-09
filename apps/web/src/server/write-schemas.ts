@@ -20,11 +20,6 @@ export const CheckoutBody = z.object({
   billing: z.string({ message: 'Invalid billing period.' })
 })
 
-export const RequestOtpBody = z.object({ email: z.string({ message: 'Valid email required' }) })
-
-const otpField = z.string({ message: 'Email, code, and token required' })
-export const VerifyOtpBody = z.object({ email: otpField, code: otpField, token: otpField })
-
 export const PruneAuditBody = z.object({
   olderThanDays: z.number().nullable().optional(),
   dryRun: z.boolean().optional()

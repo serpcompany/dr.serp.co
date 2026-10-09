@@ -44,19 +44,24 @@ as lastmod. Past 50,000 sites the group needs a second file, and the route logs 
 - **Route handlers** (`src/app/api/**/route.ts`) do every write a visitor asks for. There are no
   Server Actions. Each reads its request through `readWriteRequest` (`src/server/write-route.ts`):
   a zod schema, a 16 KB body cap and, except on admin routes, an `Origin` check, because every
-  `*.serp.co` site is same-site to this one. The Stripe webhook checks its signature instead. Two reads also write: rendering `/sites/<domain>` stores a lookup while the
+  `*.serp.co` site is same-site to this one. The Stripe webhook checks its signature instead,
+  and Better Auth's handler (`/api/auth/*`) applies its own 16 KB cap and an `Origin` check
+  against `BETTER_AUTH_URL` only, not the origin a request was sent to
+  ([Accounts and claims](accounts-and-claims.md)). Two reads also write: rendering `/sites/<domain>` stores a lookup while the
   domain has no DR, and metadata while its title, description or URL is missing, within the
   new-lookup caps for a domain with no DR ([DR lookups](dr-lookups.md#when-ahrefs-is-called)), and
   `GET /badge/<domain>` copies the latest `dr_checks` reading into `dr_claims` when that row has no
   DR. A handler logs an error's message on the server and returns a fixed one: errors from Stripe,
   useSend, Ahrefs, D1 or missing config can name internal details.
 - **`src/server/`** holds the domain logic and is server-only: data access, DR providers, site
-  metadata, domain validation, the spam filter, sign-in tokens and sessions, entitlements and rate
-  limits. It never imports pages, route handlers or components.
+  metadata, domain validation, the spam filter, Better Auth's configuration and sessions
+  (`src/server/auth/`), entitlements and rate limits. It never imports pages, route handlers or components.
 - **`src/db/`** is the data layer: the Drizzle schema and the typed queries, by area (`sites.ts`,
   `checks.ts`, `claims.ts`, `subscriptions.ts`, `billing-audit.ts`), each taking a Drizzle client.
   It is the only place with SQL. Each query runs through `withDbErrors`, so a failure throws D1's
-  own error, not Drizzle's message with the SQL and bound values (emails, Stripe IDs).
+  own error, not Drizzle's message with the SQL and bound values (emails, Stripe IDs). Better
+  Auth runs its own queries on the Drizzle client, outside `withDbErrors`; its logger and the auth
+  route handler log errors through `scrubError` (`src/server/auth/logging.ts`) instead.
 - **`src/lib/`** holds shared helpers: pricing tiers, the Stripe client, env validation and the
   browser's list of recently viewed sites.
 
@@ -76,14 +81,16 @@ There is no Next.js data cache, no ISR and no OpenNext incremental cache.
 
 ## Data
 
-D1, bound as `DB` in every environment, holds four tables, defined in `src/db/schema.ts` and built
-by the migrations in `drizzle/`:
+D1, bound as `DB` in every environment, holds eight tables, defined in `src/db/schema.ts` and
+built by the migrations in `drizzle/`:
 
 - `dr_claims`: one row per domain. The latest DR, the owner's email when claimed, and site
   metadata (title, description, URL, screenshot).
 - `dr_checks`: every DR reading, the source of the history chart.
 - `dr_subscriptions` and `dr_billing_audit`: Stripe state and the webhook log
   ([Billing](billing.md)).
+- `users`, `sessions`, `accounts` and `verification`: Better Auth's accounts, sessions and
+  hashed sign-in codes ([Accounts and claims](accounts-and-claims.md)).
 
 Callers import queries from `@/db` (`src/db/index.ts`), which binds each one to the request's
 `env.DB` through `getCloudflareContext()`. Every environment runs on D1: `next dev` gets

@@ -32,7 +32,7 @@ ones your task touches (paths below are relative to that folder):
 
 The site is moving to the SERP web stack under
 [epic #36](https://github.com/serpcompany/dr.serp.co/issues/36), one sub-issue at a time. Until
-an issue lands, keep the current tools: no Better Auth ahead of #54.
+an issue lands, keep the current tools.
 
 ## Where things live
 
@@ -44,8 +44,8 @@ only carry the block `next dev` keeps.
 - `src/app/`: pages and route handlers. Writes a visitor asks for are route handlers under
   `src/app/api/`; there are no Server Actions. Rendering a site page and the badge route also
   write to D1 ([Architecture](docs/architecture.md#layers)).
-- `src/server/`: server-only logic: DR providers, domain validation, the spam filter, sign-in
-  tokens and sessions, entitlements and rate limits.
+- `src/server/`: server-only logic: DR providers, domain validation, the spam filter, Better Auth
+  sign-in and sessions (`src/server/auth/`), entitlements and rate limits.
 - `src/lib/`: pricing tiers, the Stripe client and shared helpers.
 - `src/components/ui/`: stock shadcn components (`base-nova` on Base UI).
 - `worker.ts`: the Worker entry, wrapping OpenNext; its concerns live in `src/lib/`.
@@ -105,9 +105,9 @@ Agents never merge. The owner merges every pull request.
 ## Exceptions to the SERP standards
 
 - **Email:** sign-in codes go through useSend from a no-reply sender on `mail.serp.co`, under the
-  serp.co-subdomain directory exception in `standards/transactional-email.md`. That exception
-  also needs a footer saying the address isn't monitored, with a link to the dashboard, which the
-  code email lacks; #54 adds it.
+  serp.co-subdomain directory exception in `standards/transactional-email.md`. As that exception
+  requires, the code email ends with a footer saying the address isn't monitored, with a link to
+  `/add` (`src/server/auth/sender.ts`).
 - **URLs:** pages have no trailing slash, and the Worker strips one. Whether to adopt the SERP
   rule is [#51](https://github.com/serpcompany/dr.serp.co/issues/51); don't change slash
   behavior before it's decided.

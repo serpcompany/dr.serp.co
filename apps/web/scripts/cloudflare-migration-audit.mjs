@@ -33,13 +33,13 @@ const requiredPackageScripts = [
 
 const requiredSecrets = [
   'AHREFS_API_KEY',
+  'BETTER_AUTH_SECRET',
   'DR_ADMIN_TOKEN',
   'STRIPE_PRICE_IDS',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'USESEND_API_KEY',
-  'USESEND_FROM',
-  'USESEND_OTP_SECRET'
+  'USESEND_FROM'
 ]
 
 function printHelp() {

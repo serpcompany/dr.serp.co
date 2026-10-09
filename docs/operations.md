@@ -47,8 +47,10 @@ database. After changing bindings or vars, run `pnpm cf-typegen` to regenerate
 - **Local:** `.dev.vars`, copied from `.dev.vars.example` and never committed. Never `.env*`: the
   OpenNext build copies those files into the Worker bundle, and `scripts/check-bundle-env.mjs`
   fails the build when it finds any.
-- **Rotating `USESEND_OTP_SECRET`** signs everyone out ([Accounts and
-  claims](accounts-and-claims.md)).
+- **`BETTER_AUTH_SECRET`** (32+ random bytes, different per environment) signs sessions and keys
+  the rate limits: `openssl rand -base64 32 | pnpm exec wrangler secret put BETTER_AUTH_SECRET --env
+  <staging|production>`. Rotating it signs everyone out ([Accounts and
+  claims](accounts-and-claims.md)). `BETTER_AUTH_URL` is a var, the canonical origin.
 
 ## Deploys
 

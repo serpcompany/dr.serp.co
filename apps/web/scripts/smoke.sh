@@ -4,9 +4,9 @@
 # <base-url> is the environment's canonical host or its workers.dev URL. Every request below sends
 # the smoke-test header, which lets CI test through workers.dev (worker.ts skips the host redirect
 # for it). It checks pages, the badge, the API and the sitemaps; robots.txt and the robots header
-# for the environment; that no page script calls esbuild's __name() helper (#130); that the
-# workers.dev host redirects to the canonical host without the header; and that a write route
-# refuses a request with no Origin. Standards:
+# for the environment; the Better Auth session and sign-in endpoints; that no page script calls
+# esbuild's __name() helper (#130); that the workers.dev host redirects to the canonical host
+# without the header; and that a write route refuses a request with no Origin. Standards:
 # environment-configuration.md (Verification).
 #
 # /sites/example.com is stored in both environments, so the page never calls Ahrefs.
@@ -65,6 +65,22 @@ expect_status /badge/example.com 200 image/svg+xml
 expect_status '/api/sites?limit=1' 200 application/json
 expect_status /sitemap-index.xml 200 application/xml
 expect_status /sitemap-sites.xml 200 application/xml
+
+# Better Auth (#134): the session endpoint answers 200 without a redirect, and a sign-in with
+# bad input answers 4xx, never a redirect.
+got=$(curl_ -o /dev/null -w '%{http_code}' -H "$header" "$base/api/auth/get-session") || got="000"
+if [ "$got" = "200" ]; then
+  pass "GET /api/auth/get-session: 200"
+else
+  fail "GET /api/auth/get-session: $got, want 200"
+fi
+got=$(curl_ -o /dev/null -w '%{http_code}' -X POST -H "$header" -H "Origin: $canonical" \
+  -H 'Content-Type: application/json' --data '{}' "$base/api/auth/sign-in/email-otp") || got="000"
+if [[ "$got" == 4* ]]; then
+  pass "POST /api/auth/sign-in/email-otp with bad input: $got"
+else
+  fail "POST /api/auth/sign-in/email-otp with bad input: $got, want 4xx"
+fi
 
 # esbuild's keep_names helper must never reach the inline scripts that run before React (#130).
 if html=$(curl_ -H "$header" "$base/pricing"); then

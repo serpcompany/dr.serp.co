@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createSessionToken } from '@/server/auth-session.mjs'
-
 const getClaim = vi.fn()
 const setClaimEmail = vi.fn()
 const clearClaimEmail = vi.fn()
@@ -17,6 +15,13 @@ vi.mock('@/server/entitlements.mjs', () => ({
   resolveEntitlement
 }))
 
+// Sessions are Better Auth's (src/server/auth, tested there); here a test cookie names the
+// signed-in email, and anything else is no session.
+vi.mock('@/server/auth/session', () => ({
+  getSessionEmail: async (request: { headers: Headers }) =>
+    request.headers.get('cookie')?.match(/(?:^|; )test-session=([^;]+)/)?.[1] ?? null
+}))
+
 function claimRequest(
   body: Record<string, unknown>,
   { email, method = 'POST' }: { email?: string; method?: string } = {}
@@ -25,13 +30,12 @@ function claimRequest(
     'Content-Type': 'application/json',
     Origin: 'http://localhost'
   }
-  if (email) headers.cookie = `dr_session=${createSessionToken(email, { secret: 'test-secret' })}`
+  if (email) headers.cookie = `test-session=${email}`
   return new Request('http://localhost/api/claims', { method, headers, body: JSON.stringify(body) })
 }
 
 describe('/api/claims', () => {
   beforeEach(() => {
-    vi.stubEnv('USESEND_OTP_SECRET', 'test-secret')
     getClaim.mockReset()
     setClaimEmail.mockReset()
     clearClaimEmail.mockReset()
@@ -53,16 +57,15 @@ describe('/api/claims', () => {
     expect(setClaimEmail).not.toHaveBeenCalled()
   })
 
-  it('rejects forged session cookies', async () => {
+  it('ignores a cookie that is not a session', async () => {
     const { POST } = await import('./route')
-    const forged = createSessionToken('devin@serp.co', { secret: 'wrong-secret' })
     const response = await POST(
       new Request('http://localhost/api/claims', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Origin: 'http://localhost',
-          cookie: `dr_session=${forged}`
+          cookie: 'dr_session=devin@serp.co'
         },
         body: JSON.stringify({ domain: 'example.com' })
       })

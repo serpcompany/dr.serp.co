@@ -4,7 +4,7 @@ import type { BillingPeriod } from '@/lib/pricing'
 import { getPublicBaseUrl } from '@/lib/public-url'
 import { getStripe } from '@/lib/stripe'
 import { getPriceId } from '@/lib/stripe-pricing'
-import { getSessionEmail } from '@/server/auth-session.mjs'
+import { getSessionEmail } from '@/server/auth/session'
 import { resolveEntitlement } from '@/server/entitlements.mjs'
 import {
   checkRateLimit,
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const domains = read.data.domains
     const billing = read.data.billing as BillingPeriod
     // Subscriptions are matched to accounts by email, so only use the signed-in email; Stripe collects one otherwise.
-    const email = getSessionEmail(request)
+    const email = await getSessionEmail(request)
 
     if (!ALLOWED_DOMAINS.includes(domains as (typeof ALLOWED_DOMAINS)[number])) {
       return NextResponse.json({ error: 'Invalid domain tier.' }, { status: 400 })

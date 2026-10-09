@@ -21,13 +21,27 @@ import { AllSites } from './all-sites'
 import { BillingStatusCard } from './billing-status-card'
 import { MySites } from './my-sites'
 
+// Better Auth answers errors as { code, message }; a 429 also says how long to wait.
+function authErrorMessage(
+  response: Response,
+  payload: Record<string, unknown> | null,
+  fallback: string
+) {
+  if (response.status === 429) {
+    const wait = Number(response.headers.get('Retry-After'))
+    return Number.isFinite(wait) && wait > 0
+      ? `Too many attempts. Try again in ${Math.ceil(wait / 60)} min.`
+      : 'Too many attempts. Try again shortly.'
+  }
+  return typeof payload?.message === 'string' ? payload.message : fallback
+}
+
 export function Home() {
   const router = useRouter()
 
   const [authStep, setAuthStep] = useState<'email' | 'otp' | 'authed'>('email')
   const [authEmail, setAuthEmail] = useState('')
   const [otpCode, setOtpCode] = useState('')
-  const [otpToken, setOtpToken] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
 
@@ -42,10 +56,8 @@ export function Home() {
     }
 
     const pendingEmail = window.sessionStorage.getItem('dr-otp-email')
-    const pendingToken = window.sessionStorage.getItem('dr-otp-token')
-    if (pendingEmail && pendingToken) {
+    if (pendingEmail) {
       setAuthEmail(pendingEmail)
-      setOtpToken(pendingToken)
       setAuthStep('otp')
     }
   }, [])
@@ -62,26 +74,20 @@ export function Home() {
     setAuthError(null)
 
     try {
-      const response = await fetch('/api/auth/request-otp', {
+      const response = await fetch('/api/auth/email-otp/send-verification-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, type: 'sign-in' })
       })
       const payload = await readJsonRecord(response)
 
       if (!response.ok) {
-        const message = typeof payload?.error === 'string' ? payload.error : 'Failed to send code.'
-        throw new Error(message)
+        throw new Error(authErrorMessage(response, payload, 'Failed to send code.'))
       }
 
       setAuthStep('otp')
       setOtpCode('')
-      const token = typeof payload?.token === 'string' ? payload.token : ''
-      setOtpToken(token)
-      if (token) {
-        window.sessionStorage.setItem('dr-otp-email', email)
-        window.sessionStorage.setItem('dr-otp-token', token)
-      }
+      window.sessionStorage.setItem('dr-otp-email', email)
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Failed to send code.')
     } finally {
@@ -101,23 +107,20 @@ export function Home() {
     setAuthError(null)
 
     try {
-      const response = await fetch('/api/auth/verify-otp', {
+      const response = await fetch('/api/auth/sign-in/email-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: otpCode.trim(), token: otpToken })
+        body: JSON.stringify({ email, otp: otpCode.trim() })
       })
       const payload = await readJsonRecord(response)
 
       if (!response.ok) {
-        const message = typeof payload?.error === 'string' ? payload.error : 'Invalid code.'
-        throw new Error(message)
+        throw new Error(authErrorMessage(response, payload, 'Invalid code.'))
       }
 
       window.localStorage.setItem('dr-auth-email', email)
       window.sessionStorage.removeItem('dr-otp-email')
-      window.sessionStorage.removeItem('dr-otp-token')
       setAuthStep('authed')
-      setOtpToken('')
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Failed to verify code.')
     } finally {
@@ -187,8 +190,6 @@ export function Home() {
                 onSubmit={verifyOtp}
                 onEditEmail={() => {
                   window.sessionStorage.removeItem('dr-otp-email')
-                  window.sessionStorage.removeItem('dr-otp-token')
-                  setOtpToken('')
                   setOtpCode('')
                   setAuthStep('email')
                 }}

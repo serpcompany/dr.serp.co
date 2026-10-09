@@ -1,33 +1,53 @@
 # Accounts and Claims
 
-How people sign in, how a session is trusted, and the rules for claiming a domain. Sign-in moves
-to Better Auth in [#54](https://github.com/serpcompany/dr.serp.co/issues/54); until then, these
-rules hold.
+How people sign in, how a session is trusted, and the rules for claiming a domain. Sign-in runs on
+Better Auth ([#54](https://github.com/serpcompany/dr.serp.co/issues/54)); binding a code to the
+browser that asked for it is #135, and the redesigned sign-in screen and email are #136.
 
 ## Sign-in
 
-Sign-in is a one-time code sent by email. There are no passwords.
+Sign-in is a one-time code sent by email. There are no passwords, and a first sign-in creates the
+account. Better Auth (`src/server/auth/config.ts`) keeps users, sessions and codes in D1, in the
+`users`, `sessions`, `accounts` and `verification` tables.
 
-1. `POST /api/auth/request-otp` emails a 6-digit code through useSend and returns a signed token
-   that holds a keyed hash of the code, never the code itself. The same email can request a new
-   code once a minute, counted in the `RATE_LIMITER` Durable Object so every Worker isolate
-   shares it (`src/server/otp-store.mjs`).
-2. `POST /api/auth/verify-otp` checks the code against the token, allowing 10 guesses per email
-   per 10 minutes (`VERIFY_OTP_RATE_LIMIT_*`). On success it sets the `dr_session` cookie:
-   HttpOnly, Secure, `SameSite=Lax`, valid for 30 days.
+1. `POST /api/auth/email-otp/send-verification-otp` (`{ email, type: "sign-in" }`) emails a
+   6-digit code through useSend (`src/server/auth/sender.ts`). The code lasts 10 minutes, is stored
+   hashed and allows 3 guesses.
+2. `POST /api/auth/sign-in/email-otp` (`{ email, otp }`) checks it. A code pasted as `482 913`
+   counts as its digits. On success Better Auth sets its session cookie,
+   `__Secure-dr-serp.session_token` (HttpOnly, Secure, `SameSite=Lax`, 30 days), backed by a row in
+   `sessions`, so one session can be revoked without signing anyone else out.
+3. `GET /api/auth/get-session` answers the session or `null`; `POST /api/auth/sign-out` ends it.
 
-Tokens are signed with `USESEND_OTP_SECRET`, falling back to `USESEND_API_KEY` (`getAuthSecret`
-in `src/server/auth-session.mjs`). Each token carries a `typ`, so a code token can't be replayed as a
-session. Sessions are stateless: the only way to revoke them is to rotate the secret, which signs
-everyone out. `DELETE /api/auth/session` signs one browser out.
+Every other Better Auth endpoint answers 404 before Better Auth sees it, and a test walks Better
+Auth's router to prove it. Every POST needs an `Origin` among the trusted origins (403 otherwise,
+cookie or not), and a body over 16 KB answers 413. Missing `BETTER_AUTH_SECRET` or
+`BETTER_AUTH_URL` answers 503, and so does a code request when the site can't send email; only
+`SITE_ENV=local` or `next dev` falls back to a throwaway secret. Neither the sign-in answer nor
+`get-session` includes the session token, and errors are logged through `scrubError`
+(`src/server/auth/logging.ts`), so no email, code hash or token reaches the logs.
+
+**Limits** run on the `RATE_LIMITER` Durable Object, keyed by HMAC digests rather than raw emails
+or IPs:
+
+| What | Limit | Answer when hit |
+| --- | --- | --- |
+| Code requests per client (IP, or IPv6 /64) | 5 a minute, 20 an hour | 429 with `Retry-After` |
+| Code requests per email | 1 a minute, 5 an hour | exactly like a sent code; nothing is sent |
+| Code guesses per client | 10 a minute, 60 an hour | 429 with `Retry-After` |
+
+No response reveals whether an email has an account.
+
+Sessions from before Better Auth (the `dr_session` cookie) are not carried over: everyone signs in
+once more. The old cookie is ignored and expires on its own.
 
 ## Trusting a session
 
-- **Route handlers take the email only from the session cookie** (`getSessionEmail` in
-  `src/server/auth-session.mjs`): claims, my sites, billing status, checkout and the portal. An
-  `email` in a request body is ignored.
+- **Route handlers take the email only from the session** (`getSessionEmail` in
+  `src/server/auth/session.ts`, which skips the lookup when there's no session cookie): claims, my
+  sites, billing status, checkout and the portal. An `email` in a request body is ignored.
 - **`dr-auth-email` in `localStorage` is for display only.** The header compares it with
-  `GET /api/auth/session` on load and reloads once if they differ.
+  `GET /api/auth/get-session` on load and reloads once if they differ.
 - **Site pages resolve ownership on the server,** so an owner's email is never sent to visitors.
 
 Before October 2026 the server trusted emails in request bodies, and viewing a site page claimed

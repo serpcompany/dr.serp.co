@@ -8,9 +8,7 @@ import {
   CleanupBody,
   DomainBody,
   MySitesBody,
-  PruneAuditBody,
-  RequestOtpBody,
-  VerifyOtpBody
+  PruneAuditBody
 } from './write-schemas'
 
 const email = 'user@example.com'
@@ -36,16 +34,8 @@ const CLIENT_BODIES = [
   },
   // src/app/pricing/pricing-selector.tsx, for a subscriber
   { name: 'change plan', schema: CheckoutBody, body: { domains: 25, billing: 'annual' } },
-  // billing-portal-button.tsx, billing-status-card.tsx, auth-status.tsx (sign-out sends no body)
+  // billing-portal-button.tsx, billing-status-card.tsx (sign-in and sign-out go to Better Auth)
   { name: 'portal and billing status', schema: EMPTY_BODY, body: { email } },
-  { name: 'sign out', schema: EMPTY_BODY, body: {} },
-  // src/app/_components/home.tsx
-  { name: 'request a code', schema: RequestOtpBody, body: { email } },
-  {
-    name: 'verify a code',
-    schema: VerifyOtpBody,
-    body: { email, code: '482913', token: 'payload.signature' }
-  },
   // scripts/prune-billing-audit.mjs, backfill-site-metadata.mjs, purge-invalid-site-domains.mjs
   { name: 'admin prune audit', schema: PruneAuditBody, body: { olderThanDays: 180, dryRun: true } },
   {
