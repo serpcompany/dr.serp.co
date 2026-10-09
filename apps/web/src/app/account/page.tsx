@@ -27,7 +27,8 @@ const TITLE = 'Overview'
 const DESCRIPTION = 'Your claimed sites, their DR and your plan.'
 
 // dashboard-01's page: the cards, the chart and the table, under the page heading. Signed out, a
-// 307 to /login before anything streams; then the data loads behind a skeleton.
+// 307 to /login before anything streams. A first visit renders whole on the server (the layout
+// loads the account for the sidebar); moving here from another account page shows the skeleton.
 export default async function AccountOverview() {
   await requireSignIn('/account')
   return (
