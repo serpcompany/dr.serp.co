@@ -16,14 +16,15 @@ const SENDER_NAME = 'SERP DR'
 const DEFAULT_ADDRESS = 'no-reply@mail.serp.co'
 
 /**
- * The From header: always "SERP DR", at the address USESEND_FROM names (a bare address or
- * "Name <address>"), so the secret only chooses the mailbox.
+ * The From header: always "SERP DR", at the address USESEND_FROM names, so the secret only
+ * chooses the mailbox. It may be a bare address, "Name <address>" or "address (Name)"; anything
+ * else, or an address with spaces or angle brackets in it, falls back to the default.
  */
 export function fromHeader(configured: string | undefined): string {
   const value = configured?.trim() ?? ''
-  const named = /<([^<>\s]+@[^<>\s]+)>$/.exec(value)?.[1]
-  const bare = /^[^\s<>]+@[^\s<>]+$/.test(value) ? value : null
-  return `${SENDER_NAME} <${named ?? bare ?? DEFAULT_ADDRESS}>`
+  const address = /<\s*([^<>]*?)\s*>$/.exec(value)?.[1] ?? value.replace(/\s*\([^()]*\)$/, '')
+  const valid = /^[^\s<>()",;@]+@[^\s<>()",;@]+$/.test(address)
+  return `${SENDER_NAME} <${valid ? address : DEFAULT_ADDRESS}>`
 }
 
 function escapeHtml(value: string): string {
@@ -53,11 +54,11 @@ export function signInEmail({ otp, expiresInSeconds }: SignInCode, siteUrl: stri
 <title>${subject}</title>
 <style>
 @media (prefers-color-scheme: dark) {
-  .page { background: #111312 !important; color: #ececec !important; }
-  .card { background: #1c1f1d !important; border-color: #2e332f !important; }
-  .muted { color: #a3a8a4 !important; }
-  .code { background: #262a27 !important; color: #ffffff !important; }
-  .rule { border-top-color: #2e332f !important; }
+  .page { background: #1f1f1f !important; color: #ececec !important; }
+  .card { background: #2a2a2a !important; border-color: #3a3a3a !important; }
+  .muted { color: #a3a3a3 !important; }
+  .code { background: #333333 !important; color: #ffffff !important; }
+  .rule { border-top-color: #3a3a3a !important; }
   .link { color: #ececec !important; }
 }
 </style>

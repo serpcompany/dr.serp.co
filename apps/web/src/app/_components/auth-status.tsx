@@ -2,8 +2,8 @@
 
 import { CreditCardIcon, GlobeIcon, LogOutIcon } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
 import { DISPLAY_EMAIL_KEY, signOut } from '@/components/auth/sign-in-api'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -30,6 +30,21 @@ function readEmail() {
   } catch {
     return ''
   }
+}
+
+function SignInLink({ path }: { path: string }) {
+  return (
+    <Link href={loginHref(path)} className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
+      Sign in
+    </Link>
+  )
+}
+
+/** The link with this page's query string, so /sites?q=…&page=3 comes back to the same results. */
+function SignInLinkHere() {
+  const pathname = usePathname() ?? '/'
+  const search = useSearchParams()?.toString()
+  return <SignInLink path={search ? `${pathname}?${search}` : pathname} />
 }
 
 export function AuthStatus() {
@@ -74,20 +89,12 @@ export function AuthStatus() {
   }, [])
 
   if (!email) {
+    // A static page doesn't know its query string on the server: it renders the link without it,
+    // and the browser fills it in. A real href, so Cmd-click and Open in New Tab work too.
     return (
-      <Link
-        href={loginHref(pathname)}
-        className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
-        onClick={event => {
-          // The query string isn't known while rendering (the page may be static): add it here,
-          // so /sites?q=…&page=3 comes back to the same results.
-          if (!window.location.search) return
-          event.preventDefault()
-          window.location.assign(loginHref(pathname + window.location.search))
-        }}
-      >
-        Sign in
-      </Link>
+      <Suspense fallback={<SignInLink path={pathname} />}>
+        <SignInLinkHere />
+      </Suspense>
     )
   }
 

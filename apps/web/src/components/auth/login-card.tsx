@@ -50,11 +50,13 @@ const DIGITS_ONLY = '^\\d+$'
 const SLOTS =
   '*:data-[slot=input-otp-slot]:h-12 *:data-[slot=input-otp-slot]:w-11 *:data-[slot=input-otp-slot]:text-xl'
 
-/** A message above the form: a wait, the server down, no connection, or something unexpected. */
+/**
+ * A message above the form: a wait, the server down, no connection, or something unexpected.
+ * `action` says whether a code was being sent or checked, which the message names.
+ */
 type Notice =
   | { kind: 'limited'; until: number }
-  | { kind: 'unavailable' }
-  | { kind: 'offline' }
+  | { kind: 'unavailable' | 'offline'; action: 'send' | 'verify' }
   | { kind: 'failed' }
   | null
 
@@ -139,6 +141,16 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
     if (spent) resendButton.current?.focus()
   }, [spent])
 
+  // After a check that didn't sign in, or a resend, focus goes back to the slots with the digits
+  // selected, so the next code typed replaces them. (Not when a spent code disabled them.)
+  const [focusSlots, setFocusSlots] = useState(0)
+  useEffect(() => {
+    const input = codeInput.current
+    if (!focusSlots || !input || input.disabled) return
+    input.focus()
+    input.setSelectionRange(0, input.value.length)
+  }, [focusSlots])
+
   async function sendCode(address: string): Promise<boolean> {
     const outcome = await requestCode(address)
     switch (outcome.kind) {
@@ -153,8 +165,10 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
         return false
       case 'unavailable':
       case 'offline':
+        setNotice({ kind: outcome.kind, action: 'send' })
+        return false
       case 'failed':
-        setNotice({ kind: outcome.kind })
+        setNotice({ kind: 'failed' })
         return false
     }
   }
@@ -185,6 +199,7 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
     const sent = await sendCode(email)
     setPending(false)
     if (!sent) return
+    setFocusSlots(count => count + 1)
     setOtp('')
     setRejectedCode(null)
     setCodeError(null)
@@ -254,7 +269,8 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
     verifying.current = true
     setPending(true)
     setCodeError(null)
-    setNotice(null)
+    // A wait from a refused resend stays until it runs out; Resend stays off until then.
+    setNotice(current => (current?.kind === 'limited' ? current : null))
     const outcome = await verifyCode(email, code)
     verifying.current = false
     setPending(false)
@@ -267,19 +283,16 @@ export function LoginCard({ callbackPath, signedInEmail }: LoginCardProps) {
       setStep({ kind: 'done', email: outcome.email })
       return
     }
+    setFocusSlots(count => count + 1)
     // A server or connection failure is a notice above the slots, which stay as they were.
-    if (outcome.kind === 'offline' || outcome.kind === 'unavailable' || outcome.kind === 'failed') {
-      setNotice({ kind: outcome.kind })
+    if (outcome.kind === 'offline' || outcome.kind === 'unavailable') {
+      setNotice({ kind: outcome.kind, action: 'verify' })
       return
     }
-    // The digits stay in the (red) slots, selected so the next code typed replaces them. (A spent
-    // code disables the slots; the effect below moves focus to Resend.)
-    window.requestAnimationFrame(() => {
-      const input = codeInput.current
-      if (!input || input.disabled) return
-      input.focus()
-      input.setSelectionRange(0, input.value.length)
-    })
+    if (outcome.kind === 'failed') {
+      setNotice({ kind: 'failed' })
+      return
+    }
     if (outcome.kind === 'wrong') {
       setRejectedCode(code)
       const wrongGuesses = step.wrongGuesses + 1
@@ -603,12 +616,22 @@ function LoginNotice({ notice, seconds }: { notice: Notice; seconds: number }) {
       </Alert>
     )
   }
+  // The mockup's wording (#140) for a code not sent and for a code not checked offline; the other
+  // two name what didn't happen the same way.
   if (notice?.kind === 'unavailable') {
     return (
       <Alert variant="destructive">
         <CircleXIcon />
-        <AlertTitle>Sign-in is unavailable right now</AlertTitle>
-        <AlertDescription>Nothing went through. Try again in a few minutes.</AlertDescription>
+        <AlertTitle>
+          {notice.action === 'send'
+            ? 'Sign-in codes are unavailable right now'
+            : 'Sign-in is unavailable right now'}
+        </AlertTitle>
+        <AlertDescription>
+          {notice.action === 'send'
+            ? 'Nothing was sent. Try again in a few minutes.'
+            : "Your code wasn't checked. Try it again in a few minutes."}
+        </AlertDescription>
       </Alert>
     )
   }
@@ -617,7 +640,11 @@ function LoginNotice({ notice, seconds }: { notice: Notice; seconds: number }) {
       <Alert variant="destructive">
         <WifiOffIcon />
         <AlertTitle>Couldn't reach dr.serp.co</AlertTitle>
-        <AlertDescription>Check your connection and try again.</AlertDescription>
+        <AlertDescription>
+          {notice.action === 'send'
+            ? 'Nothing was sent. Check your connection and try again.'
+            : 'Check your connection, then try the code again.'}
+        </AlertDescription>
       </Alert>
     )
   }

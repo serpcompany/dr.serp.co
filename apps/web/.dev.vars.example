@@ -5,7 +5,8 @@
 # Deployed environments use Worker vars and secrets (wrangler secret put --env <env>).
 
 USESEND_API_KEY=
-USESEND_FROM=SERP DR <no-reply@mail.serp.co>
+# Only the mailbox is used: mail always goes out as "SERP DR".
+USESEND_FROM=no-reply@mail.serp.co
 
 # Better Auth (sign-in). Locally the secret may stay empty (a throwaway one is used).
 # BETTER_AUTH_URL must be the origin you browse, or sign-in answers 403 "Invalid origin":

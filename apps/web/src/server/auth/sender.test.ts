@@ -25,6 +25,12 @@ describe('sign-in code email', () => {
     expect(fromHeader('codes@mail.serp.co')).toBe('SERP DR <codes@mail.serp.co>')
     expect(fromHeader(undefined)).toBe('SERP DR <no-reply@mail.serp.co>')
     expect(fromHeader('not an address')).toBe('SERP DR <no-reply@mail.serp.co>')
+    // Spaces inside the brackets, and the older "address (Name)" form.
+    expect(fromHeader('DR Checker < codes@mail.serp.co >')).toBe('SERP DR <codes@mail.serp.co>')
+    expect(fromHeader('codes@mail.serp.co (DR Checker)')).toBe('SERP DR <codes@mail.serp.co>')
+    // Nothing from the secret can add a header or a second address.
+    expect(fromHeader('a@b.co>\r\nBcc: x@evil.example')).toBe('SERP DR <no-reply@mail.serp.co>')
+    expect(fromHeader('<a@b.co, x@evil.example>')).toBe('SERP DR <no-reply@mail.serp.co>')
   })
 
   it('has dark-mode styles for mail clients that honour them', () => {

@@ -4,8 +4,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+let search = ''
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/sites/best.serp.co'
+  usePathname: () => '/sites/best.serp.co',
+  useSearchParams: () => new URLSearchParams(search)
 }))
 
 import { AuthStatus } from './auth-status'
@@ -27,6 +29,7 @@ afterEach(() => {
   fetchMock.mockReset()
   assign.mockReset()
   window.localStorage.clear()
+  search = ''
 })
 
 describe('AuthStatus', () => {
@@ -37,12 +40,13 @@ describe('AuthStatus', () => {
     expect(link.getAttribute('href')).toBe('/login?callbackUrl=%2Fsites%2Fbest.serp.co')
   })
 
-  it('keeps the query string on the way back', async () => {
+  it('keeps the query string on the way back, in the href', async () => {
     fetchMock.mockResolvedValue(new Response('null', { status: 200 }))
-    window.location.search = '?q=serp&page=3'
+    search = 'q=serp&page=3'
     render(<AuthStatus />)
-    fireEvent.click(await screen.findByRole('link', { name: 'Sign in' }))
-    expect(assign).toHaveBeenCalledWith(
+    // In the href itself, so a Cmd-click or Open in New Tab keeps it too.
+    const link = await screen.findByRole('link', { name: 'Sign in' })
+    expect(link.getAttribute('href')).toBe(
       '/login?callbackUrl=%2Fsites%2Fbest.serp.co%3Fq%3Dserp%26page%3D3'
     )
   })

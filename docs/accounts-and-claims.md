@@ -14,9 +14,10 @@ account. Better Auth (`src/server/auth/config.ts`) keeps users, sessions and cod
 then the code step as shadcn's InputOTP "Form" example (3 + 3 slots), then a signed-in screen that
 returns to `?callbackUrl=`. `safeCallbackPath` (`src/lib/auth/callback-url.ts`) keeps that on the
 site: same-origin only, checked after the URL parser resolves dot segments. Every answer has its
-message: invalid email, the per-client 429 with its wait, codes unavailable (503), a network
-failure, a wrong code with the tries left, an expired code and too many tries. Resend waits 60
-seconds. Pastes, multi-character input and autofill go through one parser (`readCodeText` in
+message: invalid email, the per-client 429 with its wait, any server failure (5xx: codes
+unavailable, or the code not checked), a lost connection, any other answer ("Something went
+wrong"), a wrong code with the tries left, an expired code and too many tries. Resend waits 60
+seconds, and a refused resend holds it for the server's wait. Pastes, multi-character input and autofill go through one parser (`readCodeText` in
 `src/components/auth/sign-in-api.ts`): one standalone code fills the slots and signs in, a
 fragment of digits goes in at the caret, and anything ambiguous changes nothing. A rejected code
 is never sent twice. The screen and its logic are ported from best.serp.co.

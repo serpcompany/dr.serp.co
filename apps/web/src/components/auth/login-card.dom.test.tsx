@@ -102,10 +102,12 @@ describe('the email step', () => {
     render(<LoginCard callbackPath="/add" />)
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@example.com' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send code' }))
-    expect(await screen.findByText('Sign-in is unavailable right now')).toBeTruthy()
+    expect(await screen.findByText('Sign-in codes are unavailable right now')).toBeTruthy()
+    expect(screen.getByText('Nothing was sent. Try again in a few minutes.')).toBeTruthy()
     // No answer queued: the request fails like a dropped connection.
     fireEvent.click(screen.getByRole('button', { name: 'Send code' }))
     expect(await screen.findByText("Couldn't reach dr.serp.co")).toBeTruthy()
+    expect(screen.getByText('Nothing was sent. Check your connection and try again.')).toBeTruthy()
   })
 })
 
@@ -176,8 +178,11 @@ describe('the code step', () => {
     expect(resend().textContent).toContain('Resend code')
     expect(resend()).toHaveProperty('disabled', false)
     answer(SEND, { status: 200, body: { success: true } })
+    resend().focus()
     fireEvent.click(resend())
     await waitFor(() => expect(calls.filter(call => call.path === SEND)).toHaveLength(2))
+    // Focus goes back to the slots for the new code.
+    await waitFor(() => expect(document.activeElement).toBe(codeInput()))
   })
 
   it('goes back to the email step on request', async () => {
@@ -208,6 +213,7 @@ describe('failures on the code step', () => {
     expect(
       await screen.findByText(/Too many tries from this network. Try again in 4[23] seconds/)
     ).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Sign in/ })).toHaveProperty('disabled', true)
   })
 
   it('shows a lost connection as a notice and leaves the slots as they were', async () => {
@@ -215,7 +221,12 @@ describe('failures on the code step', () => {
     // No answer queued: the request fails like a dropped connection.
     paste('482913')
     expect(await screen.findByText("Couldn't reach dr.serp.co")).toBeTruthy()
+    expect(screen.getByText('Check your connection, then try the code again.')).toBeTruthy()
     expect(document.querySelector('[data-slot=input-otp-slot][aria-invalid=true]')).toBeNull()
+    // Focus is back in the slots, the digits selected for the next try.
+    await waitFor(() => expect(document.activeElement).toBe(codeInput()))
+    expect(codeInput().selectionStart).toBe(0)
+    expect(codeInput().selectionEnd).toBe(6)
     // The next guess that gets through clears the notice.
     answer(SIGN_IN, { status: 400, body: { code: 'INVALID_OTP' } })
     paste('111111')
@@ -228,7 +239,11 @@ describe('failures on the code step', () => {
     answer(SIGN_IN, { status: 503, body: { code: 'RATE_LIMITER_UNAVAILABLE' } })
     paste('482913')
     expect(await screen.findByText('Sign-in is unavailable right now')).toBeTruthy()
+    expect(
+      screen.getByText("Your code wasn't checked. Try it again in a few minutes.")
+    ).toBeTruthy()
     expect(screen.queryByText("Couldn't reach dr.serp.co")).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(codeInput()))
   })
 
   it('reports a refused resend', async () => {
@@ -240,12 +255,18 @@ describe('failures on the code step', () => {
     answer(SEND, { status: 429, body: { code: 'RATE_LIMITED' }, headers: { 'retry-after': '30' } })
     fireEvent.click(screen.getByRole('button', { name: /Resend code/ }))
     expect(await screen.findByText('Too many requests')).toBeTruthy()
+    // Checking a code meanwhile keeps the wait: Resend stays off until it runs out.
+    answer(SIGN_IN, { status: 400, body: { code: 'INVALID_OTP' } })
+    paste('111111')
+    await screen.findByText(/That code isn't right/)
+    expect(screen.getByText('Too many requests')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Resend code/ })).toHaveProperty('disabled', true)
     answer(SEND, { status: 503, body: { code: 'OTP_DELIVERY_UNAVAILABLE' } })
     await act(async () => {
       vi.advanceTimersByTime(31_000)
     })
     fireEvent.click(screen.getByRole('button', { name: /Resend code/ }))
-    expect(await screen.findByText('Sign-in is unavailable right now')).toBeTruthy()
+    expect(await screen.findByText('Sign-in codes are unavailable right now')).toBeTruthy()
   })
 
   it('treats a code older than 10 minutes as expired', async () => {
