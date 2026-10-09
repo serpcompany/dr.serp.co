@@ -17,8 +17,9 @@ billing costs 10 times the monthly price, so two months are free.
 | 100 | $27 | $270 |
 
 - **A subscription belongs to the email address Stripe has for the customer.** Checkout fills in
-  the signed-in email; a signed-out buyer types one into Stripe, and the plan applies once they
-  sign in with that address.
+  the signed-in email. The site only starts checkout from `/account/billing`, so the buyer is
+  signed in; the endpoint still accepts a signed-out buyer, who types an email into Stripe and
+  gets the plan on signing in with that address.
 - **Every size has the same features;** only the domain limit differs. At the limit, new claims are
   refused and the UI offers an upgrade ([Accounts and claims](accounts-and-claims.md)).
 - **What a plan gives** is listed in [Accounts and claims](accounts-and-claims.md#what-a-paid-plan-gives-a-claimed-domain).
@@ -39,15 +40,18 @@ billing costs 10 times the monthly price, so two months are free.
 
 ## Endpoints
 
-None of them reads an email from the request body. The portal, plan changes and billing status
-need a session; checkout uses the session's email when there is one.
+None of them reads an email from the request body. The portal and plan changes need a session;
+checkout uses the session's email when there is one.
 
 - `POST /api/stripe/checkout` opens a subscription-mode Checkout Session, returning to
-  `/pricing?checkout=success` or `/pricing?checkout=cancelled`. A signed-in subscriber with a live
-  plan (`active`, `trialing`, `past_due` or `unpaid`, the entitlement's `hasLivePlan`) gets 409 `has_plan`
-  with their plan instead, because a second checkout would bill twice. A canceled subscription
-  still in its paid period doesn't count, so its owner can buy again. A signed-out buyer types
-  their email into Stripe, so this can't stop them buying a second plan.
+  `/account/billing?checkout=success` or `/account/billing?checkout=cancelled`. Back from a
+  payment the webhook hasn't synced yet, the page says the payment was received and offers no
+  checkout, since the guard below reads D1. A signed-in subscriber with a live plan (`active`,
+  `trialing`, `past_due` or `unpaid`, the entitlement's `hasLivePlan`) gets 409 `has_plan` with
+  their plan instead, because a second checkout would bill twice. A canceled subscription still in
+  its paid period doesn't count, so its owner can buy again, and the billing page offers checkout
+  there. A signed-out buyer types their email into Stripe, so this can't stop them buying a
+  second plan.
 - `POST /api/stripe/change-plan` moves a subscriber's live subscription to another size or billing
   period (`subscriptions.update` with `proration_behavior: "always_invoice"`, so the difference is
   charged or credited at once). With `payment_behavior: "error_if_incomplete"`, a failed charge
@@ -55,16 +59,17 @@ need a session; checkout uses the session's email when there is one.
   there's no live dr.serp.co subscription in D1 or in Stripe, 409 `payment_due` while Stripe says
   `past_due` or `unpaid` (the open invoice is paid in the portal first), 409 `too_many_claims` for a
   smaller size than the domains already claimed, and 400 `same_plan`. A cancellation scheduled in
-  the portal stays scheduled. The webhook syncs the new plan. `/pricing` starts on a subscriber's
-  plan and shows a "Switch plan" button instead of checkout, and points a plan on hold (`past_due`
-  or `unpaid`) to the billing page. The live statuses are one set, in
-  `src/server/subscription-status.mjs`.
+  the portal stays scheduled. The webhook syncs the new plan. `/account/billing` offers the change
+  after a confirm that says what Stripe does: within a period it charges or credits the
+  difference; between monthly and yearly the billing period restarts and the new price is charged
+  at once, less credit for unused time. It holds the change while the plan is past due (also within
+  its paid period), and after a switch until the webhook's plan shows. The live statuses are one
+  set, in `src/server/subscription-status.mjs`.
 - `POST /api/stripe/portal` opens the Stripe customer portal for payment details, invoices and
-  cancellation, returning to `STRIPE_PORTAL_RETURN_URL` or `/billing`. Production passes
+  cancellation, returning to `STRIPE_PORTAL_RETURN_URL` or `/account/billing`. Production passes
   dr.serp.co's portal configuration (`STRIPE_PORTAL_CONFIGURATION_ID` in `wrangler.jsonc`), because
   the account's default one belongs to SERP Lists. It doesn't offer plan changes: Stripe's portal
   allows one price per interval for each product, and dr.serp.co has four sizes per interval.
-- `POST /api/billing/status` returns the subscriber's entitlement and subscription for `/billing`.
 - `GET /api/admin/subscriptions` (admin token) reports every subscription and its domain usage.
 
 Checkout and the portal build their return URLs from `DR_PUBLIC_BASE_URL`, never from the

@@ -32,7 +32,7 @@ logic lives in `src/server/rate-limit-do.mjs`.
 
 `/robots.txt`, `/sitemap-index.xml` (also served as `/sitemap.xml`), `/sitemap-pages.xml` and
 `/sitemap-sites.xml` are route handlers built from `src/lib/sitemap.ts`. Production's robots.txt
-allows crawling (except `/api/` and `/billing`) and names the sitemap index; any other `SITE_ENV`
+allows crawling (except `/api/`, `/account` and `/login`) and names the sitemap index; any other `SITE_ENV`
 disallows everything, and `worker.ts` also sends `X-Robots-Tag: noindex` there. The sites sitemap
 lists every listable `/sites/<domain>` page (`listSitemapSites` in `src/db/sites.ts`), with its last DR check
 as lastmod. Past 50,000 sites the group needs a second file, and the route logs when that happens.
@@ -74,12 +74,13 @@ as lastmod. Past 50,000 sites the group needs a second file, and the route logs 
 - `/<domain>` redirects to `/sites/<domain>`, and to `/` when the domain is invalid.
 - `/login` signs in and `/account` is the signed-in dashboard
   ([Accounts and claims](accounts-and-claims.md)); both render without the public header and
-  footer. `/add` redirects to `/account/sites?add=1`; `/pricing` and `/billing` are the paid plan
-  pages.
+  footer. `/account/billing` and `/account/settings` hold the plan and
+  sign-out; `/add` and `/billing` redirect into the account. `/pricing` shows the plans and sends
+  a choice to `/account/billing`.
 - `/badge/<domain>` returns the SVG badge ([Badges](badges.md)).
 
-`/`, `/sites`, `/sites/<domain>`, `/login` and `/account/*` render on every request. `/pricing` and `/billing`
-are prerendered at build time, and their client components call route handlers for account data.
+`/`, `/sites`, `/sites/<domain>`, `/login` and `/account/*` render on every request. `/pricing` is
+prerendered at build time.
 There is no Next.js data cache, no ISR and no OpenNext incremental cache.
 
 ## Data

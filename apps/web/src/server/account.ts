@@ -33,8 +33,19 @@ type Entitlement = Awaited<ReturnType<typeof resolveEntitlement>>
 
 export function planOf(entitlement: Entitlement): AccountPlan {
   const paid = Boolean(entitlement?.canAccessPaidFeatures)
+  const live = Boolean(entitlement?.hasLivePlan)
+  const portal = Boolean(entitlement?.subscription?.stripeCustomerId)
   if (entitlement?.isUnlimited) {
-    return { kind: 'active', paid, domains: null, interval: null, price: null, periodEnd: null }
+    return {
+      kind: 'active',
+      paid,
+      live: false,
+      portal: false,
+      domains: null,
+      interval: null,
+      price: null,
+      periodEnd: null
+    }
   }
   const subscription = entitlement?.subscription
   const status = subscription?.status ?? null
@@ -48,6 +59,8 @@ export function planOf(entitlement: Entitlement): AccountPlan {
     return {
       kind: 'free',
       paid: false,
+      live: false,
+      portal,
       domains: null,
       interval: null,
       price: null,
@@ -67,6 +80,8 @@ export function planOf(entitlement: Entitlement): AccountPlan {
         ? 'ending'
         : 'active',
     paid,
+    live,
+    portal,
     domains: entitlement.domainsLimit,
     interval,
     price: tier && interval ? tier[interval] : null,

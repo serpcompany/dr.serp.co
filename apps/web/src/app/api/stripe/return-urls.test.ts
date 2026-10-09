@@ -71,8 +71,8 @@ describe('Stripe return URLs', () => {
     expect(response.status).toBe(200)
     expect(createCheckoutSession).toHaveBeenCalledWith(
       expect.objectContaining({
-        success_url: 'https://staging.dr.example/pricing?checkout=success',
-        cancel_url: 'https://staging.dr.example/pricing?checkout=cancelled'
+        success_url: 'https://staging.dr.example/account/billing?checkout=success',
+        cancel_url: 'https://staging.dr.example/account/billing?checkout=cancelled'
       })
     )
   })
@@ -85,7 +85,7 @@ describe('Stripe return URLs', () => {
     expect(createPortalSession).toHaveBeenCalledWith(
       expect.objectContaining({
         customer: 'cus_1',
-        return_url: 'https://staging.dr.example/billing'
+        return_url: 'https://staging.dr.example/account/billing'
       })
     )
     // Unset: no configuration key at all, since Stripe rejects an empty one.

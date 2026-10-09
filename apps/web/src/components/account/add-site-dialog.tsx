@@ -211,7 +211,7 @@ export function AddSiteDialog({
 
   const action =
     full && site?.owner === 'nobody' ? (
-      <Link href="/billing" className={cn(buttonVariants())}>
+      <Link href="/account/billing" className={cn(buttonVariants())}>
         {plan === 'past-due' ? 'Billing' : plan === 'paid' && limit ? 'Change plan' : 'See plans'}
         <ArrowRightIcon data-icon="inline-end" />
       </Link>

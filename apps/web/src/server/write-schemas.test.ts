@@ -7,7 +7,6 @@ import {
   CheckoutBody,
   CleanupBody,
   DomainBody,
-  MySitesBody,
   PruneAuditBody
 } from './write-schemas'
 
@@ -16,26 +15,19 @@ const email = 'user@example.com'
 const CLIENT_BODIES = [
   // src/app/sites/[target]/claim-client.tsx, recheck-button.tsx
   { name: 'claim and recheck', schema: DomainBody, body: { domain: 'example.com' } },
-  // src/app/_components/my-sites.tsx (unclaim, then the list)
+  // src/components/account/actions.ts: release, and the add-site lookup
   { name: 'unclaim', schema: DomainBody, body: { email, domain: 'example.com' } },
-  { name: 'my sites', schema: MySitesBody, body: { email, query: '', limit: 12, offset: 0 } },
-  // A long pasted search: the database layer truncates it, so the schema mustn't refuse it.
-  {
-    name: 'my sites, long search',
-    schema: MySitesBody,
-    body: { query: `https://example.com/?${'utm=x&'.repeat(80)}` }
-  },
-  // src/app/pricing/pricing-selector.tsx (email is dropped when undefined)
+  // src/components/account/actions.ts, startCheckout (an email is ignored)
   { name: 'checkout', schema: CheckoutBody, body: { domains: 12, billing: 'monthly' } },
   {
     name: 'checkout, signed in',
     schema: CheckoutBody,
     body: { domains: 100, billing: 'annual', email }
   },
-  // src/app/pricing/pricing-selector.tsx, for a subscriber
+  // src/components/account/actions.ts, changePlan
   { name: 'change plan', schema: CheckoutBody, body: { domains: 25, billing: 'annual' } },
-  // billing-portal-button.tsx, billing-status-card.tsx (sign-in and sign-out go to Better Auth)
-  { name: 'portal and billing status', schema: EMPTY_BODY, body: { email } },
+  // src/components/account/actions.ts, openPortal (sign-in and sign-out go to Better Auth)
+  { name: 'portal', schema: EMPTY_BODY, body: { email } },
   // scripts/prune-billing-audit.mjs, backfill-site-metadata.mjs, purge-invalid-site-domains.mjs
   { name: 'admin prune audit', schema: PruneAuditBody, body: { olderThanDays: 180, dryRun: true } },
   {

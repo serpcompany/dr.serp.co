@@ -108,11 +108,14 @@ and `src/app/api/claims/route.test.ts` covers them.
 ## The account area
 
 `/account` is the signed-in dashboard (`src/app/account/`), built on shadcn's dashboard-01 to the
-mockups approved on #140: an inset sidebar (Add site, Overview, Sites, Billing, the three highest
-DR sites, Pricing, the user menu), no public header or footer, and every page noindex and never
+mockups approved on #140: an inset sidebar (Add site, Overview, Sites, Billing, Settings, the
+three highest DR sites, Pricing, the user menu), no public header or footer, and every page noindex and never
 cached. `src/server/account.ts` loads it per request from D1: the plan, every claimed site with its
-latest DR, its change against a reading at least 30 days older, a year of readings, and the weekly
-average DR of the claimed sites. Signed out, `/account/*` redirects to `/login` and back.
+latest DR, a year of readings, and the weekly average DR of the claimed sites. "This month" is the
+latest reading, if it's from the last 30 days, against the last one from 30 to 60 days ago; without
+both a site shows "New" (a recent first reading) or "No recent check". The average-DR card's trend
+averages each site's own change since its first reading this year, so adding a site doesn't move
+it. Signed out, `/account/*` redirects to `/login` and back.
 
 - **Overview** (`/account`): counter cards (claimed sites, average DR, rising this month, plan),
   the average-DR chart, and the sites table; with no plan and no sites, a "Claim your sites with a
@@ -152,7 +155,7 @@ ends. A subscription on another SERP product's price is no plan here ([Billing](
 - the site page links to the domain's homepage without `nofollow`
   (`getOutboundLinkProps` in `src/app/sites/[target]/site-page-helpers.ts`);
 - the domain can be rechecked every 7 days instead of every 30;
-- the owner sees their domains under "Your sites" (`/api/my-sites`).
+- the owner sees their domains under Sites (`/account/sites`).
 
 Two internal email addresses are hardcoded as unlimited accounts in `src/server/entitlements.mjs`.
 An admin allowlist in D1 replaces them in #54.

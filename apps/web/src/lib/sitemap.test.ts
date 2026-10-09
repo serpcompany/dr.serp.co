@@ -40,6 +40,10 @@ describe('robots.txt', () => {
 
     expect(robots).toContain('User-agent: *\nAllow: /\n')
     expect(robots).toContain('Disallow: /api/\n')
+    // The signed-in pages and sign-in itself aren't for search engines.
+    expect(robots).toContain('Disallow: /account\n')
+    expect(robots).toContain('Disallow: /login\n')
+    expect(robots).not.toContain('Disallow: /billing')
     expect(robots).toContain(`Sitemap: ${BASE}/sitemap-index.xml\n`)
   })
 

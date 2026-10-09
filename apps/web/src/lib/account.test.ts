@@ -104,6 +104,8 @@ describe('planName', () => {
   const plan = (patch: Partial<AccountPlan>): AccountPlan => ({
     kind: 'active',
     paid: true,
+    live: true,
+    portal: true,
     domains: 25,
     interval: 'monthly',
     price: 7,

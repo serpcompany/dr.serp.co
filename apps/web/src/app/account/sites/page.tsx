@@ -21,7 +21,8 @@ export default async function AccountSites({
   if (site) query.set('site', site)
   if (add) query.set('add', '1')
   const path = `/account/sites${query.size ? `?${query}` : ''}`
-  // Signed out: a 307 before anything streams. Then the table loads behind its skeleton.
+  // Signed out: a 307 before anything streams. Moving here from another account page, the table
+  // loads behind its skeleton; a first visit renders whole (the layout already loaded the account).
   await requireSignIn(path)
   return (
     <Suspense

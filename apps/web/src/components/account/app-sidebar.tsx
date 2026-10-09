@@ -5,6 +5,7 @@ import {
   ExternalLinkIcon,
   LayoutDashboardIcon,
   ListIcon,
+  SettingsIcon,
   TagIcon
 } from 'lucide-react'
 import Link from 'next/link'
@@ -31,8 +32,8 @@ import { NavUser } from './nav-user'
 const NAV_MAIN = [
   { title: 'Overview', url: '/account', icon: <LayoutDashboardIcon />, exact: true },
   { title: 'Sites', url: '/account/sites', icon: <ListIcon /> },
-  // Billing and Settings move into the account with #143; until then Billing is today's page.
-  { title: 'Billing', url: '/billing', icon: <CreditCardIcon /> }
+  { title: 'Billing', url: '/account/billing', icon: <CreditCardIcon /> },
+  { title: 'Settings', url: '/account/settings', icon: <SettingsIcon /> }
 ]
 
 const NAV_SECONDARY = [

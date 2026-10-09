@@ -29,6 +29,10 @@ export type AccountPlan = {
    * same rule as the public site page (the entitlement's canAccessPaidFeatures).
    */
   paid: boolean
+  /** A dr.serp.co subscription Stripe still bills, which a plan change can move (not canceled). */
+  live: boolean
+  /** Whether Stripe has a customer for the account, so its billing portal opens. */
+  portal: boolean
   /** The site limit, or null for an unlimited (internal) account. */
   domains: number | null
   interval: 'monthly' | 'annual' | null

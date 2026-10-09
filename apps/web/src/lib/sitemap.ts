@@ -53,7 +53,8 @@ export function robotsTxt(baseUrl: string, siteEnv: string | undefined) {
     'User-agent: *',
     'Allow: /',
     'Disallow: /api/',
-    'Disallow: /billing',
+    'Disallow: /account',
+    'Disallow: /login',
     '',
     `Sitemap: ${pageUrl(baseUrl, '/sitemap-index.xml')}`,
     ''

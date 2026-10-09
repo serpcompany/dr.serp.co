@@ -56,6 +56,7 @@ const ACTIVE = {
   domainsUsed: 0,
   hasLivePlan: true,
   subscription: {
+    stripeCustomerId: 'cus_1',
     billingInterval: 'monthly',
     currentPeriodEnd: new Date('2026-11-09T00:00:00.000Z'),
     cancelAtPeriodEnd: false,
@@ -148,6 +149,8 @@ describe('planOf', () => {
     expect(planOf(ACTIVE as never)).toEqual({
       kind: 'active',
       paid: true,
+      live: true,
+      portal: true,
       domains: 25,
       interval: 'monthly',
       price: 7,
@@ -181,8 +184,16 @@ describe('planOf', () => {
   })
 
   it('calls a canceled plan or one set to cancel ending, until its period ends', () => {
-    expect(planOf(sub({ cancelAtPeriodEnd: true }) as never).kind).toBe('ending')
-    expect(planOf(sub({ status: 'canceled' }) as never).kind).toBe('ending')
+    expect(planOf(sub({ cancelAtPeriodEnd: true }) as never)).toMatchObject({
+      kind: 'ending',
+      live: true
+    })
+    // Canceled outright: still paid until the period ends, but no plan to change (buy again).
+    expect(planOf({ ...sub({ status: 'canceled' }), hasLivePlan: false } as never)).toMatchObject({
+      kind: 'ending',
+      paid: true,
+      live: false
+    })
   })
 
   it("is free, with no limit, once a canceled plan's period is over", () => {
@@ -195,6 +206,9 @@ describe('planOf', () => {
     ).toEqual({
       kind: 'free',
       paid: false,
+      live: false,
+      // A lapsed subscriber still reaches past invoices in Stripe's portal.
+      portal: true,
       domains: null,
       interval: null,
       price: null,
@@ -206,7 +220,7 @@ describe('planOf', () => {
   it('has no limit for an unlimited account', () => {
     expect(
       planOf({ ...ACTIVE, isUnlimited: true, domainsLimit: null, subscription: null } as never)
-    ).toMatchObject({ kind: 'active', paid: true, domains: null })
+    ).toMatchObject({ kind: 'active', paid: true, live: false, portal: false, domains: null })
   })
 })
 

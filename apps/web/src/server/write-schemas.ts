@@ -9,12 +9,6 @@ const domain = z.string({ message: 'Valid domain required' })
 
 export const DomainBody = z.object({ domain })
 
-export const MySitesBody = z.object({
-  query: z.string().optional(),
-  limit: z.number().optional(),
-  offset: z.number().optional()
-})
-
 export const CheckoutBody = z.object({
   domains: z.number({ message: 'Invalid domain tier.' }),
   billing: z.string({ message: 'Invalid billing period.' })

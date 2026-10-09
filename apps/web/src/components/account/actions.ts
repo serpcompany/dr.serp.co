@@ -90,3 +90,42 @@ export async function lookup(domain: string): Promise<LookupResult> {
     return { ok: false, message: "Couldn't reach dr.serp.co. Check your connection and try again." }
   }
 }
+
+export type RedirectResult =
+  | { ok: true; url: string }
+  | { ok: false; message: string; code?: string }
+
+/** A POST that answers `{ url }` to go to (Stripe Checkout or the billing portal). */
+async function redirectTo(path: string, body: unknown, fallback: string): Promise<RedirectResult> {
+  try {
+    const response = await send(path, 'POST', body)
+    const payload = (await response.json().catch(() => null)) as {
+      url?: unknown
+      error?: unknown
+      code?: unknown
+    } | null
+    if (response.ok && typeof payload?.url === 'string') return { ok: true, url: payload.url }
+    return {
+      ok: false,
+      message: typeof payload?.error === 'string' && payload.error ? payload.error : fallback,
+      code: typeof payload?.code === 'string' ? payload.code : undefined
+    }
+  } catch {
+    return { ok: false, message: "Couldn't reach dr.serp.co. Check your connection and try again." }
+  }
+}
+
+/** Stripe's billing portal: invoices, the card and cancellation. */
+export function openPortal() {
+  return redirectTo('/api/stripe/portal', {}, "Couldn't open billing. Try again shortly.")
+}
+
+/** Stripe Checkout for a first plan. */
+export function startCheckout(plan: { domains: number; billing: string }) {
+  return redirectTo('/api/stripe/checkout', plan, "Couldn't start checkout. Try again shortly.")
+}
+
+/** Moves the live plan to another size or period; Stripe invoices the difference at once. */
+export function changePlan(plan: { domains: number; billing: string }) {
+  return act('/api/stripe/change-plan', 'POST', plan, "Couldn't change your plan. Try again.")
+}
