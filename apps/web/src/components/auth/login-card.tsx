@@ -642,7 +642,7 @@ function LoginNotice({ notice, seconds }: { notice: Notice; seconds: number }) {
         <AlertTitle>Couldn't reach dr.serp.co</AlertTitle>
         <AlertDescription>
           {notice.action === 'send'
-            ? 'Nothing was sent. Check your connection and try again.'
+            ? 'Check your connection and try again.'
             : 'Check your connection, then try the code again.'}
         </AlertDescription>
       </Alert>

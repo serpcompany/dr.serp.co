@@ -107,7 +107,7 @@ describe('the email step', () => {
     // No answer queued: the request fails like a dropped connection.
     fireEvent.click(screen.getByRole('button', { name: 'Send code' }))
     expect(await screen.findByText("Couldn't reach dr.serp.co")).toBeTruthy()
-    expect(screen.getByText('Nothing was sent. Check your connection and try again.')).toBeTruthy()
+    expect(screen.getByText('Check your connection and try again.')).toBeTruthy()
   })
 })
 
@@ -243,7 +243,10 @@ describe('failures on the code step', () => {
       screen.getByText("Your code wasn't checked. Try it again in a few minutes.")
     ).toBeTruthy()
     expect(screen.queryByText("Couldn't reach dr.serp.co")).toBeNull()
-    await waitFor(() => expect(document.activeElement).toBe(codeInput()))
+    // The slots start focused, so the selection is what shows focus came back after the check.
+    await waitFor(() => expect(codeInput().selectionEnd).toBe(6))
+    expect(codeInput().selectionStart).toBe(0)
+    expect(document.activeElement).toBe(codeInput())
   })
 
   it('reports a refused resend', async () => {
