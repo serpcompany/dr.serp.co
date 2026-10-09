@@ -1,7 +1,8 @@
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { countSites, listSites } from '@/db'
+import { cn } from '@/lib/utils'
 import { SitesDataTable } from './sites-data-table'
 import { SitesSearch } from './sites-search'
 
@@ -75,13 +76,13 @@ export default async function SitesPage({
                 {query ? 'No domains match your search.' : 'No domains yet.'}
               </p>
               <div className="mt-4 flex items-center justify-center gap-3">
-                <Button asChild>
-                  <Link href="/add">Look up a domain</Link>
-                </Button>
+                <Link href="/add" className={cn(buttonVariants())}>
+                  Look up a domain
+                </Link>
                 {query ? (
-                  <Button variant="outline" asChild>
-                    <Link href="/sites">Clear search</Link>
-                  </Button>
+                  <Link href="/sites" className={cn(buttonVariants({ variant: 'outline' }))}>
+                    Clear search
+                  </Link>
                 ) : null}
               </div>
             </div>
@@ -99,9 +100,12 @@ export default async function SitesPage({
                       Previous
                     </Button>
                   ) : (
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={makeHref(safePage - 1)}>Previous</Link>
-                    </Button>
+                    <Link
+                      href={makeHref(safePage - 1)}
+                      className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                    >
+                      Previous
+                    </Link>
                   )}
 
                   {safePage >= totalPages ? (
@@ -109,9 +113,12 @@ export default async function SitesPage({
                       Next
                     </Button>
                   ) : (
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={makeHref(safePage + 1)}>Next</Link>
-                    </Button>
+                    <Link
+                      href={makeHref(safePage + 1)}
+                      className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                    >
+                      Next
+                    </Link>
                   )}
                 </div>
               </div>

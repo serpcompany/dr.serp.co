@@ -60,6 +60,35 @@ describe('PricingSelector', () => {
     })
   })
 
+  it('picks the tier with the slider and the billing period with the switch', async () => {
+    answer({
+      '/api/billing/status': { status: 401, body: {} },
+      '/api/stripe/checkout': { status: 500, body: { error: 'Checkout is down.' } }
+    })
+    render(<PricingSelector />)
+
+    // Base UI hides the thumb until it can measure layout, which happy-dom can't, so the slider
+    // is found with hidden: true and its label checked through aria-labelledby.
+    const slider = screen.getByRole('slider', { hidden: true })
+    const label = document.getElementById(slider.getAttribute('aria-labelledby') ?? '')
+    expect(label?.textContent?.trim()).toBe('How many domains do you want to monitor?')
+    fireEvent.keyDown(slider, { key: 'ArrowRight' })
+    fireEvent.keyDown(slider, { key: 'ArrowRight' })
+    expect(slider.getAttribute('aria-valuenow')).toBe('2')
+
+    const annual = screen.getByRole('switch', { name: 'Toggle annual billing' })
+    fireEvent.click(annual)
+    expect(annual.getAttribute('aria-checked')).toBe('true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start monitoring' }))
+
+    expect(await screen.findByText('Checkout is down.')).toBeTruthy()
+    expect(sent.at(-1)).toEqual({
+      url: '/api/stripe/checkout',
+      body: { domains: 50, billing: 'annual' }
+    })
+  })
+
   it('starts a subscriber on their plan and switches it with change-plan', async () => {
     answer({
       '/api/billing/status': subscriber(50, 'annual'),

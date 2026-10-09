@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { BillingEntry } from '@/app/_components/billing-entry'
 import { PricingSelector } from '@/app/pricing/pricing-selector'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -11,6 +11,7 @@ import {
   CardTitle
 } from '@/components/ui/card'
 import { FREE_FEATURES } from '@/lib/pricing'
+import { cn } from '@/lib/utils'
 
 export default function PricingPage() {
   return (
@@ -42,9 +43,9 @@ export default function PricingPage() {
             </ul>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
-              <Link href="/add">Get started</Link>
-            </Button>
+            <Link href="/add" className={cn(buttonVariants(), 'w-full')}>
+              Get started
+            </Link>
           </CardFooter>
         </Card>
 
