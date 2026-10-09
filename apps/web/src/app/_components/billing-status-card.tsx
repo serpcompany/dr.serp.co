@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { loginHref } from '@/lib/auth/callback-url'
 import { readJsonRecord } from '@/lib/read-json'
 import { cn } from '@/lib/utils'
 
@@ -136,8 +137,8 @@ export function BillingStatusCard() {
           <CardDescription>Sign in to see your plan details.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Link href="/add" className={cn(buttonVariants({ size: 'sm' }))}>
-            Log in
+          <Link href={loginHref('/billing')} className={cn(buttonVariants({ size: 'sm' }))}>
+            Sign in
           </Link>
         </CardContent>
       </Card>

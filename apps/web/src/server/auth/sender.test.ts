@@ -9,13 +9,23 @@ afterEach(() => {
 })
 
 describe('sign-in code email', () => {
-  it('shows the code as one run of digits, and says the address is not monitored', () => {
+  it('keeps the code out of the subject, and shows it as one text node of bare digits', () => {
     const { subject, html, text } = signInEmail(code, 'https://dr.serp.co')
-    expect(subject).toBe('Your DR Checker sign-in code')
-    expect(html).toContain('<strong>482913</strong>')
-    expect(text).toContain('code is 482913.')
+    expect(subject).toBe('Your SERP DR sign-in code')
+    expect(subject).not.toMatch(/\d/)
+    // One element holds exactly the digits: no spaces, separators or per-digit elements to copy.
+    expect(html).toMatch(/letter-spacing:[^"]*">482913<\/p>/)
+    expect(html).not.toMatch(/482\s|\s913|4<|8<|\u200b/)
+    expect(text.split('\n')).toContain('482913')
+    expect(html).toContain('It works for 10 minutes')
+  })
+
+  it('says the address is not monitored and links to the sites page', () => {
+    const { html, text } = signInEmail(code, 'https://dr.serp.co')
     expect(html).toContain('isn&#39;t monitored')
+    expect(html).toContain('href="https://dr.serp.co/add"')
     expect(text).toContain('https://dr.serp.co/add')
+    expect(html).toContain('name="color-scheme" content="light dark"')
   })
 
   it('sends through useSend from the no-reply sender, and logs neither the code nor the address', async () => {
@@ -33,7 +43,7 @@ describe('sign-in code email', () => {
     expect(url).toBe('https://app.usesend.com/api/v1/emails')
     expect(JSON.parse(String(init.body))).toMatchObject({
       to: 'person@example.com',
-      from: 'DR Checker <no-reply@mail.serp.co>'
+      from: 'SERP DR <no-reply@mail.serp.co>'
     })
     expect(log).not.toHaveBeenCalled()
   })

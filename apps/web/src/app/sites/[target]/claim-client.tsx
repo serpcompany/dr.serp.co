@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { loginHref } from '@/lib/auth/callback-url'
 import { readJsonRecord } from '@/lib/read-json'
 import { upsertSiteHistory } from '@/lib/site-history'
 
@@ -114,7 +115,10 @@ export function ClaimClient({
         </>
       ) : status === 'signin' ? (
         <>
-          <Link href="/add" className="underline underline-offset-2">
+          <Link
+            href={loginHref(`/sites/${domain}?claim=1`)}
+            className="underline underline-offset-2"
+          >
             Sign in again
           </Link>{' '}
           to claim this site.

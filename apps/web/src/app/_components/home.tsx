@@ -3,9 +3,8 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { LoginForm } from '@/components/login-form'
-import { OTPForm } from '@/components/otp-form'
-import { Button } from '@/components/ui/button'
+import { DISPLAY_EMAIL_KEY } from '@/components/auth/sign-in-api'
+import { Button, buttonVariants } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -15,119 +14,29 @@ import {
   CardTitle
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { readJsonRecord } from '@/lib/read-json'
-import { SIGN_IN_CODE_LENGTH } from '@/lib/sign-in-code'
+import { loginHref } from '@/lib/auth/callback-url'
 import { upsertSiteHistory } from '@/lib/site-history'
+import { cn } from '@/lib/utils'
 import { AllSites } from './all-sites'
 import { BillingStatusCard } from './billing-status-card'
 import { MySites } from './my-sites'
 
-// Better Auth answers errors as { code, message }; a 429 also says how long to wait.
-function authErrorMessage(
-  response: Response,
-  payload: Record<string, unknown> | null,
-  fallback: string
-) {
-  if (response.status === 429) {
-    const wait = Number(response.headers.get('Retry-After'))
-    return Number.isFinite(wait) && wait > 0
-      ? `Too many attempts. Try again in ${Math.ceil(wait / 60)} min.`
-      : 'Too many attempts. Try again shortly.'
-  }
-  return typeof payload?.message === 'string' ? payload.message : fallback
-}
-
 export function Home() {
   const router = useRouter()
 
-  const [authStep, setAuthStep] = useState<'email' | 'otp' | 'authed'>('email')
+  // Signing in happens on /login (#136); this page only reads who is signed in.
   const [authEmail, setAuthEmail] = useState('')
-  const [otpCode, setOtpCode] = useState('')
-  const [authLoading, setAuthLoading] = useState(false)
-  const [authError, setAuthError] = useState<string | null>(null)
+  const authStep = authEmail ? 'authed' : 'signed-out'
 
   const [domain, setDomain] = useState('')
 
   useEffect(() => {
-    const savedEmail = window.localStorage.getItem('dr-auth-email')
-    if (savedEmail) {
-      setAuthEmail(savedEmail)
-      setAuthStep('authed')
-      return
-    }
-
-    const pendingEmail = window.sessionStorage.getItem('dr-otp-email')
-    if (pendingEmail) {
-      setAuthEmail(pendingEmail)
-      setAuthStep('otp')
+    try {
+      setAuthEmail(window.localStorage.getItem(DISPLAY_EMAIL_KEY) ?? '')
+    } catch {
+      // Storage blocked: the page stays signed out.
     }
   }, [])
-
-  const requestOtp = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const email = authEmail.trim().toLowerCase()
-    if (!email) {
-      setAuthError('Enter your email to continue.')
-      return
-    }
-
-    setAuthLoading(true)
-    setAuthError(null)
-
-    try {
-      const response = await fetch('/api/auth/email-otp/send-verification-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, type: 'sign-in' })
-      })
-      const payload = await readJsonRecord(response)
-
-      if (!response.ok) {
-        throw new Error(authErrorMessage(response, payload, 'Failed to send code.'))
-      }
-
-      setAuthStep('otp')
-      setOtpCode('')
-      window.sessionStorage.setItem('dr-otp-email', email)
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Failed to send code.')
-    } finally {
-      setAuthLoading(false)
-    }
-  }
-
-  const verifyOtp = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const email = authEmail.trim().toLowerCase()
-    if (!email || otpCode.trim().length !== SIGN_IN_CODE_LENGTH) {
-      setAuthError(`Enter the ${SIGN_IN_CODE_LENGTH}-digit code.`)
-      return
-    }
-
-    setAuthLoading(true)
-    setAuthError(null)
-
-    try {
-      const response = await fetch('/api/auth/sign-in/email-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp: otpCode.trim() })
-      })
-      const payload = await readJsonRecord(response)
-
-      if (!response.ok) {
-        throw new Error(authErrorMessage(response, payload, 'Invalid code.'))
-      }
-
-      window.localStorage.setItem('dr-auth-email', email)
-      window.sessionStorage.removeItem('dr-otp-email')
-      setAuthStep('authed')
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Failed to verify code.')
-    } finally {
-      setAuthLoading(false)
-    }
-  }
 
   const handleDomainSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -161,44 +70,22 @@ export function Home() {
         </p>
         <Card>
           <CardHeader>
-            <CardTitle>
-              {authStep === 'email' ? 'Sign in' : authStep === 'otp' ? 'Verify code' : 'Signed in'}
-            </CardTitle>
+            <CardTitle>{authStep === 'authed' ? 'Signed in' : 'Sign in'}</CardTitle>
             <CardDescription>
-              {authStep === 'email'
-                ? `Enter your email and we'll send you a ${SIGN_IN_CODE_LENGTH}-digit code.`
-                : authStep === 'otp'
-                  ? `Enter the ${SIGN_IN_CODE_LENGTH}-digit code we sent to your email.`
-                  : "You're ready to add a domain."}
+              {authStep === 'authed'
+                ? "You're ready to add a domain."
+                : "Sign in with a code we email you. There's no password."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {authStep === 'email' ? (
-              <LoginForm
-                email={authEmail}
-                loading={authLoading}
-                error={authError}
-                onEmailChange={setAuthEmail}
-                onSubmit={requestOtp}
-              />
-            ) : authStep === 'otp' ? (
-              <OTPForm
-                email={authEmail}
-                code={otpCode}
-                loading={authLoading}
-                error={authError}
-                onCodeChange={setOtpCode}
-                onSubmit={verifyOtp}
-                onEditEmail={() => {
-                  window.sessionStorage.removeItem('dr-otp-email')
-                  setOtpCode('')
-                  setAuthStep('email')
-                }}
-              />
-            ) : (
+            {authStep === 'authed' ? (
               <p className="text-sm text-muted-foreground">
                 Signed in as {authEmail.trim().toLowerCase()}.
               </p>
+            ) : (
+              <Link href={loginHref('/add')} className={cn(buttonVariants())}>
+                Sign in
+              </Link>
             )}
           </CardContent>
         </Card>

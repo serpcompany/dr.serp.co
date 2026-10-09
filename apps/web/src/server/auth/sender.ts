@@ -12,22 +12,57 @@ export type CodeSender = {
   send(code: SignInCode): Promise<void>
 }
 
-const DEFAULT_FROM = 'DR Checker <no-reply@mail.serp.co>'
+const DEFAULT_FROM = 'SERP DR <no-reply@mail.serp.co>'
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
+}
+
+/**
+ * The sign-in code email (#140 mockups, Email). The subject leaves the code out, so it stays off
+ * lock screens and notification previews. The code is one text node of bare digits, spaced only
+ * by CSS letter-spacing, so it copies and pastes as one word (accounts-and-sign-in.md § Copying
+ * and pasting codes). Colours are neutral greys a dark mail client can invert, and the footer
+ * says replies aren't read (transactional-email.md, the serp.co-subdomain exception).
+ */
 export function signInEmail({ otp, expiresInSeconds }: SignInCode, siteUrl: string) {
   const minutes = Math.round(expiresInSeconds / 60)
-  const subject = 'Your DR Checker sign-in code'
-  // The code is one text node of digits, so it copies and pastes cleanly (#136 styles it).
-  const html = [
-    `<p>Your DR Checker sign-in code is <strong>${otp}</strong>. It expires in ${minutes} minutes.</p>`,
-    '<p>If you didn&#39;t ask for it, you can ignore this email.</p>',
-    `<p><small>This address isn&#39;t monitored, so replies aren&#39;t read. Manage your sites at <a href="${siteUrl}/add">${siteUrl.replace(/^https?:\/\//, '')}/add</a>.</small></p>`
-  ].join('\n')
+  const subject = 'Your SERP DR sign-in code'
+  const sitesUrl = `${siteUrl}/add`
+  const sitesLabel = sitesUrl.replace(/^https?:\/\//, '')
+  const font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>${subject}</title>
+</head>
+<body style="margin:0;padding:24px 12px;background:#f4f4f5;font-family:${font};color:#18181b">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e4e4e7;border-radius:12px">
+<tr><td style="padding:32px 28px">
+<p style="margin:0;font-size:15px;font-weight:700">SERP DR</p>
+<h1 style="margin:24px 0 8px;font-size:22px;font-weight:600">Your sign-in code</h1>
+<p style="margin:0;font-size:15px;line-height:1.6;color:#52525b">Enter this code on dr.serp.co, in the browser you asked from. It works for ${minutes} minutes.</p>
+<p style="margin:24px 0;padding:18px 0;background:#f4f4f5;border-radius:10px;text-align:center;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:34px;font-weight:600;letter-spacing:0.3em">${escapeHtml(otp)}</p>
+<p style="margin:0;font-size:14px;line-height:1.6;color:#52525b">Didn&#39;t ask for it? Ignore this email. Nobody can sign in without the code.</p>
+<hr style="border:0;border-top:1px solid #e4e4e7;margin:28px 0 16px">
+<p style="margin:0;font-size:12px;line-height:1.6;color:#71717a">This address isn&#39;t monitored, so replies aren&#39;t read. Manage your sites at <a href="${sitesUrl}" style="color:#18181b">${sitesLabel}</a>.</p>
+</td></tr>
+</table>
+</body>
+</html>`
   const text = [
-    `Your DR Checker sign-in code is ${otp}. It expires in ${minutes} minutes.`,
-    "If you didn't ask for it, you can ignore this email.",
+    'Your SERP DR sign-in code',
     '',
-    `This address isn't monitored, so replies aren't read. Manage your sites at ${siteUrl}/add.`
+    otp,
+    '',
+    `Enter this code on dr.serp.co, in the browser you asked from. It works for ${minutes} minutes.`,
+    "Didn't ask for it? Ignore this email. Nobody can sign in without the code.",
+    '',
+    `This address isn't monitored, so replies aren't read. Manage your sites at ${sitesUrl}.`
   ].join('\n')
   return { subject, html, text }
 }

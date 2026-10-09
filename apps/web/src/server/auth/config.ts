@@ -23,7 +23,8 @@ import { accounts, sessions, users, verification } from '@/db/schema'
 import {
   SIGN_IN_CODE_ATTEMPTS,
   SIGN_IN_CODE_LENGTH,
-  SIGN_IN_CODE_TTL_SECONDS
+  SIGN_IN_CODE_TTL_SECONDS,
+  signInCodeDigits
 } from '@/lib/sign-in-code'
 import { clientIp } from './client-ip'
 import {
@@ -154,7 +155,7 @@ export function normalizeEmail(value: string): string {
 
 /** Keeps only the digits of a pasted code ("482 913" or "482-913" is the code). */
 export function codeDigits(value: string): string {
-  return value.replace(/\D/g, '')
+  return signInCodeDigits(value)
 }
 
 function rateLimited(retryAfterMs: number): APIError {

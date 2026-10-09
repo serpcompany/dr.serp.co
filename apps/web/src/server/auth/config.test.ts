@@ -834,7 +834,7 @@ describe('the code is defined once', () => {
     expect(code?.otp).toMatch(new RegExp(`^\\d{${SIGN_IN_CODE_LENGTH}}$`))
     expect(code?.expiresInSeconds).toBe(SIGN_IN_CODE_TTL_SECONDS)
     const { text } = signInEmail(code as SignInCode, 'https://dr.serp.co')
-    expect(text).toContain(`expires in ${SIGN_IN_CODE_TTL_SECONDS / 60} minutes`)
+    expect(text).toContain(`It works for ${SIGN_IN_CODE_TTL_SECONDS / 60} minutes`)
     // Better Auth stores the same lifetime the email states.
     const [row] = await dbFrom(d1 as unknown as D1Database)
       .select({ expiresAt: verification.expiresAt })

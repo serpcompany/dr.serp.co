@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
+import { PublicChrome } from '@/app/_components/public-chrome'
 import { SiteFooter } from '@/app/_components/site-footer'
 import { SiteHeader } from '@/app/_components/site-header'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -25,9 +26,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           enableSystem
           disableTransitionOnChange
         >
-          <SiteHeader />
+          <PublicChrome>
+            <SiteHeader />
+          </PublicChrome>
           <div className="flex-1">{children}</div>
-          <SiteFooter />
+          <PublicChrome>
+            <SiteFooter />
+          </PublicChrome>
           <Toaster />
         </ThemeProvider>
       </body>

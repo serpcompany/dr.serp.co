@@ -1,14 +1,33 @@
 # Accounts and Claims
 
 How people sign in, how a session is trusted, and the rules for claiming a domain. Sign-in runs on
-Better Auth ([#54](https://github.com/serpcompany/dr.serp.co/issues/54)); the redesigned sign-in
-screen and email are #136.
+Better Auth ([#54](https://github.com/serpcompany/dr.serp.co/issues/54)). The screens follow the
+mockups approved on [#140](https://github.com/serpcompany/dr.serp.co/issues/140).
 
 ## Sign-in
 
 Sign-in is a one-time code sent by email. There are no passwords, and a first sign-in creates the
 account. Better Auth (`src/server/auth/config.ts`) keeps users, sessions and codes in D1, in the
 `users`, `sessions`, `accounts` and `verification` tables.
+
+**The screen** is `/login` (`src/components/auth/login-card.tsx`): shadcn's login-03 email form,
+then the code step as shadcn's InputOTP "Form" example (3 + 3 slots), then a signed-in screen that
+returns to `?callbackUrl=`. `safeCallbackPath` (`src/lib/auth/callback-url.ts`) keeps that on the
+site: same-origin only, checked after the URL parser resolves dot segments. Every answer has its
+message: invalid email, the per-client 429 with its wait, codes unavailable (503), a network
+failure, a wrong code with the tries left, an expired code and too many tries. Resend waits 60
+seconds. Pastes, multi-character input and autofill go through one parser (`readCodeText` in
+`src/components/auth/sign-in-api.ts`): one standalone code fills the slots and signs in, a
+fragment of digits goes in at the caret, and anything ambiguous changes nothing. A rejected code
+is never sent twice. The screen and its logic are ported from best.serp.co.
+
+**The header** shows "Sign in" (to `/login`, back to the current page) or an account menu with the
+account's pages and Sign out. Signing in ends with a full page load, so the header and the pages
+that read the account start over signed in.
+
+**The email** (`signInEmail` in `src/server/auth/sender.ts`) leaves the code out of the subject,
+so it stays off lock screens, and shows it as one text node of bare digits spaced only by CSS
+`letter-spacing`, so it copies as one word.
 
 1. `POST /api/auth/email-otp/send-verification-otp` (`{ email, type: "sign-in" }`) emails a
    6-digit code through useSend (`src/server/auth/sender.ts`). The code lasts 10 minutes, is stored
