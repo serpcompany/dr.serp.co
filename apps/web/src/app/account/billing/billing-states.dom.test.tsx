@@ -40,6 +40,7 @@ function account(plan: Partial<AccountPlan>, sites = 5): Account {
       title: null,
       dr: 40,
       change: null,
+      stale: false,
       checkedAt: null,
       history: []
     })),
