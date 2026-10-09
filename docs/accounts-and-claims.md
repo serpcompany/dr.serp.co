@@ -1,8 +1,8 @@
 # Accounts and Claims
 
 How people sign in, how a session is trusted, and the rules for claiming a domain. Sign-in runs on
-Better Auth ([#54](https://github.com/serpcompany/dr.serp.co/issues/54)); binding a code to the
-browser that asked for it is #135, and the redesigned sign-in screen and email are #136.
+Better Auth ([#54](https://github.com/serpcompany/dr.serp.co/issues/54)); the redesigned sign-in
+screen and email are #136.
 
 ## Sign-in
 
@@ -27,16 +27,34 @@ cookie or not), and a body over 16 KB answers 413. Missing `BETTER_AUTH_SECRET` 
 `get-session` includes the session token, and errors are logged through `scrubError`
 (`src/server/auth/logging.ts`), so no email, code hash or token reaches the logs.
 
+**A code works only in the browser that asked for it** (`src/server/auth/code-binding.ts`). Each
+code request sets `dr_code_binding`: an HMAC over the email and the stored hash of that code
+(HttpOnly, `SameSite=Strict`, `/api/auth` only, 15 minutes). A guess without the binding for the
+email's latest code is refused before Better Auth counts it, with the same answer as a wrong code,
+so nobody else can spend a code's 3 guesses. A newer request for the email, from anyone, replaces
+the binding.
+
+**A signed-in browser is remembered** (`src/server/auth/known-device.ts`): sign-in sets
+`dr_known_device` for 180 days (signed, HttpOnly, `/api/auth` only). It grants no session; it only
+gives that browser its own code budget for the account, so someone flooding the email from other
+addresses can't lock the owner out. Every same-named cookie is checked, because a sibling
+`*.serp.co` site could plant one.
+
 **Limits** run on the `RATE_LIMITER` Durable Object, keyed by HMAC digests rather than raw emails
-or IPs:
+or IPs. A client is its IPv4 address or IPv6 /64; `cf-connecting-ipv6` counts only behind a Class E
+pseudo-IPv4 `cf-connecting-ip` (`src/server/auth/client-ip.ts`).
 
 | What | Limit | Answer when hit |
 | --- | --- | --- |
-| Code requests per client (IP, or IPv6 /64) | 5 a minute, 20 an hour | 429 with `Retry-After` |
-| Code requests per email | 1 a minute, 5 an hour | exactly like a sent code; nothing is sent |
+| Code requests per client | 5 a minute, 20 an hour | 429 with `Retry-After` |
+| Codes for an email with no account | 1 a minute and 5 an hour per email; 300 an hour site-wide | like a sent code; nothing is sent |
+| Codes for a member, from a browser it hasn't signed in on | 1 a minute and 5 an hour per email and client; 20 an hour per email | like a sent code |
+| Codes for a member, from its known device | 1 a minute and 5 an hour per email and client; a separate 10 an hour | like a sent code |
 | Code guesses per client | 10 a minute, 60 an hour | 429 with `Retry-After` |
 
-No response reveals whether an email has an account.
+No response reveals whether an email has an account: a limited request still answers success and
+sets a binding cookie (a decoy, or a fresh one for the code the browser already holds). The code's
+length, lifetime and attempts are defined once in `src/lib/sign-in-code.ts`.
 
 Sessions from before Better Auth (the `dr_session` cookie) are not carried over: everyone signs in
 once more. The old cookie is ignored and expires on its own.
