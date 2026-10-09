@@ -146,7 +146,7 @@ export default async function SitesPage({
                       {/* The link covers the whole row, so any part of it opens the site. */}
                       <Link
                         href={`/sites/${encodeURIComponent(row.domain)}`}
-                        className="text-foreground outline-none after:absolute after:inset-0 hover:underline"
+                        className="text-foreground after:absolute after:inset-0 hover:underline"
                       >
                         {row.domain}
                       </Link>
