@@ -31,7 +31,7 @@ const DESCRIPTION = 'Your claimed sites, their DR and your plan.'
 export default async function AccountOverview() {
   await requireSignIn('/account')
   return (
-    <Suspense fallback={<PageLoading title={TITLE} description={DESCRIPTION} />}>
+    <Suspense fallback={<PageLoading title={TITLE} description={DESCRIPTION} cards />}>
       <Overview />
     </Suspense>
   )

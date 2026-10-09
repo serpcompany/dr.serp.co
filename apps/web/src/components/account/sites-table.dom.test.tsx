@@ -25,6 +25,7 @@ function site(domain: string, dr: number | null, change: number | null): Account
     title: `${domain} title`,
     dr,
     change,
+    stale: false,
     checkedAt: '2026-10-01T00:00:00.000Z',
     history: dr === null ? [] : [{ checkedAt: '2026-10-01T00:00:00.000Z', domainRating: dr }]
   }
@@ -154,6 +155,22 @@ describe('SitesTable', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Done' }))
     expect(replaceState).toHaveBeenLastCalledWith(null, '', '/')
     replaceState.mockRestore()
+  })
+
+  it('labels a site with no change this month: new, or not checked lately', () => {
+    render(
+      <SitesTable
+        data={[
+          { ...site('fresh.example', 30, null) },
+          { ...site('quiet.example', 20, null), stale: true }
+        ]}
+        urls={URLS}
+        dofollow
+      />
+    )
+    const [fresh, quiet] = screen.getAllByRole('row').slice(1)
+    expect(fresh?.textContent).toContain('New')
+    expect(quiet?.textContent).toContain('No recent check')
   })
 
   it('shows the empty state with no sites', () => {

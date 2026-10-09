@@ -54,6 +54,7 @@ const ACTIVE = {
   status: 'active',
   domainsLimit: 25,
   domainsUsed: 0,
+  hasLivePlan: true,
   subscription: {
     billingInterval: 'monthly',
     currentPeriodEnd: new Date('2026-11-09T00:00:00.000Z'),
@@ -86,7 +87,7 @@ describe('loadAccount', () => {
     await claim('low.example', 'owner@example.com', 20)
     await claim('new.example', 'owner@example.com', null)
     await claim('theirs.example', 'other@example.com', 90)
-    await check('high.example', 55, '2026-08-01')
+    await check('high.example', 55, '2026-08-20')
     await check('high.example', 61, '2026-10-01')
     await check('low.example', 20, '2026-10-01')
     await check('theirs.example', 90, '2026-10-01')
@@ -166,6 +167,17 @@ describe('planOf', () => {
     expect(
       planOf({ ...sub({ status: 'unpaid' }), canAccessPaidFeatures: false } as never)
     ).toMatchObject({ kind: 'past-due', paid: false, domains: 25 })
+  })
+
+  it("doesn't call a subscription on an unknown price past due", () => {
+    // Another product's price, or STRIPE_PRICE_IDS broken: no tier, so no plan here.
+    expect(
+      planOf({
+        ...sub({ status: 'past_due' }),
+        canAccessPaidFeatures: false,
+        hasLivePlan: false
+      } as never).kind
+    ).toBe('free')
   })
 
   it('calls a canceled plan or one set to cancel ending, until its period ends', () => {

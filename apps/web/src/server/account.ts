@@ -13,6 +13,7 @@ import {
   type AccountSite,
   averageChange,
   type DrPoint,
+  isStale,
   monthChange,
   weeklyAverage
 } from '@/lib/account'
@@ -39,7 +40,10 @@ export function planOf(entitlement: Entitlement): AccountPlan {
   const status = subscription?.status ?? null
   // Stripe moves the period end forward before a renewal charge fails, so a past_due plan is
   // usually still in its paid period (the entitlement's grace): it works, but it is past due.
-  const pastDue = Boolean(subscription) && (status === 'past_due' || status === 'unpaid')
+  // Only a dr.serp.co plan Stripe still bills (hasLivePlan: a known price), so a row on another
+  // product's price, or any row while STRIPE_PRICE_IDS is broken, isn't called past due.
+  const pastDue =
+    Boolean(entitlement?.hasLivePlan) && (status === 'past_due' || status === 'unpaid')
   if (!entitlement || (!paid && !pastDue)) {
     return {
       kind: 'free',
@@ -104,6 +108,7 @@ export async function loadAccount(email: string, now = new Date()): Promise<Acco
       title: claim.site_title,
       dr: latest?.domainRating ?? claim.domain_rating,
       change: monthChange(history, now),
+      stale: isStale(history, now),
       checkedAt: latest?.checkedAt ?? null,
       history
     }

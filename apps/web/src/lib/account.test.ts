@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   type AccountPlan,
   averageChange,
+  isStale,
   monthChange,
   planLabel,
   planName,
@@ -32,14 +33,28 @@ describe('monthChange', () => {
     expect(monthChange([], now)).toBeNull()
   })
 
+  it('is null when the earlier reading is from long before last month', () => {
+    // November to October isn't "this month", even though nothing came in between.
+    expect(monthChange([at('2025-11-01', 40), at('2026-10-01', 50)], now)).toBeNull()
+  })
+
   it('is null when the latest reading is older than a month', () => {
     // Last checked in March: nothing changed "this month" that we know of.
     expect(monthChange([at('2026-01-10', 40), at('2026-03-01', 44)], now)).toBeNull()
   })
 
   it('reports a fall as negative and no change as zero', () => {
-    expect(monthChange([at('2026-08-01', 50), at('2026-10-01', 47)], now)).toBe(-3)
-    expect(monthChange([at('2026-08-01', 50), at('2026-10-01', 50)], now)).toBe(0)
+    expect(monthChange([at('2026-08-20', 50), at('2026-10-01', 47)], now)).toBe(-3)
+    expect(monthChange([at('2026-08-20', 50), at('2026-10-01', 50)], now)).toBe(0)
+  })
+})
+
+describe('isStale', () => {
+  const now = new Date('2026-10-07T12:00:00.000Z')
+  it('is true without a reading in the last 30 days', () => {
+    expect(isStale([at('2026-10-01', 40)], now)).toBe(false)
+    expect(isStale([at('2026-08-01', 40)], now)).toBe(true)
+    expect(isStale([], now)).toBe(true)
   })
 })
 

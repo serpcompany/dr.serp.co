@@ -10,6 +10,8 @@ export type AccountSite = {
   dr: number | null
   /** DR now minus DR a month ago, or null without readings from both this month and before. */
   change: number | null
+  /** No reading in the last 30 days, so there is no change "this month" to show. */
+  stale: boolean
   /** The latest check in the last year, as an ISO date, or null. */
   checkedAt: string | null
   /** Readings for the last year, oldest first, for the site panel's chart. */
@@ -55,14 +57,24 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * The change this month: the latest reading, if it is from the last 30 days, minus the last
- * reading at least 30 days old. Null without both, so a site last checked in March has none.
+ * reading from 30 to 60 days ago. Null without both, so a site last checked in March has none,
+ * and neither has one whose earlier reading is from last year.
  */
 export function monthChange(history: readonly DrPoint[], now: Date): number | null {
   const cutoff = now.getTime() - 30 * DAY_MS
+  const floor = now.getTime() - 60 * DAY_MS
   const latest = history.at(-1)
   if (!latest || Date.parse(latest.checkedAt) <= cutoff) return null
   const before = [...history].reverse().find(point => Date.parse(point.checkedAt) <= cutoff)
-  return before ? latest.domainRating - before.domainRating : null
+  return before && Date.parse(before.checkedAt) >= floor
+    ? latest.domainRating - before.domainRating
+    : null
+}
+
+/** Whether the history has no reading in the last 30 days. */
+export function isStale(history: readonly DrPoint[], now: Date): boolean {
+  const latest = history.at(-1)
+  return !latest || Date.parse(latest.checkedAt) <= now.getTime() - 30 * DAY_MS
 }
 
 /**

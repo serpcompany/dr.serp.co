@@ -167,7 +167,9 @@ const features = tableFeatures({
 
 const columnHelper = createColumnHelper<typeof features, AccountSite>()
 
-export function ChangeBadge({ change }: { change: number | null }) {
+/** The DR change this month; without one, "New" for a recent first reading, else "No recent check". */
+export function ChangeBadge({ site }: { site: Pick<AccountSite, 'change' | 'stale'> }) {
+  const { change } = site
   return (
     <Badge variant="outline" className="px-1.5 text-muted-foreground">
       {change === null || change === 0 ? (
@@ -177,7 +179,15 @@ export function ChangeBadge({ change }: { change: number | null }) {
       ) : (
         <TrendingDownIcon className="text-destructive" />
       )}
-      {change === null ? 'New' : change > 0 ? `+${change}` : change < 0 ? change : 'Steady'}
+      {change === null
+        ? site.stale
+          ? 'No recent check'
+          : 'New'
+        : change > 0
+          ? `+${change}`
+          : change < 0
+            ? change
+            : 'Steady'}
     </Badge>
   )
 }
@@ -271,7 +281,7 @@ const columns = columnHelper.columns([
   }),
   columnHelper.accessor('change', {
     header: 'This month',
-    cell: ({ row }) => <ChangeBadge change={row.original.change} />
+    cell: ({ row }) => <ChangeBadge site={row.original} />
   }),
   columnHelper.accessor('checkedAt', {
     header: 'Last check',
@@ -586,6 +596,8 @@ export function SitesTable({
       </Tabs>
       {shownSite ? (
         <SitePanel
+          // Its own state (a recheck in flight) belongs to one site.
+          key={(panelSite ?? shownSite).domain}
           site={panelSite ?? shownSite}
           open={panelSite !== null}
           onOpenChange={open => (open ? null : openPanel(null))}
@@ -671,7 +683,7 @@ function SitePanel({
               <p className="text-muted-foreground">Domain Rating</p>
               <p className="font-mono text-4xl font-semibold tabular-nums">{site.dr ?? '—'}</p>
             </div>
-            <ChangeBadge change={site.change} />
+            <ChangeBadge site={site} />
           </div>
           {!isMobile && history.length > 1 ? (
             <ChartContainer config={chartConfig}>
