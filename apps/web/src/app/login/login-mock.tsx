@@ -1,11 +1,18 @@
 'use client'
 
-import { AlertCircleIcon, ArrowLeftIcon, WifiOffIcon } from 'lucide-react'
+import { AlertCircleIcon, RefreshCwIcon, WifiOffIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/components/ui/input-otp'
@@ -19,7 +26,11 @@ export function LoginMock({ state }: { state: string }) {
   const codeStep = CODE_STATES.has(state)
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
-      <div className="flex w-full max-w-sm flex-col gap-6">
+      <div
+        className={
+          codeStep ? 'flex w-full max-w-md flex-col gap-6' : 'flex w-full max-w-sm flex-col gap-6'
+        }
+      >
         <Link href="/" className="flex items-center gap-2 self-center font-medium">
           <Wordmark />
         </Link>
@@ -83,6 +94,11 @@ function EmailStep({ state }: { state: string }) {
   )
 }
 
+// shadcn's InputOTP "Form" example (base-nova), as shipped: the card, the label row with Resend
+// Code, the large slots, the invalid state and the footer. Only the copy is dr.serp.co's.
+const SLOTS =
+  '*:data-[slot=input-otp-slot]:h-12 *:data-[slot=input-otp-slot]:w-11 *:data-[slot=input-otp-slot]:text-xl'
+
 function CodeStep({ state }: { state: string }) {
   const [value, setValue] = useState(
     state === 'wrong' ? '482913' : state === 'network' ? '518204' : ''
@@ -96,78 +112,68 @@ function CodeStep({ state }: { state: string }) {
           ? 'That code expired. Send a new code.'
           : null
   const spent = state === 'locked' || state === 'expired'
+  const invalid = error ? true : undefined
   return (
     <>
-      <CardHeader className="text-center">
-        <CardTitle className="text-xl">Check your email</CardTitle>
+      <CardHeader>
+        <CardTitle>Check your email</CardTitle>
         <CardDescription>
-          If <span className="font-medium text-foreground">{EMAIL}</span> is a valid address, a
-          6-digit code is on its way. It works for 10 minutes, in this browser.
+          If <span className="font-medium">{EMAIL}</span> is a valid address, we sent it a 6-digit
+          code. It works for 10 minutes, in this browser.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={event => event.preventDefault()}>
-          <FieldGroup>
-            {state === 'network' ? (
-              <Alert variant="destructive">
-                <WifiOffIcon />
-                <AlertTitle>Couldn't reach dr.serp.co</AlertTitle>
-                <AlertDescription>Check your connection, then try the code again.</AlertDescription>
-              </Alert>
-            ) : null}
-            <Field data-invalid={error ? true : undefined} className="items-center">
-              <FieldLabel htmlFor="otp" className="sr-only">
-                Code
-              </FieldLabel>
-              <InputOTP
-                id="otp"
-                maxLength={6}
-                value={value}
-                onChange={setValue}
-                disabled={spent}
-                aria-invalid={error ? true : undefined}
-              >
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                </InputOTPGroup>
-                <InputOTPSeparator />
-                <InputOTPGroup>
-                  <InputOTPSlot index={3} />
-                  <InputOTPSlot index={4} />
-                  <InputOTPSlot index={5} />
-                </InputOTPGroup>
-              </InputOTP>
-              {error ? (
-                <FieldError className="text-center">{error}</FieldError>
-              ) : (
-                <FieldDescription className="text-center">
-                  Paste it or type it. It checks itself at 6 digits.
-                </FieldDescription>
-              )}
-            </Field>
-            <Field>
-              {spent ? (
-                <Button type="button">Send a new code</Button>
-              ) : (
-                <Button type="submit" disabled={value.length !== 6}>
-                  Sign in
-                </Button>
-              )}
-              {spent ? null : (
-                <Button type="button" variant="ghost" disabled>
-                  Resend code in 0:42
-                </Button>
-              )}
-            </Field>
-            <Button type="button" variant="link" size="sm" className="self-center">
-              <ArrowLeftIcon />
-              Use a different email
-            </Button>
-          </FieldGroup>
+        <form onSubmit={event => event.preventDefault()} className="flex flex-col gap-4">
+          {state === 'network' ? (
+            <Alert variant="destructive">
+              <WifiOffIcon />
+              <AlertTitle>Couldn't reach dr.serp.co</AlertTitle>
+              <AlertDescription>Check your connection, then try the code again.</AlertDescription>
+            </Alert>
+          ) : null}
+          <Field data-invalid={invalid}>
+            <div className="flex items-center justify-between">
+              <FieldLabel htmlFor="otp-verification">Verification code</FieldLabel>
+              <Button variant="outline" size="xs" type="button" disabled={!spent}>
+                <RefreshCwIcon data-icon="inline-start" />
+                {spent ? 'Resend code' : 'Resend in 0:42'}
+              </Button>
+            </div>
+            <InputOTP
+              maxLength={6}
+              id="otp-verification"
+              required
+              value={value}
+              onChange={setValue}
+              disabled={spent}
+            >
+              <InputOTPGroup className={SLOTS}>
+                <InputOTPSlot index={0} aria-invalid={invalid} />
+                <InputOTPSlot index={1} aria-invalid={invalid} />
+                <InputOTPSlot index={2} aria-invalid={invalid} />
+              </InputOTPGroup>
+              <InputOTPSeparator />
+              <InputOTPGroup className={SLOTS}>
+                <InputOTPSlot index={3} aria-invalid={invalid} />
+                <InputOTPSlot index={4} aria-invalid={invalid} />
+                <InputOTPSlot index={5} aria-invalid={invalid} />
+              </InputOTPGroup>
+            </InputOTP>
+            {error ? <FieldError errors={[{ message: error }]} /> : null}
+            <FieldDescription>
+              <a href="/login">Wrong address? Use a different email.</a>
+            </FieldDescription>
+          </Field>
         </form>
       </CardContent>
+      <CardFooter className="flex-col gap-2">
+        <Button type="submit" className="w-full" disabled={spent || value.length !== 6}>
+          Sign in
+        </Button>
+        <div className="text-sm text-muted-foreground">
+          No email? Check your spam folder, or resend the code.
+        </div>
+      </CardFooter>
     </>
   )
 }
