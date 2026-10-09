@@ -312,6 +312,9 @@ describe('after a resend that may not have sent a new code', () => {
     ).toBeTruthy()
     paste('333333')
     await waitFor(() => expect(calls.filter(call => call.path === SIGN_IN)).toHaveLength(3))
+    // The slots are disabled while that check runs (fireEvent commits it in act); the next guess
+    // goes in only once it has answered and they take input again.
+    await waitFor(() => expect(codeInput().disabled).toBe(false))
     paste('444444')
     expect(await screen.findByText('Too many wrong tries. Send a new code.')).toBeTruthy()
   })
