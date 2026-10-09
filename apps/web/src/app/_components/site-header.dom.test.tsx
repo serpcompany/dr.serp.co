@@ -4,7 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/',
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams()
 }))
 
 import { SiteHeader } from './site-header'

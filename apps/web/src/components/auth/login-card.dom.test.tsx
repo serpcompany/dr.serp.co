@@ -294,6 +294,9 @@ describe('after a resend that may not have sent a new code', () => {
     answer(SEND, { status: 200, body: { success: true } })
     fireEvent.click(screen.getByRole('button', { name: /Resend code/ }))
     await waitFor(() => expect(calls.filter(call => call.path === SEND)).toHaveLength(2))
+    // The resend has finished (its wait starts again) before the next guesses go in; a paste
+    // while it is still in flight would race the cleared slots.
+    expect(await screen.findByRole('button', { name: /Resend in/ })).toBeTruthy()
     answer(
       SIGN_IN,
       { status: 400, body: { code: 'INVALID_OTP' } },
