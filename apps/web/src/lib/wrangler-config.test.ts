@@ -31,6 +31,8 @@ describe('wrangler.jsonc', () => {
         )
         expect(config.upload_source_maps).toBe(true)
         expect(config.observability?.enabled).toBe(true)
+        // keep_names would put __name() into next-themes' inline script (#130).
+        expect(config.keep_names).toBe(false)
       })
 
       it('has its own D1, rate limiter and self-reference bindings', () => {

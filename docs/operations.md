@@ -25,8 +25,11 @@ to the canonical host, unless it carries the `x-dr-serp-smoke-test` header (any 
 
 Named environments don't inherit the top level's bindings, vars or services, so each repeats
 them. They do inherit other keys, including `main`, `compatibility_date`, `compatibility_flags`,
-`assets`, `alias`, `upload_source_maps`, `observability` and the Durable Object `migrations`, so
-changing one of those at the top level changes Staging and Production too.
+`assets`, `alias`, `keep_names`, `upload_source_maps`, `observability` and the Durable Object
+`migrations`, so changing one of those at the top level changes Staging and Production too.
+`keep_names` stays `false`: esbuild's `__name()` helper otherwise reaches next-themes' inline theme
+script, which fails in the browser (#130). The cost is minified function names in Worker stack
+traces; source maps still resolve them. The smoke test fails if a page calls `__name()`.
 `src/lib/wrangler-config.test.ts` resolves each environment the way Wrangler does and checks its
 bindings, vars, hosts and flags. Every remote command passes `--env`; without it
 Wrangler uses the local configuration.

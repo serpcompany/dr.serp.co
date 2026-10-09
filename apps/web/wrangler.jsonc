@@ -3,8 +3,9 @@
   "main": "./worker.ts",
   // Top level is local-only (wrangler dev, --local D1, opennextjs-cloudflare preview). It is never
   // deployed: every remote command passes --env staging or --env production. Named environments
-  // inherit main, alias, the compatibility settings, upload_source_maps and observability; each
-  // repeats its own bindings, services and vars (src/lib/wrangler-config.test.ts checks them).
+  // inherit main, alias, the compatibility settings, keep_names, upload_source_maps and
+  // observability; each repeats its own bindings, services and vars
+  // (src/lib/wrangler-config.test.ts checks them).
   "name": "serp-dr-local",
   "compatibility_date": "2026-06-20",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -12,6 +13,9 @@
   "alias": {
     "open-next-worker": "./.open-next/worker.js"
   },
+  // esbuild's keep_names wraps functions in a __name() helper. next-themes turns a function into
+  // an inline <script> that runs before React, where that helper doesn't exist (#130).
+  "keep_names": false,
   "upload_source_maps": true,
   "assets": {
     "directory": ".open-next/assets",

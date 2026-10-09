@@ -65,6 +65,17 @@ expect_status '/api/sites?limit=1' 200 application/json
 expect_status /sitemap-index.xml 200 application/xml
 expect_status /sitemap-sites.xml 200 application/xml
 
+# esbuild's keep_names helper must never reach the inline scripts that run before React (#130).
+if html=$(curl_ -H "$header" "$base/pricing"); then
+  if [[ "$html" == *"__name("* ]]; then
+    fail "GET /pricing: an inline script calls __name(), which the browser doesn't define"
+  else
+    pass "GET /pricing: no __name() in the page"
+  fi
+else
+  fail "GET /pricing for inline scripts: request failed"
+fi
+
 # Robots: Staging sends noindex on every response; Production never does.
 if ! headers=$(curl_ -D - -o /dev/null -H "$header" "$base/pricing"); then
   fail "GET /pricing for the robots header: request failed"
