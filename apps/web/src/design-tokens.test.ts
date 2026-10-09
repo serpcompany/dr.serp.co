@@ -98,3 +98,23 @@ describe('design tokens', () => {
     }
   })
 })
+
+// PR #144 review: with --muted equal to --card, slider tracks, the DR gauge's empty arc and
+// skeletons vanished inside cards in dark mode.
+describe('theme tokens', () => {
+  const css = readFileSync(join(SRC, 'app/globals.css'), 'utf8')
+  const block = (selector: string) => {
+    const start = css.indexOf(`${selector} {`)
+    return css.slice(start, css.indexOf('}', start))
+  }
+  const token = (body: string, name: string) =>
+    new RegExp(`--${name}:\\s*([^;]+);`).exec(body)?.[1]?.trim()
+
+  it('keeps muted surfaces distinct from cards in both themes', () => {
+    for (const selector of [':root', '.dark']) {
+      const body = block(selector)
+      expect(token(body, 'muted'), selector).toBeDefined()
+      expect(token(body, 'muted'), selector).not.toBe(token(body, 'card'))
+    }
+  })
+})

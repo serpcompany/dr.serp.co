@@ -98,7 +98,9 @@
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(1 0 0 / 12%);
   --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.188 0.012 155.861);
+  /* Lighter than --card (serp.co uses the same value for both): slider tracks, the DR gauge's
+     empty arc and skeletons sit on cards here. */
+  --muted: oklch(0.25 0.012 156.2);
   --muted-foreground: oklch(0.741 0.016 151.679);
   --accent: oklch(0.232 0.012 156.197);
   --accent-foreground: oklch(1 0 0);
