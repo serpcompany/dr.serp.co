@@ -93,16 +93,16 @@ describe('the sign-in callback', () => {
   })
 
   it('names the destination on the signed-in screen', () => {
-    expect(callbackDestination('/add')).toEqual({
-      button: 'Continue to your sites',
-      sentence: 'Taking you to your sites.'
+    expect(callbackDestination('/account/sites?site=x.com')).toEqual({
+      button: 'Continue to your account',
+      sentence: 'Taking you to your account.'
     })
     expect(callbackDestination('/billing').button).toBe('Continue to billing')
     expect(callbackDestination('/sites/x.com').button).toBe('Continue')
   })
 
   it('links to /login with the way back, and none for the default', () => {
-    expect(loginHref('/add')).toBe('/login')
+    expect(loginHref('/account')).toBe('/login')
     expect(loginHref('/sites/x.com?claim=1')).toBe(
       '/login?callbackUrl=%2Fsites%2Fx.com%3Fclaim%3D1'
     )

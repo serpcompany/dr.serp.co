@@ -110,7 +110,7 @@ export default async function SitesPage({
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent className="flex-row justify-center">
-                <Link href="/add" className={cn(buttonVariants())}>
+                <Link href="/account/sites?add=1" className={cn(buttonVariants())}>
                   Look up a domain
                 </Link>
                 {query ? (

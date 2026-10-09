@@ -194,10 +194,10 @@ describe('the code step', () => {
 
 describe('signed in already', () => {
   it('opens on the signed-in screen', () => {
-    render(<LoginCard callbackPath="/add" signedInEmail="owner@example.com" />)
+    render(<LoginCard callbackPath="/account" signedInEmail="owner@example.com" />)
     expect(screen.getByRole('heading', { name: "You're signed in" })).toBeTruthy()
     expect(screen.getByText('owner@example.com')).toBeTruthy()
-    expect(screen.getByText('Continue to your sites')).toBeTruthy()
+    expect(screen.getByText('Continue to your account')).toBeTruthy()
   })
 })
 

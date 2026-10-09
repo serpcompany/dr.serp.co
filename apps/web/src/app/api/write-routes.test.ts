@@ -43,6 +43,12 @@ const ROUTES: Route[] = [
     load: async () => (await import('./my-sites/route')).POST
   },
   {
+    name: 'site lookup',
+    method: 'POST',
+    path: '/api/sites/lookup',
+    load: async () => (await import('./sites/lookup/route')).POST
+  },
+  {
     name: 'billing status',
     method: 'POST',
     path: '/api/billing/status',

@@ -43,7 +43,7 @@ export default function PricingPage() {
             </ul>
           </CardContent>
           <CardFooter>
-            <Link href="/add" className={cn(buttonVariants(), 'w-full')}>
+            <Link href="/account" className={cn(buttonVariants(), 'w-full')}>
               Get started
             </Link>
           </CardFooter>

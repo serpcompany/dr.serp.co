@@ -5,7 +5,7 @@ import { isProductionSite } from '@/lib/site-env'
 
 // The pages search engines should know about, besides each site's /sites/<domain> page. /sites is
 // left out: it renders the same listing as the homepage.
-export const SITEMAP_PAGES = ['/', '/pricing', '/add'] as const
+export const SITEMAP_PAGES = ['/', '/pricing'] as const
 
 // The child sitemaps, by content group, in the order the index lists them.
 export const SITEMAP_GROUPS = ['pages', 'sites'] as const

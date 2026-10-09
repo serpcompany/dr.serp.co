@@ -105,6 +105,27 @@ Before October 2026 the server trusted emails in request bodies, and viewing a s
 it. That is how several domains were claimed under the wrong account; the rules above prevent it,
 and `src/app/api/claims/route.test.ts` covers them.
 
+## The account area
+
+`/account` is the signed-in dashboard (`src/app/account/`), built on shadcn's dashboard-01 to the
+mockups approved on #140: an inset sidebar (Add site, Overview, Sites, Billing, the three highest
+DR sites, Pricing, the user menu), no public header or footer, and every page noindex and never
+cached. `src/server/account.ts` loads it per request from D1: the plan, every claimed site with its
+latest DR, its change against a reading at least 30 days older, a year of readings, and the weekly
+average DR of the claimed sites. Signed out, `/account/*` redirects to `/login` and back.
+
+- **Overview** (`/account`): counter cards (claimed sites, average DR, rising this month, plan),
+  the average-DR chart, and the sites table; with no plan and no sites, a "Claim your sites with a
+  plan" card instead.
+- **Sites** (`/account/sites`): the data table (tabs All, Rising and Falling; recheck, copy badge
+  code, public page and release per row). A site opens in a side panel with its DR history, a
+  recheck, the badge and its link status; `?site=<domain>` opens it directly.
+- **Add a site** (`?add=1`, the sidebar's Add site, the public header): looks the domain up
+  through `POST /api/sites/lookup` (the site page's own loader and caps, signed in only), then
+  claims it with `POST /api/claims`, or says who owns it or that the plan is full.
+- `/add`, the old signed-in page, redirects to `/account/sites?add=1` (308). Billing and Settings
+  move in with #143.
+
 ## Claiming a domain
 
 A claim ties a domain to one account (`dr_claims.email`).
@@ -114,8 +135,9 @@ A claim ties a domain to one account (`dr_claims.email`).
   Otherwise `POST /api/claims` answers 402 `upgrade_required`.
 - **A claim is never taken over.** `setClaimEmail` refuses to replace another account's email,
   which also covers two claims racing, and the route answers 409 `claimed_by_other`.
-- **Only an explicit action claims.** The add-site flow (`/sites/<domain>?claim=1`) or the "Claim
-  this site" button; viewing a page never claims it. `DELETE /api/claims` releases a claim.
+- **Only an explicit action claims.** The account's Add site dialog, `/sites/<domain>?claim=1`, or
+  the "Claim this site" button; viewing a page never claims it. `DELETE /api/claims` releases a
+  claim.
 - **A claimed domain gets its DR history imported** from Ahrefs, whatever the owner's plan
   ([DR lookups](dr-lookups.md)).
 - **No step proves the claimer controls the domain.** Whether to require a code sent to an address
