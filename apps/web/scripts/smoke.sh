@@ -4,8 +4,9 @@
 # <base-url> is the environment's canonical host or its workers.dev URL. Every request below sends
 # the smoke-test header, which lets CI test through workers.dev (worker.ts skips the host redirect
 # for it). It checks pages, the badge, the API and the sitemaps; robots.txt and the robots header
-# for the environment; that the workers.dev host redirects to the canonical host without the
-# header; and that a write route refuses a request with no Origin. Standards:
+# for the environment; that no page script calls esbuild's __name() helper (#130); that the
+# workers.dev host redirects to the canonical host without the header; and that a write route
+# refuses a request with no Origin. Standards:
 # environment-configuration.md (Verification).
 #
 # /sites/example.com is stored in both environments, so the page never calls Ahrefs.

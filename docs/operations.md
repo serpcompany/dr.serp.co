@@ -28,8 +28,9 @@ them. They do inherit other keys, including `main`, `compatibility_date`, `compa
 `assets`, `alias`, `keep_names`, `upload_source_maps`, `observability` and the Durable Object
 `migrations`, so changing one of those at the top level changes Staging and Production too.
 `keep_names` stays `false`: esbuild's `__name()` helper otherwise reaches next-themes' inline theme
-script, which fails in the browser (#130). The cost is minified function names in Worker stack
-traces; source maps still resolve them. The smoke test fails if a page calls `__name()`.
+script, which fails in the browser (#130). The cost is small: the build doesn't minify identifiers,
+so only the few names esbuild renames to avoid a clash (such as `StyleSheet2`) lose their original
+`.name`, and nothing reads those. The smoke test fails if a page calls `__name()`.
 `src/lib/wrangler-config.test.ts` resolves each environment the way Wrangler does and checks its
 bindings, vars, hosts and flags. Every remote command passes `--env`; without it
 Wrangler uses the local configuration.
@@ -72,8 +73,9 @@ scripts/smoke.sh https://staging-dr.serp.co staging
 scripts/smoke.sh https://dr.serp.co production
 ```
 
-It checks the pages, a badge and `/api/sites`, the environment's robots header, the `workers.dev`
-redirect to the canonical host, and that a write route refuses a request without `Origin`.
+It checks the pages, a badge and `/api/sites`, the environment's robots header, that no page
+script calls `__name()`, the `workers.dev` redirect to the canonical host, and that a write route
+refuses a request without `Origin`.
 
 The Worker version belongs in the pull request or deploy notes, not in a doc. Cloudflare keeps
 the history (`pnpm exec wrangler versions list --env production`).
