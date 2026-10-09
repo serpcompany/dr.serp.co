@@ -32,7 +32,8 @@ code request sets `dr_code_binding`: an HMAC over the email and the stored hash 
 (HttpOnly, `SameSite=Strict`, `/api/auth` only, 15 minutes). A guess without the binding for the
 email's latest code is refused before Better Auth counts it, with the same answer as a wrong code,
 so nobody else can spend a code's 3 guesses. A newer request for the email, from anyone, replaces
-the binding.
+the binding. A browser holds one binding, so asking for a code for a second email ends the first
+email's code in that browser.
 
 **A signed-in browser is remembered** (`src/server/auth/known-device.ts`): sign-in sets
 `dr_known_device` for 180 days (signed, HttpOnly, `/api/auth` only). It grants no session; it only
@@ -41,7 +42,8 @@ addresses can't lock the owner out. Every same-named cookie is checked, because 
 `*.serp.co` site could plant one.
 
 **Limits** run on the `RATE_LIMITER` Durable Object, keyed by HMAC digests rather than raw emails
-or IPs. A client is its IPv4 address or IPv6 /64; `cf-connecting-ipv6` counts only behind a Class E
+or IPs. The limits, the binding and Better Auth all use the email trimmed and lowercased, so a
+padded address counts as the address itself. A client is its IPv4 address or IPv6 /64; `cf-connecting-ipv6` counts only behind a Class E
 pseudo-IPv4 `cf-connecting-ip` (`src/server/auth/client-ip.ts`).
 
 | What | Limit | Answer when hit |
@@ -52,9 +54,18 @@ pseudo-IPv4 `cf-connecting-ip` (`src/server/auth/client-ip.ts`).
 | Codes for a member, from its known device | 1 a minute and 5 an hour per email and client; a separate 10 an hour | like a sent code |
 | Code guesses per client | 10 a minute, 60 an hour | 429 with `Retry-After` |
 
-No response reveals whether an email has an account: a limited request still answers success and
-sets a binding cookie (a decoy, or a fresh one for the code the browser already holds). The code's
-length, lifetime and attempts are defined once in `src/lib/sign-in-code.ts`.
+No single response reveals whether an email has an account: a limited request still answers
+success and sets a binding cookie (a decoy, or a fresh one for the code the browser already holds).
+The code's length, lifetime and attempts are defined once in `src/lib/sign-in-code.ts`.
+
+**Accepted risk: a determined prober can still tell.** Because a member's limits count per email
+and client while a new email's count per email, a second request from another address is sent for
+a member and held for a new email. Spending that request's guesses (a decoy never answers
+`TOO_MANY_ATTEMPTS`), waiting past the code's 10 minutes (a decoy never answers `OTP_EXPIRED`) or
+timing the answer (a sent code waits for useSend) then shows which it was. The probe costs two
+addresses per email, mails the member a code each time and is held by the per-client limits;
+best.serp.co, the reference, has the same design. Closing it would mean counting decoy guesses and
+lifetimes on the Durable Object and delaying held answers to match a send.
 
 Sessions from before Better Auth (the `dr_session` cookie) are not carried over: everyone signs in
 once more. The old cookie is ignored and expires on its own.

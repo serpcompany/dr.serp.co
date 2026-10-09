@@ -2,6 +2,7 @@ import type React from 'react'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from '@/components/ui/input-otp'
+import { SIGN_IN_CODE_LENGTH } from '@/lib/sign-in-code'
 import { cn } from '@/lib/utils'
 
 type OTPFormProps = Omit<React.ComponentProps<'div'>, 'onSubmit'> & {
@@ -32,8 +33,8 @@ export function OTPForm({
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="text-xl font-bold">Enter verification code</h1>
             <FieldDescription>
-              We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>
-              .
+              We sent a {SIGN_IN_CODE_LENGTH}-digit code to{' '}
+              <span className="font-medium text-foreground">{email}</span>.
             </FieldDescription>
           </div>
           <Field>
@@ -41,7 +42,7 @@ export function OTPForm({
               Verification code
             </FieldLabel>
             <InputOTP
-              maxLength={6}
+              maxLength={SIGN_IN_CODE_LENGTH}
               id="otp"
               required
               value={code}
@@ -69,7 +70,7 @@ export function OTPForm({
             )}
           </Field>
           <Field>
-            <Button type="submit" disabled={loading || code.length !== 6}>
+            <Button type="submit" disabled={loading || code.length !== SIGN_IN_CODE_LENGTH}>
               {loading ? 'Verifying...' : 'Verify'}
             </Button>
           </Field>

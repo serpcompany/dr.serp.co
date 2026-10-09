@@ -143,6 +143,15 @@ export type CreateAuthOptions = {
   limit: Limiter
 }
 
+/**
+ * The address every limit, binding and Better Auth itself use: trimmed and lowercased. Better
+ * Auth only lowercases, so without the trim a padded address would count against the real one's
+ * limits and then be refused, which tells a limited email from an allowed one.
+ */
+export function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase()
+}
+
 /** Keeps only the digits of a pasted code ("482 913" or "482-913" is the code). */
 export function codeDigits(value: string): string {
   return value.replace(/\D/g, '')
@@ -442,11 +451,13 @@ export function createAuth({ db, settings, sender, limit }: CreateAuthOptions): 
           const client = await consume(OTP_CLIENT_RULES, ip)
           if (client.unavailable) throw unavailable('RATE_LIMITER_UNAVAILABLE', LIMITER_DOWN)
           if (!client.allowed) throw rateLimited(client.retryAfterMs)
-          const email = body.email.trim().toLowerCase()
+          const email = normalizeEmail(body.email)
           const standing = await standingOf(email, cookieHeader)
           const decision = await consume(otpEmailRules(standing, email, ip), email)
           if (decision.unavailable) throw unavailable('RATE_LIMITER_UNAVAILABLE', LIMITER_DOWN)
-          if (decision.allowed) return
+          // Better Auth sends to the address the limits counted, not a padded variant of it that
+          // it would refuse, so a padded address can't tell a limited email from an allowed one.
+          if (decision.allowed) return { context: { body: { ...ctx.body, email } } }
           // A per-email limit answers exactly like a sent code, binding cookie included, and
           // sends nothing.
           ctx.setCookie(
@@ -475,15 +486,14 @@ export function createAuth({ db, settings, sender, limit }: CreateAuthOptions): 
           // Only the browser that requested the email's latest code may guess it, so nobody
           // else can use up its three attempts. Refused before Better Auth counts the guess,
           // with the same answer as a wrong code.
-          if (typeof body.email === 'string') {
-            const email = body.email.trim().toLowerCase()
-            if (!(await holdsCodeBinding(ctx.context.adapter, email, cookieHeader))) {
-              throw invalidCode()
-            }
+          if (typeof body.email !== 'string') return
+          const email = normalizeEmail(body.email)
+          if (!(await holdsCodeBinding(ctx.context.adapter, email, cookieHeader))) {
+            throw invalidCode()
           }
-          if (typeof body.otp === 'string' && body.otp !== codeDigits(body.otp)) {
-            return { context: { body: { ...ctx.body, otp: codeDigits(body.otp) } } }
-          }
+          // Better Auth checks the code for the address the binding was checked for.
+          const otp = typeof body.otp === 'string' ? codeDigits(body.otp) : body.otp
+          return { context: { body: { ...ctx.body, email, otp } } }
         }
       })
     },

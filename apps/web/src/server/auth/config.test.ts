@@ -19,8 +19,6 @@ import {
   type LimitRule,
   MAX_AUTH_BODY_BYTES,
   OTP_ALLOWED_ATTEMPTS,
-  OTP_EXPIRES_IN_SECONDS,
-  OTP_LENGTH,
   SEND_OTP_PATH,
   SIGN_IN_OTP_PATH
 } from './config'
@@ -52,7 +50,12 @@ const sender: CodeSender = {
   }
 }
 
-async function limit({ key, points }: LimitRule) {
+/** Every rule the limiter was asked to count, in order. */
+const calls: LimitRule[] = []
+
+async function limit(rule: LimitRule) {
+  calls.push(rule)
+  const { key, points } = rule
   if (limiterDown) return { allowed: false, unavailable: true, retryAfterMs: 60_000 }
   const used = (counts.get(key) ?? 0) + 1
   if (used > points) return { allowed: false, retryAfterMs: 42_000 }
@@ -76,6 +79,7 @@ beforeEach(() => {
   senderReady = true
   limiterDown = false
   counts.clear()
+  calls.length = 0
 })
 
 let client = 0
@@ -137,6 +141,31 @@ async function requestCode(email: string, ip: string, cookie = '') {
     code: sent.length > before ? sent.at(-1)?.otp : undefined,
     cookie: jar(cookie, response)
   }
+}
+
+/** Signs `email` in from a fresh client; the browser's cookies after (session, known device). */
+async function signedIn(email: string): Promise<string> {
+  const ip = nextClient()
+  const { code, cookie } = await requestCode(email, ip)
+  const signIn = await post(SIGN_IN_OTP_PATH, { email, otp: code }, { ip, cookie })
+  expect(signIn.status).toBe(200)
+  return jar(cookie, signIn)
+}
+
+/** The rules counted while `action` ran. */
+async function countedDuring(action: () => Promise<unknown>): Promise<LimitRule[]> {
+  const from = calls.length
+  await action()
+  return calls.slice(from)
+}
+
+const ruleName = (rule: LimitRule) => rule.key.split(':')[0]
+
+/** The counted rule named `name`; fails the test when it wasn't counted. */
+function counted(rules: LimitRule[], name: string): LimitRule {
+  const rule = rules.find(candidate => ruleName(candidate) === name)
+  if (!rule) throw new Error(`${name} was not counted: ${rules.map(ruleName).join(', ')}`)
+  return rule
 }
 
 describe('Better Auth on D1', () => {
@@ -221,20 +250,27 @@ describe('Better Auth on D1', () => {
     expect(signIn.status).toBe(200)
   })
 
-  it(`allows ${OTP_ALLOWED_ATTEMPTS} wrong guesses, then the code is spent`, async () => {
+  it(`allows ${SIGN_IN_CODE_ATTEMPTS} wrong guesses, then the code is spent`, async () => {
     const ip = nextClient()
-    const { code } = await requestCode('guesser@example.com', ip)
+    const { code, cookie } = await requestCode('guesser@example.com', ip)
     const wrong = code === '000000' ? '111111' : '000000'
-    for (let attempt = 0; attempt < OTP_ALLOWED_ATTEMPTS; attempt++) {
+    for (let attempt = 0; attempt < SIGN_IN_CODE_ATTEMPTS; attempt++) {
       const guess = await post(
         SIGN_IN_OTP_PATH,
         { email: 'guesser@example.com', otp: wrong },
-        { ip }
+        { ip, cookie }
       )
       expect(guess.status).toBe(400)
+      expect(await guess.json()).toMatchObject({ code: 'INVALID_OTP' })
     }
-    const late = await post(SIGN_IN_OTP_PATH, { email: 'guesser@example.com', otp: code }, { ip })
-    expect(late.status).not.toBe(200)
+    // Even the right code, from the browser that asked, is refused once the guesses are spent.
+    const late = await post(
+      SIGN_IN_OTP_PATH,
+      { email: 'guesser@example.com', otp: code },
+      { ip, cookie }
+    )
+    expect(late.status).toBe(403)
+    expect(await late.json()).toMatchObject({ code: 'TOO_MANY_ATTEMPTS' })
   })
 
   it('refuses a code request from a foreign Origin', async () => {
@@ -418,14 +454,15 @@ describe('when D1 fails', () => {
   it('logs neither the email, the code, the session token nor the query', async () => {
     // A real session, signed with the same secret, so its token reaches the failing D1.
     const ip = nextClient()
-    const { code } = await requestCode('signed.in@example.com', ip)
+    const { code, cookie: bound } = await requestCode('signed.in@example.com', ip)
     const signIn = await post(
       SIGN_IN_OTP_PATH,
       { email: 'signed.in@example.com', otp: code },
-      { ip }
+      { ip, cookie: bound }
     )
     const cookie = cookiesFrom(signIn)
-    const token = decodeURIComponent(cookie.split('=')[1] ?? '').split('.')[0] ?? ''
+    const token =
+      decodeURIComponent(/session_token=([^;]+)/.exec(cookie)?.[1] ?? '').split('.')[0] ?? ''
     expect(token.length).toBeGreaterThan(10)
 
     // A binding whose every statement fails, like a transient D1 error or a missing migration.
@@ -507,7 +544,7 @@ describe('codes bound to the browser that asked (#135)', () => {
     expect(signIn.status).toBe(200)
   })
 
-  it('lets a newer request replace the binding, from any browser', async () => {
+  it('hands a limited request a decoy, and leaves the first binding working', async () => {
     const first = await requestCode('replaced@example.com', nextClient())
     const second = await requestCode('replaced@example.com', nextClient())
     // The per-email limit holds the second request, so it sent nothing and handed out a decoy.
@@ -526,6 +563,70 @@ describe('codes bound to the browser that asked (#135)', () => {
       { ip: nextClient(), cookie: first.cookie }
     )
     expect(owner.status).toBe(200)
+  })
+
+  it("lets a newer code, from any browser, replace the first browser's binding", async () => {
+    await signedIn('rebound@example.com')
+    // A member gets a code per email and client, so a second browser's request is really sent.
+    const first = await requestCode('rebound@example.com', nextClient())
+    const second = await requestCode('rebound@example.com', nextClient())
+    expect(first.code).toBeDefined()
+    expect(second.code).toBeDefined()
+    // The first browser's binding named the replaced code, so even the new code is refused there...
+    const stale = await post(
+      SIGN_IN_OTP_PATH,
+      { email: 'rebound@example.com', otp: second.code },
+      { ip: nextClient(), cookie: first.cookie }
+    )
+    expect(stale.status).toBe(400)
+    expect(await stale.json()).toMatchObject({ code: 'INVALID_OTP' })
+    // ...and the second browser signs in with it.
+    const signIn = await post(
+      SIGN_IN_OTP_PATH,
+      { email: 'rebound@example.com', otp: second.code },
+      { ip: nextClient(), cookie: second.cookie }
+    )
+    expect(signIn.status).toBe(200)
+  })
+
+  it('sets the binding cookie HttpOnly, Secure, SameSite=Strict, on /api/auth, for 15 minutes', async () => {
+    const { response } = await requestCode('attributes@example.com', nextClient())
+    const binding = response.headers
+      .getSetCookie()
+      .find(header => header.startsWith(`__Secure-${CODE_BINDING_COOKIE}=`))
+    expect(binding).toBeDefined()
+    const attributes = (binding ?? '')
+      .split('; ')
+      .slice(1)
+      .map(part => part.toLowerCase())
+    expect(attributes).toEqual(
+      expect.arrayContaining([
+        `max-age=${SIGN_IN_CODE_TTL_SECONDS + 5 * 60}`,
+        'path=/api/auth',
+        'httponly',
+        'secure',
+        'samesite=strict'
+      ])
+    )
+    expect(attributes.some(part => part.startsWith('domain='))).toBe(false)
+  })
+
+  it('checks every same-named cookie, so a planted one ahead of the real one changes nothing', async () => {
+    const ip = nextClient()
+    const { code, cookie } = await requestCode('planted@example.com', ip)
+    const planted = `__Secure-${CODE_BINDING_COOKIE}=1.${'A'.repeat(43)}; ${cookie}`
+    const signIn = await post(
+      SIGN_IN_OTP_PATH,
+      { email: 'planted@example.com', otp: code },
+      { ip, cookie: planted }
+    )
+    expect(signIn.status).toBe(200)
+    const device = jar(cookie, signIn)
+    const bogusDevice = `__Secure-${KNOWN_DEVICE_COOKIE}=bogus.value; ${device}`
+    const rules = await countedDuring(() =>
+      requestCode('planted@example.com', nextClient(), bogusDevice)
+    )
+    expect(rules.map(ruleName)).toContain('otp-known-device-hour')
   })
 
   it('remembers the device after sign-in and clears the spent binding', async () => {
@@ -557,9 +658,116 @@ describe('codes bound to the browser that asked (#135)', () => {
     for (let index = 0; index < 25; index++) await requestCode('flooded@example.com', nextClient())
     sent.length = 0
     expect((await requestCode('flooded@example.com', nextClient())).code).toBeUndefined()
-    // ...but the browser with the known-device cookie spends its own budget.
+    // ...another account's known-device cookie gives no way around that...
+    const otherDevice = await signedIn('other.member@example.com')
+    expect(
+      (await requestCode('flooded@example.com', nextClient(), otherDevice)).code
+    ).toBeUndefined()
+    // ...but the browser with the account's own known-device cookie spends its own budget.
     const own = await requestCode('flooded@example.com', nextClient(), device)
     expect(own.code).toMatch(/^\d{6}$/)
+  })
+})
+
+describe('limits (#135)', () => {
+  it('keys every limit by an HMAC digest, never a raw email or IP', async () => {
+    const ip = nextClient()
+    const rules = await countedDuring(async () => {
+      const { code, cookie } = await requestCode('digest.person@example.com', ip)
+      await post(
+        SIGN_IN_OTP_PATH,
+        { email: 'digest.person@example.com', otp: code },
+        { ip, cookie }
+      )
+    })
+    expect(rules.map(ruleName)).toEqual(
+      expect.arrayContaining(['otp-client-minute', 'otp-email-minute', 'sign-in-client-minute'])
+    )
+    for (const { key } of rules) {
+      expect(key).toMatch(/^[a-z-]+:[0-9a-f]{32}$/)
+      expect(key).not.toContain('digest.person')
+      expect(key).not.toContain(ip)
+    }
+  })
+
+  it('caps guesses at 60 an hour per client as well as 10 a minute', async () => {
+    const ip = nextClient()
+    const rules = await countedDuring(() =>
+      post(SIGN_IN_OTP_PATH, { email: 'hourly@example.com', otp: '123456' }, { ip })
+    )
+    expect(counted(rules, 'sign-in-client-minute')).toMatchObject({ points: 10, duration: 60 })
+    const hour = counted(rules, 'sign-in-client-hour')
+    expect(hour).toMatchObject({ points: 60, duration: 3600 })
+    counts.set(hour.key, 60)
+    const refused = await post(
+      SIGN_IN_OTP_PATH,
+      { email: 'hourly@example.com', otp: '123456' },
+      { ip }
+    )
+    expect(refused.status).toBe(429)
+    expect(refused.headers.get('Retry-After')).toBe('42')
+  })
+
+  it('caps code requests for new emails at 300 an hour site-wide, answered like a sent code', async () => {
+    const first = await countedDuring(() => requestCode('site-cap-1@example.com', nextClient()))
+    const second = await countedDuring(() => requestCode('site-cap-2@example.com', nextClient()))
+    const site = counted(first, 'otp-site-hour')
+    expect(site).toMatchObject({ points: 300, duration: 3600 })
+    // One bucket for every new email.
+    expect(counted(second, 'otp-site-hour').key).toBe(site.key)
+    const member = await signedIn('site-cap-member@example.com')
+    counts.set(site.key, 300)
+    sent.length = 0
+    const capped = await requestCode('site-cap-3@example.com', nextClient())
+    expect(capped.response.status).toBe(200)
+    expect(await capped.response.json()).toEqual({ success: true })
+    expect(capped.cookie).toContain(`__Secure-${CODE_BINDING_COOKIE}=`)
+    expect(sent).toHaveLength(0)
+    // Members don't spend it: their own browsers and others still get codes.
+    expect((await requestCode('site-cap-member@example.com', nextClient())).code).toBeDefined()
+    expect(
+      (await requestCode('site-cap-member@example.com', nextClient(), member)).code
+    ).toBeDefined()
+  })
+
+  it("gives a member's known device 10 codes an hour of its own", async () => {
+    const device = await signedIn('own-budget@example.com')
+    const rules = await countedDuring(() =>
+      requestCode('own-budget@example.com', nextClient(), device)
+    )
+    expect(rules.map(ruleName)).not.toContain('otp-member-hour')
+    const own = counted(rules, 'otp-known-device-hour')
+    expect(own).toMatchObject({ points: 10, duration: 3600 })
+    counts.set(own.key, 10)
+    sent.length = 0
+    const refused = await requestCode('own-budget@example.com', nextClient(), device)
+    expect(refused.response.status).toBe(200)
+    expect(sent).toHaveLength(0)
+  })
+
+  it('counts a padded address as the address itself, so answers match for members and new emails', async () => {
+    await signedIn('padded.member@example.com')
+    const answers = async (email: string) => {
+      const statuses: number[] = []
+      for (let index = 0; index < 2; index++) {
+        const { response } = await requestCode(` ${email} `, nextClient())
+        statuses.push(response.status)
+      }
+      return statuses
+    }
+    expect(await answers('padded.member@example.com')).toEqual([200, 200])
+    expect(await answers('padded.new@example.com')).toEqual([200, 200])
+    // The code goes to the trimmed address, and a padded sign-in uses it too.
+    sent.length = 0
+    const ip = nextClient()
+    const { code, cookie } = await requestCode('  padded.later@example.com', ip)
+    expect(sent.at(-1)?.email).toBe('padded.later@example.com')
+    const signIn = await post(
+      SIGN_IN_OTP_PATH,
+      { email: 'padded.later@example.com  ', otp: code },
+      { ip, cookie }
+    )
+    expect(signIn.status).toBe(200)
   })
 })
 
@@ -576,6 +784,23 @@ describe('client address', () => {
     expect(clientIp(headers({}))).toBe('unknown')
   })
 
+  it('puts compressed forms of one /64 in one bucket', () => {
+    const of = (ip: string) => clientIp(headers({ 'cf-connecting-ip': ip }))
+    expect(of('2001:db8::1')).toBe('2001:db8:0:0::/64')
+    expect(of('2001:db8::2')).toBe(of('2001:db8::1'))
+    expect(of('2001:db8::1:2:3:4')).toBe(of('2001:db8::5:2:3:4'))
+    expect(of('2001:db8:1::5')).toBe(of('2001:db8:1:0:1::5'))
+    expect(of('2001:DB8:1:0:1::5')).toBe(of('2001:db8:1::5'))
+    expect(of('2001:db8:1:2::5')).not.toBe(of('2001:db8:1:3::5'))
+  })
+
+  it('never reads an address the client could pick itself', () => {
+    expect(clientIp(headers({ 'x-forwarded-for': '198.51.100.9' }))).toBe('unknown')
+    expect(
+      clientIp(headers({ 'cf-connecting-ip': '198.51.100.7', 'x-forwarded-for': '198.51.100.9' }))
+    ).toBe('198.51.100.7')
+  })
+
   it('trusts cf-connecting-ipv6 only behind a Class E pseudo IPv4 address', () => {
     expect(
       clientIp(headers({ 'cf-connecting-ip': '198.51.100.7', 'cf-connecting-ipv6': '2001:db8::1' }))
@@ -589,18 +814,13 @@ describe('client address', () => {
 })
 
 describe('the code is defined once', () => {
-  it('shares its length, lifetime and attempts with the email', () => {
-    expect(OTP_LENGTH).toBe(SIGN_IN_CODE_LENGTH)
-    expect(OTP_EXPIRES_IN_SECONDS).toBe(SIGN_IN_CODE_TTL_SECONDS)
-    expect(OTP_ALLOWED_ATTEMPTS).toBe(SIGN_IN_CODE_ATTEMPTS)
-    const { text } = signInEmail(
-      {
-        email: 'x@example.com',
-        otp: '1'.repeat(SIGN_IN_CODE_LENGTH),
-        expiresInSeconds: SIGN_IN_CODE_TTL_SECONDS
-      },
-      'https://dr.serp.co'
-    )
+  // The attempts are pinned by "allows N wrong guesses" above, through the real flow.
+  it('sends a code of the shared length, with the shared lifetime in the email', async () => {
+    await requestCode('shape@example.com', nextClient())
+    const code = sent.at(-1)
+    expect(code?.otp).toMatch(new RegExp(`^\\d{${SIGN_IN_CODE_LENGTH}}$`))
+    expect(code?.expiresInSeconds).toBe(SIGN_IN_CODE_TTL_SECONDS)
+    const { text } = signInEmail(code as SignInCode, 'https://dr.serp.co')
     expect(text).toContain(`expires in ${SIGN_IN_CODE_TTL_SECONDS / 60} minutes`)
   })
 })
