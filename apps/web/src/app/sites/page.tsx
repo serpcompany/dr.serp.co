@@ -1,15 +1,38 @@
+import { ChevronLeftIcon, ChevronRightIcon, SearchXIcon } from 'lucide-react'
 import Link from 'next/link'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle
+} from '@/components/ui/empty'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem
+} from '@/components/ui/pagination'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 import { countSites, listSites } from '@/db'
+import { pageItems } from '@/lib/pagination'
 import { cn } from '@/lib/utils'
-import { SitesDataTable } from './sites-data-table'
 import { SitesSearch } from './sites-search'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-type ClaimRow = {
+type SiteRow = {
   domain: string
   domain_rating: number | null
   updated_at: string | null
@@ -38,6 +61,9 @@ export default async function SitesPage({
 
   const showingFrom = totalCount === 0 ? 0 : (safePage - 1) * limit + 1
   const showingTo = Math.min(totalCount, (safePage - 1) * limit + rows.length)
+
+  const pages = pageItems(safePage, totalPages)
+  const currentIndex = pages.indexOf(safePage)
 
   const makeHref = (nextPage: number) => {
     const url = new URL('https://local.invalid/sites')
@@ -69,13 +95,21 @@ export default async function SitesPage({
           <SitesSearch initialQuery={query} />
         </div>
 
-        <Card>
-          {rows.length === 0 ? (
-            <div className="p-10 text-center">
-              <p className="text-sm text-muted-foreground">
-                {query ? 'No domains match your search.' : 'No domains yet.'}
-              </p>
-              <div className="mt-4 flex items-center justify-center gap-3">
+        {rows.length === 0 ? (
+          <Card>
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <SearchXIcon />
+                </EmptyMedia>
+                <EmptyTitle>{query ? 'No matching domains' : 'No domains yet'}</EmptyTitle>
+                <EmptyDescription>
+                  {query
+                    ? `No listed domain matches “${query}”.`
+                    : 'Domains appear here once someone looks them up.'}
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent className="flex-row justify-center">
                 <Link href="/add" className={cn(buttonVariants())}>
                   Look up a domain
                 </Link>
@@ -84,47 +118,119 @@ export default async function SitesPage({
                     Clear search
                   </Link>
                 ) : null}
-              </div>
-            </div>
-          ) : (
-            <>
-              <SitesDataTable rows={rows as ClaimRow[]} offset={offset} />
+              </EmptyContent>
+            </Empty>
+          </Card>
+        ) : (
+          <Card className="py-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[70px] text-center">#</TableHead>
+                  <TableHead>Domain</TableHead>
+                  <TableHead className="text-right">DR</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(rows as SiteRow[]).map((row, index) => (
+                  // WebKit ignores position: relative on a <tr>; a transform makes the row the
+                  // stretched link's containing block in every engine.
+                  <TableRow
+                    key={row.domain}
+                    className="relative [transform:translate(0)] has-[a:focus-visible]:bg-muted"
+                  >
+                    <TableCell className="text-center tabular-nums text-muted-foreground">
+                      {offset + index + 1}
+                    </TableCell>
+                    <TableCell className="max-w-[420px] truncate">
+                      {/* The link covers the whole row, so any part of it opens the site. */}
+                      <Link
+                        href={`/sites/${encodeURIComponent(row.domain)}`}
+                        className="text-foreground after:absolute after:inset-0 hover:underline"
+                      >
+                        {row.domain}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {typeof row.domain_rating === 'number' && Number.isFinite(row.domain_rating)
+                        ? row.domain_rating
+                        : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
 
-              <div className="flex items-center justify-between border-t p-4">
-                <span className="text-sm text-muted-foreground">
-                  Page {safePage.toLocaleString()} of {totalPages.toLocaleString()}
-                </span>
-                <div className="flex items-center gap-2">
-                  {safePage <= 1 ? (
-                    <Button variant="outline" size="sm" disabled>
-                      Previous
-                    </Button>
-                  ) : (
+        {totalPages > 1 ? (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                {safePage > 1 ? (
+                  <Link
+                    href={makeHref(safePage - 1)}
+                    aria-label="Go to previous page"
+                    className={cn(buttonVariants({ variant: 'ghost' }))}
+                  >
+                    <ChevronLeftIcon data-icon="inline-start" />
+                    <span className="hidden sm:block">Previous</span>
+                  </Link>
+                ) : (
+                  <span
+                    aria-disabled="true"
+                    className={cn(buttonVariants({ variant: 'ghost' }), 'opacity-50')}
+                  >
+                    <ChevronLeftIcon data-icon="inline-start" />
+                    <span className="hidden sm:block">Previous</span>
+                  </span>
+                )}
+              </PaginationItem>
+              {pages.map((item, index) =>
+                item === 'ellipsis' ? (
+                  <PaginationItem key={index < currentIndex ? 'ellipsis-before' : 'ellipsis-after'}>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                ) : (
+                  <PaginationItem key={item}>
                     <Link
-                      href={makeHref(safePage - 1)}
-                      className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                      href={makeHref(item)}
+                      aria-current={item === safePage ? 'page' : undefined}
+                      className={cn(
+                        buttonVariants({
+                          variant: item === safePage ? 'outline' : 'ghost',
+                          size: 'icon'
+                        })
+                      )}
                     >
-                      Previous
+                      {item}
                     </Link>
-                  )}
-
-                  {safePage >= totalPages ? (
-                    <Button variant="outline" size="sm" disabled>
-                      Next
-                    </Button>
-                  ) : (
-                    <Link
-                      href={makeHref(safePage + 1)}
-                      className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
-                    >
-                      Next
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </Card>
+                  </PaginationItem>
+                )
+              )}
+              <PaginationItem>
+                {safePage < totalPages ? (
+                  <Link
+                    href={makeHref(safePage + 1)}
+                    aria-label="Go to next page"
+                    className={cn(buttonVariants({ variant: 'ghost' }))}
+                  >
+                    <span className="hidden sm:block">Next</span>
+                    <ChevronRightIcon data-icon="inline-end" />
+                  </Link>
+                ) : (
+                  <span
+                    aria-disabled="true"
+                    className={cn(buttonVariants({ variant: 'ghost' }), 'opacity-50')}
+                  >
+                    <span className="hidden sm:block">Next</span>
+                    <ChevronRightIcon data-icon="inline-end" />
+                  </span>
+                )}
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        ) : null}
       </div>
     </main>
   )

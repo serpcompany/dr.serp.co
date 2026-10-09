@@ -1,30 +1,46 @@
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+
 export default function LoadingSitePage() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
-      <div className="mb-8 space-y-3">
-        <div className="h-4 w-40 animate-pulse rounded bg-muted" />
-        <div className="h-9 w-72 animate-pulse rounded bg-muted" />
+    <main className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8">
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-9 w-72 max-w-full" />
         <p className="max-w-2xl text-sm text-muted-foreground">
           Loading site details and badge preview.
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-lg border bg-card p-6">
-          <div className="mx-auto h-56 w-56 animate-pulse rounded-full bg-muted" />
-        </div>
+        <Card>
+          <CardHeader className="items-center">
+            <CardTitle>Domain Rating</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="mx-auto size-48 rounded-full" />
+          </CardContent>
+        </Card>
 
-        <div className="rounded-lg border bg-card p-6 lg:col-span-2">
-          <div className="flex flex-col items-center gap-4">
-            <div className="h-[50px] w-[200px] animate-pulse rounded bg-muted" />
-            <div className="h-4 w-56 animate-pulse rounded bg-muted" />
-          </div>
-        </div>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Embed Badge</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-4">
+            <Skeleton className="h-[50px] w-[200px]" />
+            <Skeleton className="h-4 w-56" />
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="mt-6 rounded-lg border bg-card p-6">
-        <div className="h-48 animate-pulse rounded bg-muted" />
-      </div>
-    </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>DR over time</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[125px] w-full" />
+        </CardContent>
+      </Card>
+    </main>
   )
 }

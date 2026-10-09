@@ -1,19 +1,35 @@
 'use client'
 
+import { TriangleAlertIcon } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle
+} from '@/components/ui/empty'
 
 export default function SitesError({ reset }: { reset: () => void }) {
   return (
-    <div className="min-h-screen bg-muted">
-      <div className="mx-auto max-w-5xl px-4 py-12">
-        <div className="rounded-lg border bg-background p-10 text-center">
-          <h1 className="text-xl font-semibold">Something went wrong</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Unable to load the sites list.</p>
-          <div className="mt-4 flex justify-center">
+    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
+      <Card>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <TriangleAlertIcon />
+            </EmptyMedia>
+            <EmptyTitle>Something went wrong</EmptyTitle>
+            <EmptyDescription>The sites list didn't load.</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
             <Button onClick={reset}>Try again</Button>
-          </div>
-        </div>
-      </div>
-    </div>
+          </EmptyContent>
+        </Empty>
+      </Card>
+    </main>
   )
 }

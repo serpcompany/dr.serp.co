@@ -5,10 +5,27 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { BillingPortalButton } from '@/app/_components/billing-portal-button'
+import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle
+} from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemTitle
+} from '@/components/ui/item'
+import { Skeleton } from '@/components/ui/skeleton'
 import { readJsonRecord } from '@/lib/read-json'
 import { filterSiteHistory, removeSiteHistory, type SiteRow } from '@/lib/site-history'
 import { cn } from '@/lib/utils'
@@ -147,51 +164,58 @@ export function MySites({ email }: { email: string }) {
       </CardHeader>
       <CardContent>
         {upgrade ? (
-          <div className="rounded-lg border bg-muted p-6 text-center">
-            <p className="text-sm text-muted-foreground">{upgrade.message}</p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <Empty>
+            <EmptyHeader>
+              <EmptyTitle>{upgrade.message}</EmptyTitle>
+            </EmptyHeader>
+            <EmptyContent className="flex-row flex-wrap justify-center">
               <Link href="/pricing" className={cn(buttonVariants({ size: 'sm' }))}>
                 View plans
               </Link>
               {upgrade.entitlement?.subscription?.stripeCustomerId ? (
                 <BillingPortalButton email={trimmedEmail} />
               ) : null}
-            </div>
-          </div>
+            </EmptyContent>
+          </Empty>
         ) : loading && sites.length === 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {SKELETON_KEYS.map(key => (
-              <div key={key} className="h-20 animate-pulse rounded-lg bg-muted" />
+              <Skeleton key={key} className="h-[62px]" />
             ))}
           </div>
         ) : error && sites.length === 0 ? (
-          <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted p-4">
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <Button variant="secondary" size="sm" onClick={() => fetchSites.run(query.trim())}>
-              Retry
-            </Button>
-          </div>
+          <Alert>
+            <AlertDescription>{error}</AlertDescription>
+            <AlertAction>
+              <Button variant="secondary" size="xs" onClick={() => fetchSites.run(query.trim())}>
+                Retry
+              </Button>
+            </AlertAction>
+          </Alert>
         ) : sites.length === 0 ? (
-          <div className="rounded-lg border bg-muted p-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              {query.trim()
-                ? 'No matching sites yet.'
-                : 'No sites yet — look up a domain to start.'}
-            </p>
+          <Empty>
+            <EmptyHeader>
+              <EmptyTitle>{query.trim() ? 'No matching sites' : 'No sites yet'}</EmptyTitle>
+              <EmptyDescription>
+                {query.trim()
+                  ? 'None of your sites match this search.'
+                  : 'Look up a domain to start.'}
+              </EmptyDescription>
+            </EmptyHeader>
             {!query.trim() ? (
-              <div className="mt-4 flex justify-center">
+              <EmptyContent>
                 <Link href="/add" className={cn(buttonVariants({ size: 'sm' }))}>
                   Look up a domain
                 </Link>
-              </div>
+              </EmptyContent>
             ) : null}
-          </div>
+          </Empty>
         ) : (
           <div className="space-y-3">
             {error ? (
               <p className="text-xs text-muted-foreground">Some sites may be missing: {error}</p>
             ) : null}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ItemGroup className="grid gap-3 sm:grid-cols-2">
               {sites.map(site => {
                 const dr =
                   typeof site.domain_rating === 'number' && Number.isFinite(site.domain_rating)
@@ -200,42 +224,45 @@ export function MySites({ email }: { email: string }) {
                 const updated = formatUpdatedAt(site.updated_at)
 
                 return (
-                  <div key={site.domain} className="relative">
-                    <Link
-                      href={`/sites/${encodeURIComponent(site.domain)}`}
-                      className="group block rounded-lg border p-4 transition hover:bg-accent"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium group-hover:underline">
-                            {site.domain}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {updated ? `Last checked ${updated}` : 'No recent check'}
-                          </p>
-                        </div>
-                        <Badge variant="secondary">{dr === null ? 'DR —' : `DR ${dr}`}</Badge>
-                      </div>
-                    </Link>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-2 top-2"
-                      aria-label={`Remove ${site.domain}`}
-                      disabled={removing === site.domain}
-                      onClick={event => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        remove(site.domain)
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Item
+                    key={site.domain}
+                    role="listitem"
+                    variant="outline"
+                    // ItemTitle clips its content, so the item shows the link's keyboard focus.
+                    className="relative has-[a:focus-visible]:border-ring has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50"
+                  >
+                    <ItemContent className="min-w-0">
+                      <ItemTitle className="w-full">
+                        {/* The link covers the whole item; only the remove button sits above it. */}
+                        <Link
+                          href={`/sites/${encodeURIComponent(site.domain)}`}
+                          className="truncate outline-none after:absolute after:inset-0 hover:underline"
+                        >
+                          {site.domain}
+                        </Link>
+                      </ItemTitle>
+                      <ItemDescription>
+                        {updated ? `Last checked ${updated}` : 'No recent check'}
+                      </ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
+                      <Badge variant="secondary">{dr === null ? 'DR —' : `DR ${dr}`}</Badge>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Remove ${site.domain}`}
+                        className="relative"
+                        disabled={removing === site.domain}
+                        onClick={() => remove(site.domain)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </ItemActions>
+                  </Item>
                 )
               })}
-            </div>
+            </ItemGroup>
           </div>
         )}
       </CardContent>

@@ -187,19 +187,21 @@ export function PricingSelector() {
             value={sliderValue}
             onValueChange={value => setTierIndex(typeof value === 'number' ? value : value[0])}
           />
-          <div className="grid grid-cols-4 text-center text-xs text-muted-foreground">
+          <div className="grid grid-cols-4 justify-items-center">
             {PRICING_TIERS.map((item, index) => (
-              <button
+              <Button
                 key={item.id}
                 type="button"
+                variant="ghost"
+                size="xs"
+                aria-pressed={index === tierIndex}
                 onClick={() => setTierIndex(index)}
                 className={cn(
-                  'transition-colors',
-                  index === tierIndex ? 'text-foreground font-semibold' : 'hover:text-foreground'
+                  index === tierIndex ? 'font-semibold text-foreground' : 'text-muted-foreground'
                 )}
               >
                 {item.domains}
-              </button>
+              </Button>
             ))}
           </div>
           <div className="rounded-lg border border-dashed p-3 text-sm">
