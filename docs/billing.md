@@ -44,11 +44,14 @@ None of them reads an email from the request body. The portal and plan changes n
 checkout uses the session's email when there is one.
 
 - `POST /api/stripe/checkout` opens a subscription-mode Checkout Session, returning to
-  `/account/billing?checkout=success` or `/account/billing?checkout=cancelled`, which says so. A signed-in subscriber with a live
-  plan (`active`, `trialing`, `past_due` or `unpaid`, the entitlement's `hasLivePlan`) gets 409 `has_plan`
-  with their plan instead, because a second checkout would bill twice. A canceled subscription
-  still in its paid period doesn't count, so its owner can buy again. A signed-out buyer types
-  their email into Stripe, so this can't stop them buying a second plan.
+  `/account/billing?checkout=success` or `/account/billing?checkout=cancelled`. Back from a
+  payment the webhook hasn't synced yet, the page says the payment was received and offers no
+  checkout, since the guard below reads D1. A signed-in subscriber with a live plan (`active`,
+  `trialing`, `past_due` or `unpaid`, the entitlement's `hasLivePlan`) gets 409 `has_plan` with
+  their plan instead, because a second checkout would bill twice. A canceled subscription still in
+  its paid period doesn't count, so its owner can buy again, and the billing page offers checkout
+  there. A signed-out buyer types their email into Stripe, so this can't stop them buying a
+  second plan.
 - `POST /api/stripe/change-plan` moves a subscriber's live subscription to another size or billing
   period (`subscriptions.update` with `proration_behavior: "always_invoice"`, so the difference is
   charged or credited at once). With `payment_behavior: "error_if_incomplete"`, a failed charge
@@ -56,10 +59,12 @@ checkout uses the session's email when there is one.
   there's no live dr.serp.co subscription in D1 or in Stripe, 409 `payment_due` while Stripe says
   `past_due` or `unpaid` (the open invoice is paid in the portal first), 409 `too_many_claims` for a
   smaller size than the domains already claimed, and 400 `same_plan`. A cancellation scheduled in
-  the portal stays scheduled. The webhook syncs the new plan. `/account/billing` offers the change after a confirm
-  that says whether Stripe charges or credits the difference, and holds it while the plan is
-  past due. The live statuses are one set, in
-  `src/server/subscription-status.mjs`.
+  the portal stays scheduled. The webhook syncs the new plan. `/account/billing` offers the change
+  after a confirm that says what Stripe does: within a period it charges or credits the
+  difference; between monthly and yearly the billing period restarts and the new price is charged
+  at once, less credit for unused time. It holds the change while the plan is past due (also within
+  its paid period), and after a switch until the webhook's plan shows. The live statuses are one
+  set, in `src/server/subscription-status.mjs`.
 - `POST /api/stripe/portal` opens the Stripe customer portal for payment details, invoices and
   cancellation, returning to `STRIPE_PORTAL_RETURN_URL` or `/account/billing`. Production passes
   dr.serp.co's portal configuration (`STRIPE_PORTAL_CONFIGURATION_ID` in `wrangler.jsonc`), because

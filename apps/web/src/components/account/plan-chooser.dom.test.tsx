@@ -103,6 +103,22 @@ describe('PlanChooser, no plan yet', () => {
     expect(button.hasAttribute('disabled')).toBe(false)
   })
 
+  it('refreshes when a plan already exists, so the page offers the switch', async () => {
+    fetchMock.mockResolvedValueOnce(
+      json(409, { error: 'You already have a plan. Switch it here.', code: 'has_plan' })
+    )
+    render(
+      <PlanChooser
+        mode="checkout"
+        current={null}
+        initial={{ domains: 25, billing: 'monthly' }}
+        claimed={0}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Continue to checkout/ }))
+    await waitFor(() => expect(refresh).toHaveBeenCalled())
+  })
+
   it('says when dr.serp.co is unreachable', async () => {
     fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     render(
@@ -186,6 +202,63 @@ describe('PlanChooser, a live plan', () => {
     expect(
       screen.getByRole('button', { name: 'Switch to 25 sites' }).hasAttribute('disabled')
     ).toBe(true)
+  })
+
+  it('says a switch between monthly and yearly restarts the billing period', async () => {
+    render(<PlanChooser mode="change" current={current} initial={current} claimed={3} />)
+    period('Yearly')
+    pick(12)
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to 12 sites' }))
+    const dialog = await screen.findByRole('alertdialog')
+    // $40 a year from $7 a month: not a credit, whatever the per-period prices say.
+    expect(
+      within(dialog).getByText(/Your billing restarts today, yearly: Stripe charges \$40 now/)
+    ).toBeTruthy()
+  })
+
+  it('waits for Stripe to confirm a switch before offering another', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { ok: true }))
+    const { rerender } = render(
+      <PlanChooser mode="change" current={current} initial={current} claimed={3} />
+    )
+    pick(50)
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to 50 sites' }))
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Switch plan' })
+    )
+    expect(await screen.findByText(/Switching to 50 sites, \$15 a month/)).toBeTruthy()
+    // The refresh still shows the old plan (the webhook hasn't landed): no second switch.
+    expect(screen.getByRole('button', { name: 'Switch to 50 sites' })).toHaveProperty(
+      'disabled',
+      true
+    )
+    rerender(
+      <PlanChooser
+        mode="change"
+        current={{ domains: 50, billing: 'monthly' }}
+        initial={current}
+        claimed={3}
+      />
+    )
+    await waitFor(() => expect(screen.queryByText(/Switching to 50 sites/)).toBeNull())
+    expect(screen.getByRole('button', { name: 'Pick a different plan' })).toBeTruthy()
+  })
+
+  it('allows the same size on another period, as the server does, even when over it', () => {
+    render(
+      <PlanChooser
+        mode="change"
+        current={{ domains: 25, billing: 'monthly' }}
+        initial={{ domains: 25, billing: 'monthly' }}
+        claimed={30}
+      />
+    )
+    period('Yearly')
+    expect(screen.queryByText(/Release some under Sites/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Switch to 25 sites' })).toHaveProperty(
+      'disabled',
+      false
+    )
   })
 
   it('holds the switch while a payment is due', () => {

@@ -10,13 +10,13 @@ import {
 } from '@/components/ui/card'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { requireAccount } from '@/server/account'
+import { requireSignIn } from '@/server/account'
 
 export const dynamic = 'force-dynamic'
 
-// #140 mockups, Settings: only what exists today.
+// #140 mockups, Settings: only what exists today. It needs only the session's email.
 export default async function AccountSettings() {
-  const account = await requireAccount('/account/settings')
+  const email = await requireSignIn('/account/settings')
   return (
     <>
       <PageHeader
@@ -32,7 +32,7 @@ export default async function AccountSettings() {
           <CardContent>
             <Field>
               <FieldLabel htmlFor="account-email">Email</FieldLabel>
-              <Input id="account-email" value={account.email} readOnly />
+              <Input id="account-email" value={email} readOnly />
               <FieldDescription>
                 To use another address, sign out and sign in with it. Claims and plans stay with
                 this one.
