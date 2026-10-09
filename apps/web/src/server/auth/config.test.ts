@@ -279,14 +279,32 @@ describe('Better Auth on D1', () => {
     expect(missing.status).toBe(403)
   })
 
-  it('refuses a body over the cap before Better Auth reads it, with or without a length', async () => {
-    const padding = 'x'.repeat(MAX_AUTH_BODY_BYTES)
-    const sized = await post(
-      SEND_OTP_PATH,
-      { email: 'big@example.com', type: 'sign-in', padding },
-      { ip: nextClient() }
-    )
+  it('refuses a body over the cap before Better Auth reads it, by its length or as it streams', async () => {
+    const send = (body: string, contentLength: number) =>
+      auth.handler(
+        new Request(`${ORIGIN}/api/auth${SEND_OTP_PATH}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': String(contentLength),
+            Origin: ORIGIN,
+            'cf-connecting-ip': nextClient()
+          },
+          body
+        })
+      )
+    // A Content-Length over the cap is refused without reading the (small) body...
+    const small = JSON.stringify({ email: 'sized@example.com', type: 'sign-in' })
+    const sized = await send(small, MAX_AUTH_BODY_BYTES + 1)
     expect(sized.status).toBe(413)
+    expect(sent).toHaveLength(0)
+    // ...and an honest one, as every browser sends, is served.
+    const honest = await send(small, new TextEncoder().encode(small).length)
+    expect(honest.status).toBe(200)
+    expect(sent).toHaveLength(1)
+    sent.length = 0
+
+    const padding = 'x'.repeat(MAX_AUTH_BODY_BYTES)
     const bytes = new TextEncoder().encode(
       JSON.stringify({ email: 'big@example.com', type: 'sign-in', padding })
     )
@@ -364,7 +382,19 @@ describe('Better Auth on D1', () => {
 })
 
 describe('when D1 fails', () => {
-  it('logs neither the email nor the code nor the query', async () => {
+  it('logs neither the email, the code, the session token nor the query', async () => {
+    // A real session, signed with the same secret, so its token reaches the failing D1.
+    const ip = nextClient()
+    const { code } = await requestCode('signed.in@example.com', ip)
+    const signIn = await post(
+      SIGN_IN_OTP_PATH,
+      { email: 'signed.in@example.com', otp: code },
+      { ip }
+    )
+    const cookie = cookiesFrom(signIn)
+    const token = decodeURIComponent(cookie.split('=')[1] ?? '').split('.')[0] ?? ''
+    expect(token.length).toBeGreaterThan(10)
+
     // A binding whose every statement fails, like a transient D1 error or a missing migration.
     const fail = () => Promise.reject(new Error('D1_ERROR: no such table: verification'))
     const statement = { bind: () => statement, all: fail, run: fail, first: fail, raw: fail }
@@ -401,12 +431,18 @@ describe('when D1 fails', () => {
         )
         expect(response.status).toBeGreaterThanOrEqual(400)
       }
+      const session = await failing.handler(
+        new Request(`${ORIGIN}/api/auth/get-session`, { headers: { cookie, Origin: ORIGIN } })
+      )
+      expect(await session.text()).not.toContain(token)
     } finally {
       for (const spy of spies) spy.mockRestore()
     }
     expect(logged.length).toBeGreaterThan(0)
     const text = logged.join('\n')
     expect(text).not.toContain('victim@example.com')
+    expect(text).not.toContain('signed.in@example.com')
+    expect(text).not.toContain(token)
     expect(text).not.toContain('Failed query')
     expect(text).not.toContain('params')
   })

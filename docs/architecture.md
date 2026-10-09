@@ -45,7 +45,8 @@ as lastmod. Past 50,000 sites the group needs a second file, and the route logs 
   Server Actions. Each reads its request through `readWriteRequest` (`src/server/write-route.ts`):
   a zod schema, a 16 KB body cap and, except on admin routes, an `Origin` check, because every
   `*.serp.co` site is same-site to this one. The Stripe webhook checks its signature instead,
-  and Better Auth's handler (`/api/auth/*`) applies the same Origin check and body cap itself
+  and Better Auth's handler (`/api/auth/*`) applies its own 16 KB cap and an `Origin` check
+  against `BETTER_AUTH_URL` only, not the origin a request was sent to
   ([Accounts and claims](accounts-and-claims.md)). Two reads also write: rendering `/sites/<domain>` stores a lookup while the
   domain has no DR, and metadata while its title, description or URL is missing, within the
   new-lookup caps for a domain with no DR ([DR lookups](dr-lookups.md#when-ahrefs-is-called)), and

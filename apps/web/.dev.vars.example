@@ -8,7 +8,8 @@ USESEND_API_KEY=
 USESEND_FROM=DR Checker <no-reply@mail.serp.co>
 
 # Better Auth (sign-in). Locally the secret may stay empty (a throwaway one is used).
-# BETTER_AUTH_URL must be the origin you browse, or sign-in answers 403 "Invalid origin".
+# BETTER_AUTH_URL must be the origin you browse, or sign-in answers 403 "Invalid origin":
+# http://localhost:3000 under `pnpm dev`, http://localhost:8787 under `pnpm preview`.
 # Without USESEND_API_KEY, sign-in codes print in the dev server's terminal.
 BETTER_AUTH_SECRET=
 BETTER_AUTH_URL=http://localhost:3000
