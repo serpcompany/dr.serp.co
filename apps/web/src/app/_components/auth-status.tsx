@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 
 import { Button, buttonVariants } from '@/components/ui/button'
 import { readJsonRecord } from '@/lib/read-json'
+import { cn } from '@/lib/utils'
 
 function readEmail() {
   return window.localStorage.getItem('dr-auth-email')?.trim().toLowerCase() || ''
@@ -70,7 +71,7 @@ export function AuthStatus() {
 
   if (!email) {
     return (
-      <Link href="/add" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+      <Link href="/add" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
         Log in
       </Link>
     )

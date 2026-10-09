@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { BillingPortalButton } from '@/app/_components/billing-portal-button'
 import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 function readEmail() {
   return window.localStorage.getItem('dr-auth-email')?.trim().toLowerCase() || ''
@@ -23,7 +24,7 @@ export function BillingEntry() {
 
   if (!email) {
     return (
-      <Link href="/add" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
+      <Link href="/add" className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}>
         Log in to manage billing
       </Link>
     )
@@ -31,7 +32,7 @@ export function BillingEntry() {
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-2">
-      <Link href="/billing" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
+      <Link href="/billing" className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}>
         View billing status
       </Link>
       <BillingPortalButton email={email} />

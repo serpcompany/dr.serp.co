@@ -14,6 +14,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { readJsonRecord } from '@/lib/read-json'
+import { cn } from '@/lib/utils'
 
 const SKELETON_KEYS = ['s1', 's2', 's3', 's4', 's5', 's6']
 
@@ -85,7 +86,7 @@ export function AllSites() {
             {total ? `${total.toLocaleString()} domains` : '—'}
           </p>
         </div>
-        <Link href="/sites" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
+        <Link href="/sites" className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}>
           View all
         </Link>
       </CardHeader>

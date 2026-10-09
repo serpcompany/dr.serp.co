@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { readJsonRecord } from '@/lib/read-json'
 import { filterSiteHistory, removeSiteHistory, type SiteRow } from '@/lib/site-history'
+import { cn } from '@/lib/utils'
 
 const SKELETON_KEYS = ['s1', 's2', 's3', 's4', 's5', 's6']
 
@@ -149,7 +150,7 @@ export function MySites({ email }: { email: string }) {
           <div className="rounded-lg border bg-muted p-6 text-center">
             <p className="text-sm text-muted-foreground">{upgrade.message}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <Link href="/pricing" className={buttonVariants({ size: 'sm' })}>
+              <Link href="/pricing" className={cn(buttonVariants({ size: 'sm' }))}>
                 View plans
               </Link>
               {upgrade.entitlement?.subscription?.stripeCustomerId ? (
@@ -179,7 +180,7 @@ export function MySites({ email }: { email: string }) {
             </p>
             {!query.trim() ? (
               <div className="mt-4 flex justify-center">
-                <Link href="/add" className={buttonVariants({ size: 'sm' })}>
+                <Link href="/add" className={cn(buttonVariants({ size: 'sm' }))}>
                   Look up a domain
                 </Link>
               </div>

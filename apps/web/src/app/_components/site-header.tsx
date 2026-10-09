@@ -16,17 +16,17 @@ export function SiteHeader() {
           SERP DR
         </Link>
         <div className="hidden items-center gap-1 sm:flex">
-          <Link href="/" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+          <Link href="/" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
             Home
           </Link>
-          <Link href="/sites" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+          <Link href="/sites" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
             Sites
           </Link>
-          <Link href="/pricing" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+          <Link href="/pricing" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
             Pricing
           </Link>
         </div>
-        <Link href="/add" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
+        <Link href="/add" className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}>
           <Plus className="h-4 w-4" />
           Add site
         </Link>
